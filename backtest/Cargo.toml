@@ -1,0 +1,11 @@
+[package]
+name = "backtest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+common = { path = "../common" }
+market = { path = "../market" }
+trade = { path = "../trade" }
+csv = "1"
+serde = { version = "1.0.55", features = ["derive"] }

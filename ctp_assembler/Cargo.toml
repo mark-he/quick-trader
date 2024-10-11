@@ -1,0 +1,16 @@
+[package]
+name = "ctp_assembler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "quick_trader_ctp"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+common = { path = "../common" }
+trade = { path = "../trade" }
+market = { path = "../market" }
+backtest = { path = "../backtest" }
+ctp = { path = "../ctp" }

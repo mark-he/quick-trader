@@ -1,0 +1,5 @@
+[workspace]
+members = [ "account", "backtest", 
+    "common", "ctp", "ctp_assembler",
+    "market", "trade",
+]
