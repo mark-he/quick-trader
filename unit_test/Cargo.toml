@@ -1,0 +1,13 @@
+[package]
+name = "unit_test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+common = { path = "../common" }
+trade = { path = "../trade" }
+market = { path = "../market" }
+backtest = { path = "../backtest" }
+ctp = { path = "../ctp" }
+account = { path = "../account" }

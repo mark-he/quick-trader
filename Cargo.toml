@@ -1,5 +1,5 @@
 [workspace]
-members = [ "account", "backtest", "binance", 
+members = [ "account", "backtest", "binance", "binance_spot_connector", 
     "common", "ctp", "ctp_assembler",
-    "market", "trade",
+    "market", "trade", "unit_test","examples"
 ]
