@@ -1,10 +1,9 @@
-use super::{constants::{OFFSET_CLOSE, OFFSET_CLOSEYESTERDAY}, trade_server::*};
+use super::trade_server::*;
 use std::{collections::HashMap, thread::{self, JoinHandle}};
 use common::{error::AppError, msmc::Subscription};
 use std::sync::{Arc, Mutex, RwLock};
 use crossbeam::channel::{self, Receiver, Sender};
 type SharedGw = Arc<Mutex<TradeGateway>>;
-use std::cmp::min;
 
 static mut INSTANCE: Option<SharedGw> = None;
 pub struct TradeGatewayHolder {
@@ -102,33 +101,7 @@ impl TradeGateway {
 
     pub fn send_order(&mut self, unit_id: &str, order : &OrderInsert) -> i32 {
         let request_id = self.apply_request_id(unit_id);
-
-        if order.offset == OFFSET_CLOSE.code && order.exchange_id == "SHFE" {
-            let v = self.get_positions(unit_id, &order.symbol);
-            let mut last_day = 0;
-
-            for p in v.iter() {
-                if p.direction != order.direction {
-                    last_day += p.position - p.today_position;
-                }
-            }
-
-            let mut remain= order.volume_total;
-            if last_day > 0 {
-                let mut last_day_order = order.clone();
-                last_day_order.offset = OFFSET_CLOSEYESTERDAY.code.to_string();
-                last_day_order.volume_total = min(last_day, order.volume_total);
-                remain -= last_day_order.volume_total;
-                self.server.send_order(&last_day_order, unit_id, request_id);
-            }
-            if remain > 0 {
-                let mut today_day_order = order.clone();
-                today_day_order.volume_total = remain;
-                self.server.send_order(&today_day_order, unit_id, request_id);
-            }
-        } else {
-            self.server.send_order(&order, unit_id, request_id);
-        }
+        self.server.send_order(&order, unit_id, request_id);
         request_id
     }
 

@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use std::thread;
 use std::cmp::min;
 use market::market_server::MarketData;
-use trade::constants::*;
+use trade::code;
 use {common::msmc::Subscription, trade::trade_server::*};
 use common::error::AppError;
 
@@ -84,7 +84,7 @@ impl AccountStorage {
         match ret {
             Some(index) => {
                 let mut order = self.orders.remove(index);
-                order.status = ORDER_STATUS_CANCELLED.code.to_string();
+                order.status = code::ORDER_STATUS_CANCELLED.to_string();
                 order.status_msg = String::from("Cancelled");
                 self.history_orders.push(order.clone());
                 Some(order)
@@ -106,7 +106,7 @@ impl AccountStorage {
             
             let mut ret_order : Order = order.clone();
 
-            if order.offset == OFFSET_OPEN.code.to_string() {
+            if order.offset == code::OFFSET_OPEN.to_string() {
                 let pos = Position {
                     symbol: order.symbol.clone(),
                     position: order.volume_total,
@@ -132,7 +132,7 @@ impl AccountStorage {
                                 let trade_vol = min(min(trade_left, order.volume_total), temp.position);
                                 trade_left -= trade_vol;
 
-                                if temp.direction == DIRECTION_LONG.code {
+                                if temp.direction == code::DIRECTION_LONG {
                                     account_offset += (order.price - temp.cost) * 10 as f64 * trade_vol as f64;
                                 } else {
                                     account_offset += (temp.cost - order.price) * 10 as f64 * trade_vol as f64;
@@ -172,14 +172,14 @@ impl AccountStorage {
             ret_order.volume_total -= traded_volume;
 
             if ret_order.volume_total == 0 {
-                ret_order.status = ORDER_STATUS_ALL_TRADED.code.to_string();
+                ret_order.status = code::ORDER_STATUS_ALL_TRADED.to_string();
                 ret_order.status_msg = String::from("All Traded");
 
                 self.history_orders.push(order.clone());
                 let orders = &mut self.orders;
                 orders.remove(index);
             } else if ret_order.volume_traded > 0 {   
-                ret_order.status = ORDER_STATUS_PART_TRADED_QUEUEING.code.to_string();
+                ret_order.status = code::ORDER_STATUS_PART_TRADED_QUEUEING.to_string();
             }
             Some((ret_order, trade))
         } else {
@@ -243,7 +243,7 @@ impl TradeServer for BacktestTradeServer {
                                     for item in orders {
                                         if item.symbol == t.symbol {
                                             let mut account = account_db.write().unwrap();
-                                            if item.direction == DIRECTION_LONG.code {
+                                            if item.direction == code::DIRECTION_LONG {
                                                 if t.last_price < item.price {
                                                     ret = account.trade_order(&item.sys_id, t.last_price, &t.datetime, &t.trading_day);
                                                 }
@@ -280,10 +280,10 @@ impl TradeServer for BacktestTradeServer {
             offset: order_insert.offset.clone(), 
             price: order_insert.limit_price, 
             volume_total_original: order_insert.volume_total, 
-            submit_status: ORDER_SUBMIT_ACCEPTED_SUBMITTED.code.to_string(), 
+            submit_status: code::ORDER_SUBMIT_ACCEPTED_SUBMITTED.to_string(), 
             sys_id: self.order_id_gen.to_string(), 
             order_type: order_insert.order_type.clone(),
-            status: ORDER_STATUS_UNKNOWN.code.to_string(), 
+            status: code::ORDER_STATUS_NO_TRADED_QUEUEING.to_string(), 
             volume_traded: 0, 
             volume_total: order_insert.volume_total, 
             status_msg: "已提交未成交".to_string(), 

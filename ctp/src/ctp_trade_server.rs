@@ -10,10 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Mutex, RwLock, Arc};
 use trade::trade_server::*;
 use common::{c::*, msmc::Subscription, error::AppError};
-use trade::constants::*;
+use super::ctp_code::*;
 use super::ctp_trade_spi::Spi;
 use tokio::time::{interval, Duration as TokioDuration};
 use tokio::runtime::Runtime;
+use std::cmp::min;
 
 struct SafePointer<T>(*mut T);
 
@@ -525,6 +526,43 @@ impl TradeServer for CtpTradeServer {
     }
 
     fn send_order(&mut self, order : &OrderInsert, unit_id: &str, request_id : i32) {
+        if order.offset == OFFSET_CLOSE.code && order.exchange_id == "SHFE" {
+            let v = self.get_positions(unit_id, &order.symbol);
+            let mut last_day = 0;
+
+            for p in v.iter() {
+                if p.direction != order.direction {
+                    last_day += p.position - p.today_position;
+                }
+            }
+
+            let mut remain= order.volume_total;
+            if last_day > 0 {
+                let mut last_day_order = order.clone();
+                last_day_order.offset = OFFSET_CLOSEYESTERDAY.code.to_string();
+                last_day_order.volume_total = min(last_day, order.volume_total);
+                remain -= last_day_order.volume_total;
+
+                unsafe {
+                    let tdapi = TDAPI.as_ref().unwrap().clone();
+                    let _ = tdapi.lock().unwrap().req_order_insert(&last_day_order, unit_id, request_id);
+                }
+            }
+            if remain > 0 {
+                let mut today_day_order = order.clone();
+                today_day_order.volume_total = remain;
+                unsafe {
+                    let tdapi = TDAPI.as_ref().unwrap().clone();
+                    let _ = tdapi.lock().unwrap().req_order_insert(&today_day_order, unit_id, request_id);
+                }
+            }
+        } else {
+            unsafe {
+                let tdapi = TDAPI.as_ref().unwrap().clone();
+                let _ = tdapi.lock().unwrap().req_order_insert(&order, unit_id, request_id);
+            }
+        }
+
         unsafe {
             let tdapi = TDAPI.as_ref().unwrap().clone();
             let _ = tdapi.lock().unwrap().req_order_insert(order, unit_id, request_id);

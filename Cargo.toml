@@ -1,5 +1,5 @@
 [workspace]
-members = [ "account", "backtest", 
+members = [ "account", "backtest", "binance", 
     "common", "ctp", "ctp_assembler",
     "market", "trade",
 ]

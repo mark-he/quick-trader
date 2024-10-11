@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::os::raw::*;
 use trade::trade_server::*;
 use common::{c::*, msmc::Subscription};
-use trade::constants::*;
+use super::ctp_code::*;
 
 pub struct Spi {
     pub tx: Subscription<(i32, TradeData)>,
