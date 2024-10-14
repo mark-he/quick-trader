@@ -36,7 +36,7 @@ impl MarketServer for BacktestMarketServer {
         }
     }
 
-    fn subscribe(&mut self, symbol: &str) -> Result<(), AppError> {
+    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError> {
         if !self.connected {
             Err(AppError::new(-100, "MarketServer is disconnected"))
         } else {

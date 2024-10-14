@@ -1,5 +1,5 @@
 use binance_spot_connector::{
-    market::klines::KlineInterval, market_stream::kline::KlineStream, market_stream::ticker::TickerStream,
+    market_stream::ticker::TickerStream,
     tokio_tungstenite::BinanceWebSocketClient,
 };
 use env_logger::Builder;

@@ -126,7 +126,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> WebSocketState<T> {
         self.send("LIST_SUBSCRIPTIONS", vec![]).await
     }
 
-    pub async fn close(mut self) -> Result<(), Error> {
+    pub async fn close(&mut self) -> Result<(), Error> {
         self.socket.close(None).await
     }
 }

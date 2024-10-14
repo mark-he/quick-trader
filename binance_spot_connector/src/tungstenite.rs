@@ -134,7 +134,7 @@ impl<T: Read + Write> WebSocketState<T> {
         self.send("LIST_SUBSCRIPTIONS", vec![])
     }
 
-    pub fn close(mut self) -> Result<(), Error> {
+    pub fn close(&mut self) -> Result<(), Error> {
         self.socket.close(None)
     }
 }

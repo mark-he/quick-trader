@@ -71,7 +71,7 @@ impl MarketGateway {
             }
         }
         if !found {
-            let _ = self.server.subscribe(symbol)?;
+            let _ = self.server.subscribe_tick(symbol)?;
             symbols.push(symbol.to_string());
         }
 

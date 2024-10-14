@@ -4,3 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tungstenite = {version = "0.23.0", features = ["native-tls"]}
+binance_spot_connector = { path = "../binance_spot_connector", features = ["enable-tungstenite"]}
+log = "0.4.14"
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3.21"
+env_logger = "0.11.3"
+rust_decimal = "1.24.0"
+rust_decimal_macros = "1.24.0"
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "*"
+common = { path = "../common" }
+trade = { path = "../trade" }
+market = { path = "../market" }

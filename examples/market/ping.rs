@@ -1,5 +1,4 @@
 use binance_spot_connector::{
-    http::Credentials,
     hyper::{BinanceHttpClient, Error},
     market,
 };

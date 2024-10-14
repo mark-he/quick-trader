@@ -2,6 +2,8 @@
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::time::Duration;
+    use binance::bn_market_server::BnMarketServer;
     use common::error::AppError;
     use backtest::backtest_market_server::BacktestMarketServer;
     use ctp::ctp_market_server::CtpMarketServer;
@@ -57,7 +59,7 @@ mod tests {
                 }
             });
 
-            let result = server.subscribe("m2502");
+            let result = server.subscribe_tick("m2502");
             match result {
                 Ok(_)=>{
 
@@ -170,7 +172,7 @@ mod tests {
                 }
             });
 
-            let result = server.subscribe("m2501");
+            let result = server.subscribe_tick("m2501");
             match result {
                 Ok(_)=>{
 
@@ -229,4 +231,23 @@ mod tests {
 
         let _ = handle.join();
     }
+
+
+    #[test]
+    fn test_market_bn_server() {
+        let mut server = BnMarketServer::new();
+        let prop : HashMap<String, String> = HashMap::new();
+        let ret = server.connect(&prop); 
+        println!("{:?}", ret.is_err());
+        let _ = server.subscribe_tick("BTCUSDT");
+        let _ = server.subscribe_kline("BTCUSDT", "1m");
+        println!("{:?}", ret.is_err());
+        server.start();
+
+        loop {
+            println!("wait");
+            thread::sleep(Duration::from_secs(1));
+        }
+    }
+
 }

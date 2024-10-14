@@ -58,5 +58,10 @@ pub enum MarketData {
 
 pub trait MarketServer {
     fn connect(&mut self, prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError>;
-    fn subscribe(&mut self, symbol: &str) -> Result<(), AppError>;
+    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError>;
+    fn subscribe_kline(&mut self, _symbol: &str, _duration: &str) -> Result<(), AppError> {
+        Ok(())
+    }
+    fn start(&mut self) {}
+    fn close(&mut self) {}
 }

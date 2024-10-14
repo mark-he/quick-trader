@@ -277,7 +277,7 @@ impl MarketServer for CtpMarketServer {
         Ok(subscription)
     }
 
-    fn subscribe(&mut self, symbol: &str) -> Result<(), AppError> {
+    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError> {
         unsafe {
             let mdapi = MDAPI.as_ref().unwrap().clone();
             mdapi.lock().unwrap().subscribe_market_data(&[symbol], false).unwrap();
