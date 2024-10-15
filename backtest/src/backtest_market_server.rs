@@ -1,4 +1,5 @@
-use market::market_server::{MarketServer, MarketData, Tick};
+use market::kline::KLineCombiner;
+use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use common::{error::AppError, msmc::*};
 use std::collections::HashMap;
 use std::fs::File;
@@ -6,13 +7,19 @@ use std::error::Error;
 use std::thread::{self};
 use std::time::Duration;
 use std::sync::{Arc, RwLock};
+use std::collections::HashSet;
 
 static FILE_PATH :&str = "d:";
 
+#[derive(Clone)]
+pub struct MarketTopic {
+    pub symbol: String,
+    pub interval: String,
+}
 pub struct BacktestMarketServer {
     connected: bool,
     subscription:Arc<RwLock<Subscription<MarketData>>>,
-    topics : HashMap<String, i32>,
+    topics: Vec<MarketTopic>,
 }
 
 impl BacktestMarketServer {
@@ -20,7 +27,7 @@ impl BacktestMarketServer {
         BacktestMarketServer {
             connected: false,
             subscription: Arc::new(RwLock::new(Subscription::top())),
-            topics: HashMap::new(),
+            topics: Vec::new(),
         }
     }
 }
@@ -36,39 +43,94 @@ impl MarketServer for BacktestMarketServer {
         }
     }
 
-    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError> {
-        if !self.connected {
-            Err(AppError::new(-100, "MarketServer is disconnected"))
-        } else {
-            if !self.topics.contains_key(&symbol.to_string()) {
-                let result = read_csv_file(String::from(format!("{}/{}.csv", FILE_PATH, symbol)));
-                let subscription_ref = self.subscription.clone();
-                let symbol_clone = symbol.to_string();
-                if let Ok(data) = result {
-                    thread::spawn(move || {
-                        let subscription = subscription_ref.write().unwrap();
-                        for o in data.iter() {
-                            thread::sleep(Duration::from_millis(1000));
-                            let v = o.clone();
-                            let result = _convert_tick(symbol_clone.as_str(), v);
-                            
-                            if let Ok(tick) = result {
-                                let _send_ret = subscription.send(&Some(MarketData::Tick(tick)));
-                            }
-                        }
-                        let _send_ret = subscription.send(&Some(MarketData::MarketClosed));
-                    });
-                    Ok(())
-                } else {
-                    Err(AppError::new(-101, format!("Error happened when subscribing data of symbol {}", symbol).as_str()).cause(result.unwrap_err()))
-                }
-            } else {
-                Ok(())
+    fn subscribe_tick(&mut self, symbol: &str) {
+        let mut found = false;
+        for topic in self.topics.iter() {
+            if topic.symbol == symbol && topic.interval == "" {
+                found = true;
+                break;
             }
         }
-    }
-}
 
+        if !found {
+            let topic = MarketTopic {
+                symbol: symbol.to_string(),
+                interval: "".to_string(),
+            };
+            self.topics.push(topic);
+        }
+    }
+
+    fn subscribe_kline(&mut self, symbol: &str, interval: &str) {
+        let mut found = false;
+        for topic in self.topics.iter() {
+            if topic.symbol == symbol && topic.interval == interval {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            let topic = MarketTopic {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
+            };
+            self.topics.push(topic);
+        }
+    }
+
+    fn start(&mut self)  -> Result<(), AppError> {
+        let mut symbol_set: HashSet<String> = HashSet::new();
+
+        for topic in self.topics.iter() {
+            symbol_set.insert(topic.symbol.clone());
+        }
+
+        for symbol in symbol_set {
+            let symbol_clone = symbol.clone();
+            let topics_clone = self.topics.clone();
+            let subscription_ref = self.subscription.clone();
+            thread::spawn(move || {
+                let result = read_csv_file(String::from(format!("{}/{}.csv", FILE_PATH, symbol)));
+                let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
+                if let Ok(data) = result {
+                    for o in data.iter() {
+                        thread::sleep(Duration::from_millis(1000));
+                        let result = _convert_tick(symbol_clone.as_str(), &o);
+                        let subscription = subscription_ref.read().unwrap();
+                        if let Ok(t) = result {
+                            let _ = subscription.send(&Some(MarketData::Tick(t.clone())));
+                            for topic in topics_clone.iter() {
+                                if topic.symbol == symbol_clone && topic.interval != "" {
+                                    let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
+                                    let kline = KLine {
+                                        symbol: t.symbol.clone(),
+                                        datetime: t.datetime.clone(),
+                                        interval: topic.interval.clone(),
+                                        open: t.open,
+                                        high: t.high,
+                                        low: t.low,
+                                        close: t.close,
+                                        volume: t.volume,
+                                        turnover: t.turnover,
+                                    };
+                                    let mut new_kline = combiner.combine_tick(&kline, true);
+                                    if let Some(kline) = new_kline.take() {
+                                        let _ = subscription.send(&Some(MarketData::Kline(kline)));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    panic!("Error happened when subscribing data of symbol {}", symbol_clone);
+                }
+            });
+        }
+        Ok(())
+    }
+
+    fn close(&mut self) {}
+}
 
 #[derive(Debug, serde::Deserialize, Clone)]
 struct OrderBook {
@@ -117,7 +179,7 @@ fn _convert_str_i32(str: &str) -> Result<i32, AppError> {
     }
 }
 
-fn _convert_tick(symbol : &str, order_book : OrderBook) -> Result<Tick, AppError> {
+fn _convert_tick(symbol : &str, order_book : &OrderBook) -> Result<Tick, AppError> {
     let tick = Tick {
         symbol: String::from(symbol),
         trading_day: order_book.trading_day.clone(),

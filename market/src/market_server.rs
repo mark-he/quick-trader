@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use common::{error::AppError, msmc::Subscription};
 
-use super::kline::KLine;
-
 #[derive(Debug, Clone, Default)]
 pub struct Tick {
     pub symbol: String,
@@ -39,6 +37,19 @@ pub struct Tick {
 }
 
 #[derive(Debug, Clone)]
+pub struct KLine {
+    pub symbol: String,
+    pub interval: String,
+    pub datetime: String,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+    pub volume: i32,
+    pub turnover: f64,
+}
+
+#[derive(Debug, Clone)]
 pub struct Event {
     pub code: i32,
     pub message: String,
@@ -58,10 +69,8 @@ pub enum MarketData {
 
 pub trait MarketServer {
     fn connect(&mut self, prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError>;
-    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError>;
-    fn subscribe_kline(&mut self, _symbol: &str, _duration: &str) -> Result<(), AppError> {
-        Ok(())
-    }
-    fn start(&mut self) {}
-    fn close(&mut self) {}
+    fn subscribe_tick(&mut self, symbol: &str);
+    fn subscribe_kline(&mut self, symbol: &str, interval: &str);
+    fn start(&mut self) -> Result<(), AppError>;
+    fn close(&mut self);
 }

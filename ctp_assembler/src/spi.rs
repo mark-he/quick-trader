@@ -4,7 +4,6 @@ use std::os::raw::*;
 use std::ffi::CString;
 use std::thread;
 use common::c::*;
-use market::kline::*;
 
 
 #[repr(C)]
@@ -159,7 +158,7 @@ pub extern "C" fn init_backtest() {
     let gateway_ref = MarketGatewayHolder::get_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
     let _ = gateway.connect(&HashMap::new());
-    let market_sub = gateway.get_market_sub();
+    let market_sub = gateway.get_tick_sub();
     //let _ = gateway.subscribe("m2501");
 
     let mut backtest_server = BacktestTradeServer::new();
@@ -268,113 +267,98 @@ pub extern "C" fn subscribe_trade(unit_id : *const c_char, on_order: extern "C" 
 }
 
 #[no_mangle]
-pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char, duration : *const c_char, callback: extern "C" fn(*const c_char, *const CKLine)) {
+pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char, interval : *const c_char, callback: extern "C" fn(*const c_char, *const CKLine)) {
     let symbol_rust = c_char_to_string(symbol);
-    let duration_rust = c_char_to_string(duration);
+    let interval_rust = c_char_to_string(interval);
 
     let gateway_ref = MarketGatewayHolder::get_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let kline_combiner = Some(KLineCombiner::new(&duration_rust, 100, Some(21)));
-    let ret  = gateway.subscribe(&symbol_rust, kline_combiner);
+    let rx  = gateway.subscribe_kline(&symbol_rust, interval_rust.as_str());
 
     let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
-    match ret {
-        Ok(rx) => {
-            thread::spawn(move || {
-                loop {
-                    if let Ok(data) = rx.recv() {
-                        match data {
-                            MarketData::Kline(tick) => {
-                                let datetime = CString::new(tick.datetime).expect("CString failed");
-                                let market_data: CKLine = CKLine {
-                                    datetime: datetime.as_ptr(),
-                                    open: tick.open,
-                                    high: tick.high,
-                                    low: tick.low,
-                                    close: tick.close,
-                                    volume: tick.volume,
-                                    turnover: tick.turnover,
-                                };
-                                callback(sub_id_rust.as_ptr(), &market_data);
-                            },
-                            _ => {},
-                        }
-                    }
+
+    thread::spawn(move || {
+        loop {
+            if let Ok(data) = rx.recv() {
+                match data {
+                    MarketData::Kline(tick) => {
+                        let datetime = CString::new(tick.datetime).expect("CString failed");
+                        let market_data: CKLine = CKLine {
+                            datetime: datetime.as_ptr(),
+                            open: tick.open,
+                            high: tick.high,
+                            low: tick.low,
+                            close: tick.close,
+                            volume: tick.volume,
+                            turnover: tick.turnover,
+                        };
+                        callback(sub_id_rust.as_ptr(), &market_data);
+                    },
+                    _ => {},
                 }
-            });
-        },
-        Err(e) => {
-            panic!("Error happened when subscribing trade server: {}", e.message);
-        },
-    }
+            }
+        }
+    });
+
 }
 
 #[no_mangle]
 pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char, callback: extern "C" fn(*const c_char, *const CTick)) {
     let symbol_rust = c_char_to_string(symbol);
-
     let gateway_ref = MarketGatewayHolder::get_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-
-    let ret  = gateway.subscribe(&symbol_rust, None);
-
+    let rx  = gateway.subscribe_tick(&symbol_rust);
     let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
-    match ret {
-        Ok(rx) => {
-            thread::spawn(move || {
-                loop {
-                    if let Ok(data) = rx.recv() {
-                        match data {
-                            MarketData::Tick(tick) => {
-                                let datetime = CString::new(tick.datetime).expect("CString failed");
-                                let symbol = CString::new(tick.symbol).expect("CString failed");
-                                let trading_day = CString::new(tick.trading_day).expect("CString failed");
-                                let market_data: CTick = CTick {
-                                    symbol: symbol.as_ptr(),
-                                    trading_day: trading_day.as_ptr(),
-                                    datetime: datetime.as_ptr(),
-                                    open: tick.open,
-                                    high: tick.high,
-                                    low: tick.low,
-                                    close: tick.close,
-                                    volume: tick.volume,
-                                    turnover: tick.turnover,
-                                    open_interest: tick.open_interest,
-                                    last_price: tick.last_price,
-                                    bid_price1: tick.bid_price1,
-                                    bid_price2: tick.bid_price2,
-                                    bid_price3: tick.bid_price3,
-                                    bid_price4: tick.bid_price4,
-                                    bid_price5: tick.bid_price5,
-                                    bid_volume1: tick.bid_volume1,
-                                    bid_volume2: tick.bid_volume2,
-                                    bid_volume3: tick.bid_volume3,
-                                    bid_volume4: tick.bid_volume4,
-                                    bid_volume5: tick.bid_volume5,
-                                    ask_price1: tick.ask_price1,
-                                    ask_price2: tick.ask_price2,
-                                    ask_price3: tick.ask_price3,
-                                    ask_price4: tick.ask_price4,
-                                    ask_price5: tick.ask_price5,
-                                    ask_volume1: tick.ask_volume1,
-                                    ask_volume2: tick.ask_volume2,
-                                    ask_volume3: tick.ask_volume3,
-                                    ask_volume4: tick.ask_volume4,
-                                    ask_volume5: tick.ask_volume5,
-                                };
-                                callback(sub_id_rust.as_ptr(), &market_data);
-                            },
-                            _ => {},
-                        }
-                    }
+    thread::spawn(move || {
+        loop {
+            if let Ok(data) = rx.recv() {
+                match data {
+                    MarketData::Tick(tick) => {
+                        let datetime = CString::new(tick.datetime).expect("CString failed");
+                        let symbol = CString::new(tick.symbol).expect("CString failed");
+                        let trading_day = CString::new(tick.trading_day).expect("CString failed");
+                        let market_data: CTick = CTick {
+                            symbol: symbol.as_ptr(),
+                            trading_day: trading_day.as_ptr(),
+                            datetime: datetime.as_ptr(),
+                            open: tick.open,
+                            high: tick.high,
+                            low: tick.low,
+                            close: tick.close,
+                            volume: tick.volume,
+                            turnover: tick.turnover,
+                            open_interest: tick.open_interest,
+                            last_price: tick.last_price,
+                            bid_price1: tick.bid_price1,
+                            bid_price2: tick.bid_price2,
+                            bid_price3: tick.bid_price3,
+                            bid_price4: tick.bid_price4,
+                            bid_price5: tick.bid_price5,
+                            bid_volume1: tick.bid_volume1,
+                            bid_volume2: tick.bid_volume2,
+                            bid_volume3: tick.bid_volume3,
+                            bid_volume4: tick.bid_volume4,
+                            bid_volume5: tick.bid_volume5,
+                            ask_price1: tick.ask_price1,
+                            ask_price2: tick.ask_price2,
+                            ask_price3: tick.ask_price3,
+                            ask_price4: tick.ask_price4,
+                            ask_price5: tick.ask_price5,
+                            ask_volume1: tick.ask_volume1,
+                            ask_volume2: tick.ask_volume2,
+                            ask_volume3: tick.ask_volume3,
+                            ask_volume4: tick.ask_volume4,
+                            ask_volume5: tick.ask_volume5,
+                        };
+                        callback(sub_id_rust.as_ptr(), &market_data);
+                    },
+                    _ => {},
                 }
-            });
-        },
-        Err(e) => {
-            panic!("Error happened when subscribing trade server: {}", e.message);
-        },
-    }
+            }
+        }
+    });
+
 }
 
 #[no_mangle]

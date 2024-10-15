@@ -7,7 +7,6 @@ mod tests {
     use common::error::AppError;
     use backtest::backtest_market_server::BacktestMarketServer;
     use ctp::ctp_market_server::CtpMarketServer;
-    use market::kline::KLineCombiner;
     use market::market_server::{MarketData, MarketServer};
     use market::market_gateway::MarketGatewayHolder;
     use backtest::backtest_trade_server::BacktestTradeServer;
@@ -59,15 +58,8 @@ mod tests {
                 }
             });
 
-            let result = server.subscribe_tick("m2502");
-            match result {
-                Ok(_)=>{
+            server.subscribe_tick("m2502");
 
-                },
-                Err(e) => {
-                    panic!("{}", e)
-                },
-            }
             handle.join().unwrap();
             assert_eq!(1, 1);
         } else {
@@ -84,58 +76,52 @@ mod tests {
         let gateway = MarketGatewayHolder::get_gateway();
         let mut gateway = gateway.lock().unwrap();
         let _ = gateway.connect(&HashMap::new());
-        let kline_combiner = Some(KLineCombiner::new("1m", 100, Some(21)));
-        let ret = gateway.subscribe("m2501", kline_combiner);
+        let rx = gateway.subscribe_kline("m2501", "1m");
 
-        if let Ok(rx) = ret {
-            thread::spawn(move || {
-                loop {
-                    let message =  rx.recv();
-                    match message {
-                        Ok(data) => {
-                            match data {
-                                MarketData::Tick(t) => {
-                                    println!("1:{:?}", t);
-                                },
-                                MarketData::MarketClosed => {
-                                    break;
-                                },
-                                _ => {},
-                            }
-                        },
-                        Err(e) => {
-                            panic!("{}", e)
-                        },
-                    }
+        thread::spawn(move || {
+            loop {
+                let message =  rx.recv();
+                match message {
+                    Ok(data) => {
+                        match data {
+                            MarketData::Tick(t) => {
+                                println!("1:{:?}", t);
+                            },
+                            MarketData::MarketClosed => {
+                                break;
+                            },
+                            _ => {},
+                        }
+                    },
+                    Err(e) => {
+                        panic!("{}", e)
+                    },
                 }
-            });
-        }
+            }
+        });
         
-        let kline_combiner = Some(KLineCombiner::new("1m", 100, Some(21)));
-        let ret = gateway.subscribe("m2502", kline_combiner);
-        if let Ok(rx) = ret {
-            thread::spawn(move || {
-                loop {
-                    let message =  rx.recv();
-                    match message {
-                        Ok(data) => {
-                            match data {
-                                MarketData::Tick(t) => {
-                                    println!("2:{:?}", t);
-                                },
-                                MarketData::MarketClosed => {
-                                    break;
-                                },
-                                _ => {},
-                            }
-                        },
-                        Err(e) => {
-                            panic!("{}", e)
-                        },
-                    }
+        let rx = gateway.subscribe_kline("m2502", "1m");
+        thread::spawn(move || {
+            loop {
+                let message =  rx.recv();
+                match message {
+                    Ok(data) => {
+                        match data {
+                            MarketData::Tick(t) => {
+                                println!("2:{:?}", t);
+                            },
+                            MarketData::MarketClosed => {
+                                break;
+                            },
+                            _ => {},
+                        }
+                    },
+                    Err(e) => {
+                        panic!("{}", e)
+                    },
                 }
-            });
-        }
+            }
+        });
         gateway.start();
     }
 
@@ -172,15 +158,8 @@ mod tests {
                 }
             });
 
-            let result = server.subscribe_tick("m2501");
-            match result {
-                Ok(_)=>{
-
-                },
-                Err(e) => {
-                    panic!("{}", e)
-                },
-            }
+            server.subscribe_tick("m2501");
+            
             handle.join().unwrap();
             assert_eq!(1, 1);
         } else {
@@ -214,9 +193,8 @@ mod tests {
         let gateway = MarketGatewayHolder::get_gateway();
         let mut gateway = gateway.lock().unwrap();
         let _ = gateway.connect(&HashMap::new());
-        let market_sub = gateway.get_market_sub();
-        let kline_combiner = Some(KLineCombiner::new("1m", 100, Some(21)));
-        let _ = gateway.subscribe("m2501", kline_combiner);
+        let market_sub = gateway.get_tick_sub();
+        let _ = gateway.subscribe_kline("m2501", "1m");
 
         let mut backtest_server = BacktestTradeServer::new();
         backtest_server.set_market_sub(market_sub);
@@ -242,7 +220,7 @@ mod tests {
         let _ = server.subscribe_tick("BTCUSDT");
         let _ = server.subscribe_kline("BTCUSDT", "1m");
         println!("{:?}", ret.is_err());
-        server.start();
+        let _ = server.start();
 
         loop {
             println!("wait");

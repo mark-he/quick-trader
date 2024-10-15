@@ -13,7 +13,7 @@ use std::net::TcpStream;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self};
 use common::msmc::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 const BINANCE_WSS_BASE_URL: &str = "wss://testnet.binance.vision/ws";
@@ -165,9 +165,14 @@ struct BinanceTick {
     total_number_of_trades: u64,
 }
 
+pub struct MarketTopic {
+    pub symbol: String,
+    pub interval: String,
+}
 pub struct BnMarketServer {
     conn: Option<Arc<Mutex<WebSocketState<MaybeTlsStream<TcpStream>>>>>,
     subscription: Arc<RwLock<Subscription<MarketData>>>,
+    topics: Vec<MarketTopic>,
 }
 
 impl BnMarketServer {
@@ -175,6 +180,7 @@ impl BnMarketServer {
         BnMarketServer {
             conn: None,
             subscription: Arc::new(RwLock::new(Subscription::top())),
+            topics: Vec::new(),
         }
     }
 
@@ -215,33 +221,81 @@ impl MarketServer for BnMarketServer {
         }
     }
 
-    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError> {
-        let conn_ref = self.conn.as_mut().unwrap();
-        conn_ref.lock().unwrap().subscribe(vec![
-            &TickerStream::from_symbol(symbol).into(),
-        ]);
-        Ok(())
-    }
+    fn subscribe_tick(&mut self, symbol: &str) {
+        let mut found = false;
+        for topic in self.topics.iter() {
+            if topic.symbol == symbol && topic.interval == "" {
+                found = true;
+                break;
+            }
+        }
 
-    fn subscribe_kline(&mut self, symbol: &str, duration: &str) -> Result<(), AppError> {
-        let kline_interval_ret= BnMarketServer::interval_from_str(duration);
-        match kline_interval_ret {
-            Ok(interval)=> {
-                let conn_ref = self.conn.as_mut().unwrap();
-                conn_ref.lock().unwrap().subscribe(vec![
-                    &KlineStream::new(symbol, interval).into(),
-                ]);
-                Ok(())
-            },
-            Err(s) => {
-                Err(AppError::new(-200, s.as_str()))
-            },
+        if !found {
+            let topic = MarketTopic {
+                symbol: symbol.to_string(),
+                interval: "".to_string(),
+            };
+            self.topics.push(topic);
         }
     }
 
-    fn start(&mut self) {
+    fn subscribe_kline(&mut self, symbol: &str, interval: &str) {
+        let mut found = false;
+        for topic in self.topics.iter() {
+            if topic.symbol == symbol {
+                if topic.interval == interval {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if !found {
+            let topic = MarketTopic {
+                symbol: symbol.to_string(),
+                interval: interval.to_string(),
+            };
+            self.topics.push(topic);
+        }
+    }
+
+    fn start(&mut self) -> Result<(), AppError> {
+        let conn_ref = self.conn.as_mut().unwrap();
+
+        let mut tick_set = HashSet::new();
+        for topic in self.topics.iter() {
+            if topic.interval == "" {
+                if !tick_set.contains(topic.symbol.as_str()) {
+                    conn_ref.lock().unwrap().subscribe(vec![
+                        &TickerStream::from_symbol(topic.symbol.as_str()).into(),
+                    ]);
+                    tick_set.insert(topic.symbol.to_string());
+                }
+            } 
+        }
+        for topic in self.topics.iter() {
+            if topic.interval != "" {
+                let kline_interval_ret= BnMarketServer::interval_from_str(topic.interval.as_str());
+                match kline_interval_ret {
+                    Ok(interval)=> {
+                        conn_ref.lock().unwrap().subscribe(vec![
+                            &KlineStream::new(topic.symbol.as_str(), interval).into(),
+                        ]);
+                        if !tick_set.contains(topic.symbol.as_str()) {
+                            conn_ref.lock().unwrap().subscribe(vec![
+                                &TickerStream::from_symbol(topic.symbol.as_str()).into(),
+                            ]);
+                            tick_set.insert(topic.symbol.to_string());
+                        }
+                    },
+                    Err(s) => {
+                        return Err(AppError::new(-200, s.as_str()))
+                    },
+                }
+            }
+        }
+
         let conn_ref = self.conn.as_ref().unwrap().clone();
-        thread::spawn(move ||{
+        thread::spawn(move || {
             let mut conn = conn_ref.lock().unwrap();
             while let Ok(message) = conn.as_mut().read() {
                 let data = message.into_data();
@@ -272,6 +326,7 @@ impl MarketServer for BnMarketServer {
                 }
             }
         });
+        Ok(())
     }
 
     fn close(&mut self) {

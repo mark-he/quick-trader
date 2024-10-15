@@ -2,18 +2,7 @@
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use chrono::prelude::*;
 use std::collections::VecDeque;
-
-#[derive(Debug, Clone)]
-pub struct KLine {
-    pub symbol: String,
-    pub datetime: String,
-    pub open: f64,
-    pub high: f64,
-    pub low: f64,
-    pub close: f64,
-    pub volume: i32,
-    pub turnover: f64,
-}
+use crate::market_server::KLine;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -25,6 +14,7 @@ pub struct KLineWrapper {
 
 pub struct KLineCombiner {
     starting_hour: Option<u32>,
+    pub interval: String,
     period: u32,
     unit: char,
     current_k_line: Option<KLineWrapper>,
@@ -54,9 +44,10 @@ impl <T> LimitedQueue<T> {
 }
 
 impl KLineCombiner {
-    pub fn new(period_str: &str, count: u32, starting_hour: Option<u32>) -> Self {
-        let (period, unit) = Self::parse_period(period_str);
+    pub fn new(interval: &str, count: u32, starting_hour: Option<u32>) -> Self {
+        let (period, unit) = Self::parse_period(interval);
         Self {
+            interval: interval.to_string(),
             starting_hour,
             period,
             unit,
@@ -144,6 +135,7 @@ impl KLineCombiner {
                 end_time,
                 data: tick.clone(),
             };
+            k_line.data.interval = self.interval.clone();
             k_line.data.datetime = start_time.format("%Y-%m-%d %H:%M:%S").to_string();
             self.current_k_line = Some(k_line);
             ret
