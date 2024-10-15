@@ -8,13 +8,14 @@ use serde_json::Value;
 use tungstenite::stream::MaybeTlsStream;
 
 use common::error::AppError;
-use market::market_server::{MarketServer, MarketData};
+use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self};
 use common::msmc::*;
 use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
+use chrono::NaiveDateTime;
 
 const BINANCE_WSS_BASE_URL: &str = "wss://testnet.binance.vision/ws";
 
@@ -295,26 +296,56 @@ impl MarketServer for BnMarketServer {
         }
 
         let conn_ref = self.conn.as_ref().unwrap().clone();
+        let subscription_ref = self.subscription.clone();
+
         thread::spawn(move || {
             let mut conn = conn_ref.lock().unwrap();
+            let subscription = subscription_ref.read().unwrap();
+
             while let Ok(message) = conn.as_mut().read() {
                 let data = message.into_data();
                 let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
-
+            
                 match json_value.get("e") {
                     Some(event_type) => {
                         if event_type.as_str().unwrap() == "kline" {
                             match serde_json::from_str::<BinanceKline>(&string_data) {
                                 Ok(kline) => {
-                                    println!("{:?}", kline);
+                                    let datetime = NaiveDateTime::from_timestamp((kline.kline_data.start_time/1000) as i64, 0);
+                                    let k = KLine {
+                                        symbol: kline.kline_data.symbol.clone(),
+                                        interval: kline.kline_data.interval.clone(),
+                                        datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                        open: kline.kline_data.open_price.parse::<f64>().unwrap(),
+                                        high: kline.kline_data.high_price.parse::<f64>().unwrap(),
+                                        low: kline.kline_data.low_price.parse::<f64>().unwrap(),
+                                        close: kline.kline_data.close_price.parse::<f64>().unwrap(),
+                                        volume: kline.kline_data.number_of_trades as i32,
+                                        turnover: kline.kline_data.quote_asset_volume.parse::<f64>().unwrap(),
+                                    };
+                                    subscription.send(&Some(MarketData::Kline(k)));
                                 },
                                 _ => {},
                             }
                         } else {
                             match serde_json::from_str::<BinanceTick>(&string_data) {
                                 Ok(tick) => {
-                                    println!("{:?}", tick);
+                                    let datetime = NaiveDateTime::from_timestamp((tick.statistics_open_time/1000) as i64, 0);
+                                    let t = Tick {
+                                        symbol: tick.symbol.clone(),
+                                        datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                        trading_day: datetime.format("%Y-%m-%d").to_string(),
+                                        open: tick.open_price.parse::<f64>().unwrap(),
+                                        high: tick.high_price.parse::<f64>().unwrap(),
+                                        low: tick.low_price.parse::<f64>().unwrap(),
+                                        close: tick.last_price.parse::<f64>().unwrap(),
+                                        volume: tick.total_number_of_trades as i32,
+                                        turnover: tick.total_traded_quote_asset_volume.parse::<f64>().unwrap(),
+                                        open_interest: tick.last_quantity.parse::<f64>().unwrap(),
+                                        ..Default::default()
+                                    };
+                                    subscription.send(&Some(MarketData::Tick(t)));
                                 },
                                 _ => {},
                             }

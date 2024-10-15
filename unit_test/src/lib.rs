@@ -7,7 +7,7 @@ mod tests {
     use common::error::AppError;
     use backtest::backtest_market_server::BacktestMarketServer;
     use ctp::ctp_market_server::CtpMarketServer;
-    use market::market_server::{MarketData, MarketServer};
+    use market::market_server::{Event, MarketData, MarketServer};
     use market::market_gateway::MarketGatewayHolder;
     use backtest::backtest_trade_server::BacktestTradeServer;
     use ctp::ctp_trade_server::CtpTradeServer;
@@ -222,6 +222,14 @@ mod tests {
         println!("{:?}", ret.is_err());
         let _ = server.start();
 
+
+        if let Ok(sub) = ret {
+            loop {
+                let _ = sub.recv(&mut |event| {
+                    println!("{:?}", event)
+                });
+            }
+        }
         loop {
             println!("wait");
             thread::sleep(Duration::from_secs(1));
