@@ -18,9 +18,20 @@ pub mod new_order_test;
 pub mod open_orders;
 pub mod order;
 pub mod order_limit_usage;
+pub mod new_multi_order;
+pub mod modify_order;
+pub mod modify_multi_order;
+pub mod order_amendment;
+pub mod cancel_multi_order;
+pub mod countdown_cancel_all;
 
+use cancel_multi_order::CancelMultiOrder;
+use countdown_cancel_all::CountdownCancelAll;
+use modify_multi_order::ModifyMultiOrder;
+use modify_order::ModifyOrder;
+use new_multi_order::NewMultiOrder;
+use order_amendment::OrderAmendment;
 use rust_decimal::Decimal;
-
 use account::Account;
 use all_orders::AllOrders;
 use cancel_an_existing_order_and_send_a_new_order::CancelAnExistingOrderAndSendANewOrder;
@@ -36,7 +47,7 @@ use new_oco_order::NewOCOOrder;
 use new_order::NewOrder;
 use new_order_test::NewOrderTest;
 use open_orders::OpenOrders;
-use order::{CancelReplaceMode, Side};
+use order::{CancelReplaceMode, OrderType, Side};
 use order_limit_usage::OrderLimitUsage;
 
 pub fn new_order_test(symbol: &str, side: Side, r#type: &str) -> NewOrderTest {
@@ -56,12 +67,32 @@ pub fn cancel_an_existing_order_and_send_a_new_order(
     CancelAnExistingOrderAndSendANewOrder::new(symbol, side, r#type, cancel_replace_mode)
 }
 
-pub fn new_order(symbol: &str, side: Side, r#type: &str) -> NewOrder {
-    NewOrder::new(symbol, side, r#type)
+pub fn new_order(symbol: &str, side: Side, type_: OrderType) -> NewOrder {
+    NewOrder::new(symbol, side, type_)
+}
+
+pub fn modify_order(symbol: &str, side: Side, quantity: Decimal, price: Decimal) -> ModifyOrder {
+    ModifyOrder::new(symbol, side, quantity, price)
+}
+
+pub fn new_multi_order() -> NewMultiOrder {
+    NewMultiOrder::new()
+}
+
+pub fn modify_multi_order() -> ModifyMultiOrder {
+    ModifyMultiOrder::new()
+}
+
+pub fn order_amendment(symbol: &str) -> OrderAmendment {
+    OrderAmendment::new(symbol)
 }
 
 pub fn cancel_order(symbol: &str) -> CancelOrder {
     CancelOrder::new(symbol)
+}
+
+pub fn cancel_multi_order(symbol: &str) -> CancelMultiOrder {
+    CancelMultiOrder::new(symbol)
 }
 
 pub fn open_orders() -> OpenOrders {
@@ -70,6 +101,10 @@ pub fn open_orders() -> OpenOrders {
 
 pub fn cancel_open_orders(symbol: &str) -> CancelOpenOrders {
     CancelOpenOrders::new(symbol)
+}
+
+pub fn countdown_cancel_all(symbol: &str, countdown_time: i64) -> CountdownCancelAll {
+    CountdownCancelAll::new(symbol, countdown_time)
 }
 
 pub fn all_orders(symbol: &str) -> AllOrders {

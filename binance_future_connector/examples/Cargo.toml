@@ -130,8 +130,32 @@ name="trade_new_order"
 path="trade/new_order.rs"
 
 [[example]]
+name="trade_modify_order"
+path="trade/modify_order.rs"
+
+[[example]]
+name="trade_new_multi_order"
+path="trade/new_multi_order.rs"
+
+[[example]]
+name="trade_modify_multi_order"
+path="trade/modify_multi_order.rs"
+
+[[example]]
+name="trade_order_amendment"
+path="trade/order_amendment.rs"
+
+[[example]]
 name="trade_cancel_order"
 path="trade/cancel_order.rs"
+
+[[example]]
+name="trade_cancel_multi_order"
+path="trade/cancel_multi_order.rs"
+
+[[example]]
+name="trade_countdown_cancel_all"
+path="trade/countdown_cancel_all.rs"
 
 [[example]]
 name="trade_open_orders"

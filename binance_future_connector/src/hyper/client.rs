@@ -76,7 +76,7 @@ where
             query_string = serializer.finish();
         }
         let mut hyper_request = hyper::Request::builder().method(method);
-        let user_agent = &format!("binance-spot-connector-rust/{}", VERSION);
+        let user_agent = &format!("binance-future-connector/{}", VERSION);
         hyper_request = hyper_request.header("User-Agent", user_agent);
         let client_credentials = self.credentials.as_ref();
         let request_credentials = credentials.as_ref();

@@ -1,10 +1,47 @@
 use strum::Display;
 
 #[derive(Copy, Clone, Display)]
+pub enum PriceMatch {
+    #[strum(serialize = "OPPONENT")]
+    Opponent,
+    #[strum(serialize = "OPPONENT_5")]
+    Opponent5,
+    #[strum(serialize = "OPPONENT_10")]
+    Opponent10,
+    #[strum(serialize = "OPPONENT_20")]
+    Opponent20,
+    #[strum(serialize = "QUEUE")]
+    Queue,
+    #[strum(serialize = "QUEUE_5")]
+    Queue5,
+    #[strum(serialize = "QUEUE_10")]
+    Queue10,
+    #[strum(serialize = "QUEUE_20")]
+    Queue20,
+}
+#[derive(Copy, Clone, Display)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum Side {
     Buy,
     Sell,
+}
+
+#[derive(Copy, Clone, Display)]
+pub enum OrderType {
+    #[strum(serialize = "LIMIT")]
+    Limit,
+    #[strum(serialize = "MARKET")]
+    Market,
+    #[strum(serialize = "STOP")]
+    Stop,
+    #[strum(serialize = "TAKE_PROFIT")]
+    TakeProfit,
+    #[strum(serialize = "STOP_MARKET")]
+    StopMarket,
+    #[strum(serialize = "TAKE_PROFIT_MARKET")]
+    TakeProfitMarket,
+    #[strum(serialize = "TRAILING_STOP_MARKET")]
+    TrailingStopMarket,
 }
 
 #[derive(Copy, Clone, Display)]

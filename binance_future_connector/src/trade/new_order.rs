@@ -1,6 +1,8 @@
-use crate::http::{request::Request, Credentials, Method};
+use crate::http::{request::Request, Method};
 use crate::trade::order::{NewOrderResponseType, Side, TimeInForce};
 use rust_decimal::Decimal;
+
+use super::order::{OrderType, PriceMatch};
 
 /// `POST /api/v3/order`
 ///
@@ -32,55 +34,68 @@ use rust_decimal::Decimal;
 /// let request = trade::new_order("BNBUSDT", Side::Sell, "MARKET")
 ///     .quantity(dec!(0.1));
 /// ```
+
 pub struct NewOrder {
-    symbol: String,
-    side: Side,
-    r#type: String,
-    time_in_force: Option<TimeInForce>,
-    quantity: Option<Decimal>,
-    quote_order_qty: Option<Decimal>,
-    price: Option<Decimal>,
-    new_client_order_id: Option<String>,
-    stop_price: Option<Decimal>,
-    trailing_delta: Option<u64>,
-    iceberg_qty: Option<Decimal>,
-    new_order_resp_type: Option<NewOrderResponseType>,
-    recv_window: Option<u64>,
-    credentials: Option<Credentials>,
+    pub symbol: String,
+    pub side: Side,
+    pub position_side: Option<String>,
+    pub type_: OrderType,
+    pub reduce_only: Option<String>,
+    pub quantity: Option<Decimal>,
+    pub price: Option<Decimal>,
+    pub new_client_order_id: Option<String>,
+    pub stop_price: Option<Decimal>,
+    pub close_position: Option<String>,
+    pub activation_price: Option<Decimal>,
+    pub callback_rate: Option<Decimal>,
+    pub time_in_force: Option<TimeInForce>,
+    pub working_type: Option<String>,
+    pub price_protect: Option<String>,
+    pub new_order_resp_type: Option<NewOrderResponseType>,
+    pub price_match: Option<PriceMatch>,
+    pub self_trade_prevention_mode: Option<String>,
+    pub good_till_date: Option<i64>,
+    pub recv_window: Option<i64>,
 }
 
 impl NewOrder {
-    pub fn new(symbol: &str, side: Side, r#type: &str) -> Self {
+    pub fn new(symbol: &str, side: Side, type_: OrderType) -> Self {
         Self {
             symbol: symbol.to_owned(),
             side,
-            r#type: r#type.to_owned(),
-            time_in_force: None,
+            position_side: None,
+            type_,
+            reduce_only: None,
             quantity: None,
-            quote_order_qty: None,
             price: None,
             new_client_order_id: None,
             stop_price: None,
-            trailing_delta: None,
-            iceberg_qty: None,
+            close_position: None,
+            activation_price: None,
+            callback_rate: None,
+            time_in_force: None,
+            working_type: None,
+            price_protect: None,
             new_order_resp_type: None,
-            recv_window: None,
-            credentials: None,
+            price_match: None,
+            self_trade_prevention_mode: None,
+            good_till_date: None,
+            recv_window: None
         }
     }
 
-    pub fn time_in_force(mut self, time_in_force: TimeInForce) -> Self {
-        self.time_in_force = Some(time_in_force);
+    pub fn position_side(mut self, position_side: &str) -> Self {
+        self.position_side = Some(position_side.to_owned());
+        self
+    }
+
+    pub fn reduce_only(mut self, reduce_only: &str) -> Self {
+        self.reduce_only = Some(reduce_only.to_owned());
         self
     }
 
     pub fn quantity(mut self, quantity: Decimal) -> Self {
         self.quantity = Some(quantity);
-        self
-    }
-
-    pub fn quote_order_qty(mut self, quote_order_qty: Decimal) -> Self {
-        self.quote_order_qty = Some(quote_order_qty);
         self
     }
 
@@ -99,13 +114,33 @@ impl NewOrder {
         self
     }
 
-    pub fn trailing_delta(mut self, trailing_delta: u64) -> Self {
-        self.trailing_delta = Some(trailing_delta);
+    pub fn close_position(mut self, close_position: &str) -> Self {
+        self.close_position = Some(close_position.to_owned());
         self
     }
 
-    pub fn iceberg_qty(mut self, iceberg_qty: Decimal) -> Self {
-        self.iceberg_qty = Some(iceberg_qty);
+    pub fn activation_price(mut self, activation_price: Decimal) -> Self {
+        self.activation_price = Some(activation_price);
+        self
+    }
+
+    pub fn callback_rate(mut self, callback_rate: Decimal) -> Self {
+        self.callback_rate = Some(callback_rate);
+        self
+    }
+
+    pub fn time_in_force(mut self, time_in_force: TimeInForce) -> Self {
+        self.time_in_force = Some(time_in_force);
+        self
+    }
+
+    pub fn working_type(mut self, working_type: &str) -> Self {
+        self.working_type = Some(working_type.to_owned());
+        self
+    }
+
+    pub fn price_protect(mut self, price_protect: &str) -> Self {
+        self.price_protect = Some(price_protect.to_owned());
         self
     }
 
@@ -114,130 +149,104 @@ impl NewOrder {
         self
     }
 
-    pub fn recv_window(mut self, recv_window: u64) -> Self {
+    pub fn price_match(mut self, price_match: PriceMatch) -> Self {
+        self.price_match = Some(price_match);
+        self
+    }
+
+    pub fn self_trade_prevention_mode(mut self, self_trade_prevention_mode: &str) -> Self {
+        self.self_trade_prevention_mode = Some(self_trade_prevention_mode.to_owned());
+        self
+    }
+
+    pub fn good_till_date(mut self, good_till_date: i64) -> Self {
+        self.good_till_date = Some(good_till_date);
+        self
+    }
+
+    pub fn recv_window(mut self, recv_window: i64) -> Self {
         self.recv_window = Some(recv_window);
         self
     }
 
-    pub fn credentials(mut self, credentials: &Credentials) -> Self {
-        self.credentials = Some(credentials.clone());
-        self
+    pub fn get_params(&self) -> Vec<(String, String)> {
+        let mut params = Vec::new();
+        params.push(("symbol".to_owned(), self.symbol.clone()));
+        params.push(("side".to_owned(), self.side.to_string()));
+        params.push(("type".to_owned(), self.type_.to_string()));
+
+        if let Some(time_in_force) = self.time_in_force {
+            params.push(("timeInForce".to_owned(), time_in_force.to_string()));
+        }
+
+        if let Some(quantity) = self.quantity {
+            params.push(("quantity".to_owned(), quantity.to_string()));
+        }
+
+        if let Some(price) = self.price {
+            params.push(("price".to_owned(), price.to_string()));
+        }
+
+        if let Some(new_client_order_id) = self.new_client_order_id.as_ref() {
+            params.push(("newClientOrderId".to_owned(), new_client_order_id.clone()));
+        }
+
+        if let Some(stop_price) = self.stop_price {
+            params.push(("stopPrice".to_owned(), stop_price.to_string()));
+        }
+
+        if let Some(close_position) = self.close_position.as_ref() {
+            params.push(("closePosition".to_owned(), close_position.clone()));
+        }
+
+        if let Some(activation_price) = self.activation_price {
+            params.push(("activationPrice".to_owned(), activation_price.to_string()));
+        }
+
+        if let Some(callback_rate) = self.callback_rate {
+            params.push(("callbackRate".to_owned(), callback_rate.to_string()));
+        }
+
+        if let Some(working_type) = self.working_type.as_ref() {
+            params.push(("workingType".to_owned(), working_type.clone()));
+        }
+
+        if let Some(price_protect) = self.price_protect.as_ref() {
+            params.push(("priceProtect".to_owned(), price_protect.clone()));
+        }
+
+        if let Some(new_order_resp_type) = self.new_order_resp_type {
+            params.push(("newOrderRespType".to_owned(), new_order_resp_type.to_string()));
+        }
+
+        if let Some(price_match) = self.price_match.as_ref() {
+            params.push(("priceMatch".to_owned(), price_match.to_string()));
+        }
+
+        if let Some(self_trade_prevention_mode) = self.self_trade_prevention_mode.as_ref() {
+            params.push(("selfTradePreventionMode".to_owned(), self_trade_prevention_mode.clone()));
+        }
+
+        if let Some(good_till_date) = self.good_till_date {
+            params.push(("goodTillDate".to_owned(), good_till_date.to_string()));
+        }
+
+        if let Some(recv_window) = self.recv_window {
+            params.push(("recvWindow".to_owned(), recv_window.to_string()));
+        }
+        params
     }
 }
 
 impl From<NewOrder> for Request {
     fn from(request: NewOrder) -> Request {
-        let mut params = vec![
-            ("symbol".to_owned(), request.symbol),
-            ("side".to_owned(), request.side.to_string()),
-            ("type".to_owned(), request.r#type),
-        ];
-
-        if let Some(time_in_force) = request.time_in_force {
-            params.push(("timeInForce".to_owned(), time_in_force.to_string()));
-        }
-
-        if let Some(quantity) = request.quantity {
-            params.push(("quantity".to_owned(), quantity.to_string()));
-        }
-
-        if let Some(quote_order_qty) = request.quote_order_qty {
-            params.push(("quoteOrderQty".to_owned(), quote_order_qty.to_string()));
-        }
-
-        if let Some(price) = request.price {
-            params.push(("price".to_owned(), price.to_string()));
-        }
-
-        if let Some(new_client_order_id) = request.new_client_order_id {
-            params.push(("newClientOrderId".to_owned(), new_client_order_id));
-        }
-
-        if let Some(stop_price) = request.stop_price {
-            params.push(("stopPrice".to_owned(), stop_price.to_string()));
-        }
-
-        if let Some(trailing_delta) = request.trailing_delta {
-            params.push(("trailingDelta".to_owned(), trailing_delta.to_string()));
-        }
-
-        if let Some(iceberg_qty) = request.iceberg_qty {
-            params.push(("icebergQty".to_owned(), iceberg_qty.to_string()));
-        }
-
-        if let Some(new_order_resp_type) = request.new_order_resp_type {
-            params.push((
-                "newOrderRespType".to_owned(),
-                new_order_resp_type.to_string(),
-            ));
-        }
-
-        if let Some(recv_window) = request.recv_window {
-            params.push(("recvWindow".to_owned(), recv_window.to_string()));
-        }
-
+        let params = request.get_params();
         Request {
-            path: "/api/v3/order".to_owned(),
+            path: "/fapi/v1/order".to_owned(),
             method: Method::Post,
             params,
-            credentials: request.credentials,
+            credentials: None,
             sign: true,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{NewOrder, NewOrderResponseType, Side, TimeInForce};
-    use crate::http::{request::Request, Credentials, Method};
-    use rust_decimal_macros::dec;
-
-    static API_KEY: &str = "api-key";
-    static API_SECRET: &str = "api-secret";
-
-    #[test]
-    fn trade_new_order_convert_to_request_test() {
-        let credentials = Credentials::from_hmac(API_KEY.to_owned(), API_SECRET.to_owned());
-
-        let request: Request = NewOrder::new("BNBUSDT", Side::Sell, "MARKET")
-            .time_in_force(TimeInForce::Gtc)
-            .quantity(dec!(10.1))
-            .quote_order_qty(dec!(10.1))
-            .price(dec!(10.1))
-            .new_client_order_id("Test")
-            .stop_price(dec!(10.1))
-            .trailing_delta(100)
-            .iceberg_qty(dec!(10.1))
-            .new_order_resp_type(NewOrderResponseType::Ack)
-            .recv_window(5000)
-            .credentials(&credentials)
-            .recv_window(5000)
-            .credentials(&credentials)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/api/v3/order".to_owned(),
-                credentials: Some(credentials),
-                method: Method::Post,
-                params: vec![
-                    ("symbol".to_owned(), "BNBUSDT".to_string()),
-                    ("side".to_owned(), "SELL".to_string()),
-                    ("type".to_owned(), "MARKET".to_string()),
-                    ("timeInForce".to_owned(), "GTC".to_string()),
-                    ("quantity".to_owned(), "10.1".to_string()),
-                    ("quoteOrderQty".to_owned(), "10.1".to_string()),
-                    ("price".to_owned(), "10.1".to_string()),
-                    ("newClientOrderId".to_owned(), "Test".to_string()),
-                    ("stopPrice".to_owned(), "10.1".to_string()),
-                    ("trailingDelta".to_owned(), "100".to_string()),
-                    ("icebergQty".to_owned(), "10.1".to_string()),
-                    ("newOrderRespType".to_owned(), "ACK".to_string()),
-                    ("recvWindow".to_owned(), "5000".to_string()),
-                ],
-                sign: true
-            }
-        );
     }
 }

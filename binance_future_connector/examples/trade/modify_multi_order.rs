@@ -12,9 +12,8 @@ async fn main() -> Result<(), Error> {
         .filter(None, log::LevelFilter::Debug)
         .init();
     let credentials = Credentials::from_hmac("13d233877484f4ea87afbbb8c29e52072c4e4a4a8650fcd689e076fab082bdc6".to_owned(), "671b347de4235aa3c2d3d15664db16180593ab21f65f4826e54b8f8e1ba11395".to_owned());
-    let client =
-        BinanceHttpClient::default().credentials(credentials);
-    let request = trade::new_order("BNBUSDT", Side::Buy, trade::order::OrderType::Limit).time_in_force(trade::order::TimeInForce::Gtc).price(dec!(535)).quantity(dec!(0.1));
+    let client = BinanceHttpClient::default().credentials(credentials);
+    let request = trade::modify_multi_order().add(trade::modify_order("BNBUSDT", Side::Buy, dec!(0.1), dec!(595.0)).order_id(480922730));
     let data = client.send(request).await?.into_body_str().await?;
     log::info!("{}", data);
     Ok(())
