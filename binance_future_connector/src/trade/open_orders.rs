@@ -1,24 +1,13 @@
-use crate::http::{request::Request, Credentials, Method};
+use crate::http::{request::Request, Method};
 
-/// `GET /api/v3/openOrders`
+/// `GET /fapi/v1/openOrders`
 ///
 /// Get all open orders on a symbol. Careful when accessing this with no symbol.
 ///
-/// Weight(IP):
-/// * `3` for a single symbol;
-/// * `40` when the symbol parameter is omitted;
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::trade;
-///
-/// let request = trade::open_orders().symbol("BNBUSDT");
-/// ```
+
 pub struct OpenOrders {
     symbol: Option<String>,
     recv_window: Option<u64>,
-    credentials: Option<Credentials>,
 }
 
 impl OpenOrders {
@@ -26,7 +15,6 @@ impl OpenOrders {
         Self {
             symbol: None,
             recv_window: None,
-            credentials: None,
         }
     }
 
@@ -37,11 +25,6 @@ impl OpenOrders {
 
     pub fn recv_window(mut self, recv_window: u64) -> Self {
         self.recv_window = Some(recv_window);
-        self
-    }
-
-    pub fn credentials(mut self, credentials: &Credentials) -> Self {
-        self.credentials = Some(credentials.clone());
         self
     }
 }
@@ -65,45 +48,11 @@ impl From<OpenOrders> for Request {
         }
 
         Request {
-            path: "/api/v3/openOrders".to_owned(),
+            path: "/fapi/v1/openOrders".to_owned(),
             method: Method::Get,
             params,
-            credentials: request.credentials,
+            credentials: None,
             sign: true,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::OpenOrders;
-    use crate::http::{request::Request, Credentials, Method};
-
-    static API_KEY: &str = "api-key";
-    static API_SECRET: &str = "api-secret";
-
-    #[test]
-    fn trade_open_orders_convert_to_request_test() {
-        let credentials = Credentials::from_hmac(API_KEY.to_owned(), API_SECRET.to_owned());
-
-        let request: Request = OpenOrders::new()
-            .symbol("BNBUSDT")
-            .recv_window(5000)
-            .credentials(&credentials)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/api/v3/openOrders".to_owned(),
-                credentials: Some(credentials),
-                method: Method::Get,
-                params: vec![
-                    ("symbol".to_owned(), "BNBUSDT".to_string()),
-                    ("recvWindow".to_owned(), "5000".to_string()),
-                ],
-                sign: true
-            }
-        );
     }
 }

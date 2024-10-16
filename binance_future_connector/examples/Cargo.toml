@@ -162,6 +162,10 @@ name="trade_open_orders"
 path="trade/open_orders.rs"
 
 [[example]]
+name="trade_force_orders"
+path="trade/force_orders.rs"
+
+[[example]]
 name="trade_cancel_open_orders"
 path="trade/cancel_open_orders.rs"
 

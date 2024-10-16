@@ -1,6 +1,14 @@
 use strum::Display;
 
 #[derive(Copy, Clone, Display)]
+pub enum AutoCloseType {
+    #[strum(serialize = "LIQUIDATION")]
+    Liquidation,
+    #[strum(serialize = "ADL")]
+    ADL,
+}
+
+#[derive(Copy, Clone, Display)]
 pub enum PriceMatch {
     #[strum(serialize = "OPPONENT")]
     Opponent,

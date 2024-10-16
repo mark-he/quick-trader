@@ -1,20 +1,20 @@
 use crate::http::{request::Request, Method};
 
-/// `GET /fapi/v1/order`
+/// `GET /fapi/v1/openOrder`
 ///
 /// Check an order's status.
 ///
 /// * Either `orderId` or `origClientOrderId` must be sent.
 /// * For some historical orders `cummulativeQuoteQty` will be &lt; 0, meaning the data is not available at this time.
 
-pub struct GetOrder {
+pub struct GetOpenOrder {
     symbol: String,
     order_id: Option<u64>,
     orig_client_order_id: Option<String>,
     recv_window: Option<u64>,
 }
 
-impl GetOrder {
+impl GetOpenOrder {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -40,8 +40,8 @@ impl GetOrder {
     }
 }
 
-impl From<GetOrder> for Request {
-    fn from(request: GetOrder) -> Request {
+impl From<GetOpenOrder> for Request {
+    fn from(request: GetOpenOrder) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(order_id) = request.order_id {
@@ -57,7 +57,7 @@ impl From<GetOrder> for Request {
         }
 
         Request {
-            path: "/fapi/v1/order".to_owned(),
+            path: "/fapi/v1/openOrder".to_owned(),
             method: Method::Get,
             params,
             credentials: None,

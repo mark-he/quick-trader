@@ -24,9 +24,11 @@ pub mod modify_multi_order;
 pub mod order_amendment;
 pub mod cancel_multi_order;
 pub mod countdown_cancel_all;
+pub mod force_orders;
 
 use cancel_multi_order::CancelMultiOrder;
 use countdown_cancel_all::CountdownCancelAll;
+use force_orders::ForceOrders;
 use modify_multi_order::ModifyMultiOrder;
 use modify_order::ModifyOrder;
 use new_multi_order::NewMultiOrder;
@@ -109,6 +111,10 @@ pub fn countdown_cancel_all(symbol: &str, countdown_time: i64) -> CountdownCance
 
 pub fn all_orders(symbol: &str) -> AllOrders {
     AllOrders::new(symbol)
+}
+
+pub fn force_orders() -> ForceOrders {
+    ForceOrders::new()
 }
 
 pub fn new_oco_order(
