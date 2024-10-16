@@ -1,5 +1,6 @@
 [workspace]
-members = [ "account", "backtest", "binance", "binance_spot_connector", 
+members = [ "account", "backtest", "binance", "binance_spot_connector", "binance_future_connector", "binance_spot_connector/examples", "binance_future_connector/examples",
     "common", "ctp", "ctp_assembler",
-    "market", "trade", "unit_test","examples"
+    "market", "trade", "unit_test"
 ]
+resolver = "2"
