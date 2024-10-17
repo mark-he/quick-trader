@@ -214,7 +214,7 @@ impl TradeServer for BacktestTradeServer {
     fn connect(&mut self, config: &TradeConfig) -> Result<Subscription<(i32, TradeData)>, AppError> {
         AccountStorage::init();
 
-        let outer_sub = self.trade_sub.write().unwrap().subscribe_with_filter(Box::new(|event|{
+        let outer_sub = self.trade_sub.write().unwrap().subscribe_with_filter(|event|{
             match event {
                 (_, TradeData::OnOrder(_)) | (_, TradeData::OnTrade(_)) => {
                     true
@@ -223,7 +223,7 @@ impl TradeServer for BacktestTradeServer {
                     false
                 }
             }
-        }));
+        });
         let market_sub_ref = self.market_sub.as_ref().unwrap().clone();
         let top_sub = self.trade_sub.clone();
         

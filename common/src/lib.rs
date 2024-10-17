@@ -141,9 +141,10 @@ pub mod msmc {
             Subscription::new(rx)
         }
         
-        pub fn subscribe_with_filter(&mut self, filter: Box<dyn Fn(&T) -> bool>) -> Subscription<T> {
+        pub fn subscribe_with_filter<'a, F: 'static>(&mut self, filter: F) -> Subscription<T> 
+            where F: Fn(&T) -> bool {
             let (tx, rx) = unbounded::<Option<T>>();
-            self.subscribers.push(Spout::new(Some(filter), tx));
+            self.subscribers.push(Spout::new(Some(Box::new(filter)), tx));
 
             Subscription::new(rx)
         }

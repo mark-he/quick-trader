@@ -17,18 +17,18 @@ impl WssKeepaliveApi {
         }
     }
 
-    pub fn prepare<'a, F>(mut self, block: F) -> Self 
-        where F: Fn(&'a WebSocketState<MaybeTlsStream<TcpStream>>) {
+    pub fn prepare<F: 'static>(mut self, block: F) -> Self 
+        where F: Fn(&WebSocketState<MaybeTlsStream<TcpStream>>) {
         self.prepare_block = Some(Box::new(block));
         self
     }
 
-    pub fn stream<F>(&self, f: F) 
+    pub fn stream<F>(&self, block: F) 
         where F: Fn(Message) {
-
+        
     }
 
-    pub fn connect(&mut self) -> &Self {
+    fn connect(&mut self) -> &Self {
         let ret = BinanceWebSocketClient::connect_with_url(self.url.as_str());
         if let Ok(conn) = ret {
             self.conn = Some(conn);
@@ -36,11 +36,5 @@ impl WssKeepaliveApi {
             self.conn = None;
         }
         self
-    }
-
-
-    pub fn ready<F>(&self, f: F) -> Self 
-        where F : FnMut(&Option<T>){
-
     }
 }

@@ -303,14 +303,14 @@ impl TDApi {
 
     pub fn req_init(&mut self) -> Result<Subscription<(i32, TradeData)>, String> {
         let mut top = Subscription::top();
-        let outter_subscription = top.subscribe_with_filter(Box::new(|event|{
+        let outter_subscription = top.subscribe_with_filter(|event|{
             match event {
                 (_, TradeData::OnOrder(_)) | (_, TradeData::OnTrade(_)) => {
                     true
                 },
                 _ => false
             }
-        }));
+        });
 
         top.publish_to_under(self.subscription.write().as_mut().unwrap());
         self.register(Spi::new(top));

@@ -53,7 +53,7 @@ impl MarketGateway {
     }
 
     pub fn get_tick_sub(&mut self) -> Subscription<MarketData> {
-        self.subscription.as_mut().unwrap().write().unwrap().subscribe_with_filter(Box::new(|event| {
+        self.subscription.as_mut().unwrap().write().unwrap().subscribe_with_filter(|event| {
             match event {
                 MarketData::Tick(_) => {
                     true
@@ -62,7 +62,7 @@ impl MarketGateway {
                     false
                 },
             }  
-        }))
+        })
     }
     
     pub fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Receiver<MarketData> {
