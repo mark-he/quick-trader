@@ -1,8 +1,8 @@
 use crate::http::{request::Request, Method};
-use crate::trade::enums::{NewOrderResponseType, Side, TimeInForce};
+use crate::trade::enums::{NewOrderResponseType, Side, TimeInForceType};
 use rust_decimal::Decimal;
 
-use super::enums::{OrderType, PriceMatch};
+use super::enums::{OrderType, PriceMatchType};
 
 /// `POST /api/v3/order`
 ///
@@ -22,18 +22,6 @@ use super::enums::{OrderType, PriceMatch};
 /// * Price above market price: `STOP_LOSS` `BUY`, `TAKE_PROFIT` `SELL`
 /// * Price below market price: `STOP_LOSS` `SELL`, `TAKE_PROFIT` `BUY`
 ///
-///
-/// Weight(IP): 1
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::trade::{ self, order::Side };
-/// use rust_decimal_macros::dec;
-///
-/// let request = trade::new_order("BNBUSDT", Side::Sell, "MARKET")
-///     .quantity(dec!(0.1));
-/// ```
 
 pub struct NewOrderRequest {
     pub symbol: String,
@@ -48,11 +36,11 @@ pub struct NewOrderRequest {
     pub close_position: Option<String>,
     pub activation_price: Option<Decimal>,
     pub callback_rate: Option<Decimal>,
-    pub time_in_force: Option<TimeInForce>,
+    pub time_in_force: Option<TimeInForceType>,
     pub working_type: Option<String>,
     pub price_protect: Option<String>,
     pub new_order_resp_type: Option<NewOrderResponseType>,
-    pub price_match: Option<PriceMatch>,
+    pub price_match: Option<PriceMatchType>,
     pub self_trade_prevention_mode: Option<String>,
     pub good_till_date: Option<i64>,
     pub recv_window: Option<i64>,
@@ -129,7 +117,7 @@ impl NewOrderRequest {
         self
     }
 
-    pub fn time_in_force(mut self, time_in_force: TimeInForce) -> Self {
+    pub fn time_in_force(mut self, time_in_force: TimeInForceType) -> Self {
         self.time_in_force = Some(time_in_force);
         self
     }
@@ -149,7 +137,7 @@ impl NewOrderRequest {
         self
     }
 
-    pub fn price_match(mut self, price_match: PriceMatch) -> Self {
+    pub fn price_match(mut self, price_match: PriceMatchType) -> Self {
         self.price_match = Some(price_match);
         self
     }

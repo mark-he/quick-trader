@@ -9,11 +9,12 @@ use rust_decimal_macros::dec;
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     Builder::from_default_env()
-        .filter(None, log::LevelFilter::Info)
+        .filter(None, log::LevelFilter::Debug)
         .init();
-    let credentials = Credentials::from_hmac("api-key".to_owned(), "api-secret".to_owned());
-    let client = BinanceHttpClient::default().credentials(credentials);
-    let request = trade::new_order_test("BNBUSDT", Side::Sell, "MARKET").stop_price(dec!(20.01));
+    let credentials = Credentials::from_hmac("13d233877484f4ea87afbbb8c29e52072c4e4a4a8650fcd689e076fab082bdc6".to_owned(), "671b347de4235aa3c2d3d15664db16180593ab21f65f4826e54b8f8e1ba11395".to_owned());
+    let client =
+        BinanceHttpClient::default().credentials(credentials);
+    let request = trade::new_order_test(trade::new_order("BNBUSDT", Side::Buy, trade::enums::OrderType::Limit).time_in_force(trade::enums::TimeInForceType::Gtc).price(dec!(535)).quantity(dec!(0.1)));
     let data = client.send(request).await?.into_body_str().await?;
     log::info!("{}", data);
     Ok(())

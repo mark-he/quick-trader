@@ -1,4 +1,4 @@
-use crate::trade::enums::{Side, PriceMatch};
+use crate::trade::enums::{Side, PriceMatchType};
 use crate::http::{request::Request, Method};
 use rust_decimal::Decimal;
 
@@ -10,7 +10,7 @@ pub struct ModifyOrderRequest {
     pub side: Side,
     pub quantity: Decimal,
     pub price: Decimal,
-    pub price_match: Option<PriceMatch>,
+    pub price_match: Option<PriceMatchType>,
     pub recv_window: Option<i64>,
 }
 
@@ -38,7 +38,7 @@ impl ModifyOrderRequest {
         self
     }
 
-    pub fn price_match(mut self, price_match: PriceMatch) -> Self {
+    pub fn price_match(mut self, price_match: PriceMatchType) -> Self {
         self.price_match = Some(price_match);
         self
     }

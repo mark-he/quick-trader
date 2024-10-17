@@ -1,7 +1,6 @@
 //! Account/Trade
 //!
 //! [API Documentation]()
-pub mod account;
 pub mod all_orders;
 pub mod cancel_open_orders;
 pub mod cancel_order;
@@ -11,7 +10,6 @@ pub mod new_order;
 pub mod new_order_test;
 pub mod open_orders;
 pub mod enums;
-pub mod order_limit_usage;
 pub mod new_multi_order;
 pub mod modify_order;
 pub mod modify_multi_order;
@@ -22,32 +20,40 @@ pub mod force_orders;
 pub mod margin_type;
 pub mod position_side;
 pub mod get_open_order;
+pub mod leverage;
+pub mod multi_assets_margin;
+pub mod position_margin;
+pub mod position_risk;
+pub mod adl_quantile;
 
+use adl_quantile::AdlQuantileRequest;
 use cancel_multi_order::CancelMultiOrderRequest;
 use cancel_open_orders::CancelOpenOrdersRequest;
 use countdown_cancel_all::CountdownCancelAllRequest;
 use force_orders::ForceOrdersRequest;
 use get_open_order::GetOpenOrderRequest;
+use leverage::LeverageRequest;
 use margin_type::MarginTypeRequest;
 use modify_multi_order::ModifyMultiOrderRequest;
 use modify_order::ModifyOrderRequest;
+use multi_assets_margin::MultiAssetsMarginRequest;
 use new_multi_order::NewMultiOrderRequest;
 use order_amendment::OrderAmendmentRequest;
+use position_margin::PositionMarginRequest;
+use position_risk::PositionRiskRequest;
 use position_side::PositionSideRequest;
 use rust_decimal::Decimal;
-use account::Account;
 use all_orders::AllOrdersRequest;
 use cancel_order::CancelOrderRequest;
 use get_order::GetOrderRequest;
 use user_trades::UserTradesRequest;
 use new_order::NewOrderRequest;
-use new_order_test::NewOrderTest;
+use new_order_test::NewOrderTestRequest;
 use open_orders::OpenOrdersRequest;
-use enums::{MarginType, OrderType, PositionSide, Side};
-use order_limit_usage::OrderLimitUsage;
+use enums::{MarginAssetMode, MarginType, OrderType, PositionMarginType, PositionMode, Side};
 
-pub fn new_order_test(symbol: &str, side: Side, r#type: &str) -> NewOrderTest {
-    NewOrderTest::new(symbol, side, r#type)
+pub fn new_order_test(new_order: NewOrderRequest) -> NewOrderTestRequest {
+    NewOrderTestRequest::new(new_order)
 }
 
 pub fn get_open_order(symbol: &str) -> GetOpenOrderRequest {
@@ -110,18 +116,30 @@ pub fn margin_type(symbol: &str, margin_type: MarginType) -> MarginTypeRequest {
     MarginTypeRequest::new(symbol, margin_type)
 }
 
-pub fn position_side(dual_side_position: PositionSide) -> PositionSideRequest {
+pub fn position_side(dual_side_position: PositionMode) -> PositionSideRequest {
     PositionSideRequest::new(dual_side_position)
-}
-
-pub fn account() -> Account {
-    Account::new()
 }
 
 pub fn user_trades(symbol: &str) -> UserTradesRequest {
     UserTradesRequest::new(symbol)
 }
 
-pub fn order_limit_usage() -> OrderLimitUsage {
-    OrderLimitUsage::new()
+pub fn leverage(symbol: &str, leverage: i32) -> LeverageRequest {
+    LeverageRequest::new(symbol, leverage)
+}
+
+pub fn multi_assets_margin(mode: MarginAssetMode) -> MultiAssetsMarginRequest {
+    MultiAssetsMarginRequest::new(mode)
+}
+
+pub fn position_margin(symbol: &str, amount: Decimal, type_: PositionMarginType) -> PositionMarginRequest {
+    PositionMarginRequest::new(symbol, amount, type_)
+}
+
+pub fn position_risk() -> PositionRiskRequest {
+    PositionRiskRequest::new()
+}
+
+pub fn adl_quantile() -> AdlQuantileRequest {
+    AdlQuantileRequest::new()
 }

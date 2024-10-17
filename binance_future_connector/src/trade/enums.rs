@@ -1,7 +1,32 @@
 use strum::Display;
 
 #[derive(Copy, Clone, Display)]
+pub enum PositionMarginType {
+    #[strum(serialize = "1")]
+    Add,
+    #[strum(serialize = "2")]
+    Reduce,
+}
+
+#[derive(Copy, Clone, Display)]
 pub enum PositionSide {
+    #[strum(serialize = "LONG")]
+    Long,
+    #[strum(serialize = "SHORT")]
+    Short,
+    #[strum(serialize = "BOTH")]
+    Both,
+}
+#[derive(Copy, Clone, Display)]
+pub enum MarginAssetMode {
+    #[strum(serialize = "true")]
+    MultiAssets,
+    #[strum(serialize = "false")]
+    SingleAsset,
+}
+
+#[derive(Copy, Clone, Display)]
+pub enum PositionMode {
     #[strum(serialize = "true")]
     HedgeMode,
     #[strum(serialize = "false")]
@@ -25,7 +50,7 @@ pub enum AutoCloseType {
 }
 
 #[derive(Copy, Clone, Display)]
-pub enum PriceMatch {
+pub enum PriceMatchType {
     #[strum(serialize = "OPPONENT")]
     Opponent,
     #[strum(serialize = "OPPONENT_5")]
@@ -70,7 +95,7 @@ pub enum OrderType {
 
 #[derive(Copy, Clone, Display)]
 #[strum(serialize_all = "UPPERCASE")]
-pub enum TimeInForce {
+pub enum TimeInForceType {
     Gtc,
     Ioc,
     Fok,
@@ -82,12 +107,4 @@ pub enum NewOrderResponseType {
     Ack,
     Result,
     Full,
-}
-
-#[derive(Copy, Clone, Display)]
-pub enum CancelReplaceMode {
-    #[strum(serialize = "STOP_ON_FAILURE")]
-    StopOnFailure,
-    #[strum(serialize = "ALLOW_FAILURE")]
-    AllowFailure,
 }

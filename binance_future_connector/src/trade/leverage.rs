@@ -1,21 +1,20 @@
 use crate::http::{request::Request, Method};
 
-use super::enums::PositionMode;
-
-/// `POST /fapi/v1/positionSide/dual`
+/// `GET /fapi/v1/leverage`
 ///
-/// Change user's position mode (Hedge Mode or One-way Mode ) on EVERY symbol
-///
+/// Change user's initial leverage of specific symbol market.
 
-pub struct PositionSideRequest {
-    pub dual_side_position: PositionMode,
+pub struct LeverageRequest {
+    pub symbol: String,
+    pub leverage: i32,
     pub recv_window: Option<i64>,
 }
 
-impl PositionSideRequest {
-    pub fn new(dual_side_position: PositionMode) -> Self {
+impl LeverageRequest {
+    pub fn new(symbol: &str, leverage: i32) -> Self {
         Self {
-            dual_side_position,
+            symbol: symbol.to_owned(),
+            leverage,
             recv_window: None,
         }
     }
@@ -27,7 +26,8 @@ impl PositionSideRequest {
 
     pub fn get_params(&self) -> Vec<(String, String)> {
         let mut params = Vec::new();
-        params.push(("dualSidePosition".to_owned(), self.dual_side_position.to_string()));
+        params.push(("symbol".to_owned(), self.symbol.clone()));
+        params.push(("leverage".to_owned(), self.leverage.to_string()));
 
         if let Some(recv_window) = self.recv_window {
             params.push(("recvWindow".to_owned(), recv_window.to_string()));
@@ -37,12 +37,11 @@ impl PositionSideRequest {
     }
 }
 
-impl From<PositionSideRequest> for Request {
-    fn from(request: PositionSideRequest) -> Request {
+impl From<LeverageRequest> for Request {
+    fn from(request: LeverageRequest) -> Request {
         let params = request.get_params();
-
         Request {
-            path: "/fapi/v1/positionSide/dual".to_owned(),
+            path: "/fapi/v1/leverage".to_owned(),
             method: Method::Post,
             params,
             credentials: None,
