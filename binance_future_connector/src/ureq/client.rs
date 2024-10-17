@@ -59,7 +59,7 @@ impl BinanceHttpClient {
         let mut ureq_request = self.client.request(method.as_ref(), &url.to_string());
 
         // Set User-Agent in header
-        let user_agent = &format!("binance-spot-connector-rust/{}", VERSION);
+        let user_agent = &format!("binance-future-connector/{}", VERSION);
         ureq_request = ureq_request.set("User-Agent", user_agent);
 
         // Map query parameters

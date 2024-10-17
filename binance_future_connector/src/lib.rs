@@ -100,8 +100,8 @@ pub mod margin_stream;
 pub mod market_stream;
 pub mod stream;
 pub mod user_data_stream;
+pub mod wss_keepalive_api;
 
-pub mod margin;
 pub mod market;
 pub mod trade;
 pub mod wallet;

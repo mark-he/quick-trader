@@ -201,6 +201,17 @@ path="trade/position_risk.rs"
 name="trade_adl_quantile"
 path="trade/adl_quantile.rs"
 
+[[example]]
+name="user_data_stream_new_listen_key"
+path="user_data_stream/new_listen_key.rs"
+
+[[example]]
+name="user_data_stream_close_listen_key"
+path="user_data_stream/close_listen_key.rs"
+
+[[example]]
+name="user_data_stream_renew_listen_key"
+path="user_data_stream/renew_listen_key.rs"
 
 [[example]]
 name="wallet_system_status"
