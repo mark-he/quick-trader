@@ -122,10 +122,6 @@ name="trade_get_order"
 path="trade/get_order.rs"
 
 [[example]]
-name="trade_cancel_an_existing_order_and_send_a_new_order"
-path="trade/cancel_an_existing_order_and_send_a_new_order.rs"
-
-[[example]]
 name="trade_new_order"
 path="trade/new_order.rs"
 
@@ -174,32 +170,20 @@ name="trade_all_orders"
 path="trade/all_orders.rs"
 
 [[example]]
-name="trade_new_oco_order"
-path="trade/new_oco_order.rs"
-
-[[example]]
-name="trade_get_oco_order"
-path="trade/get_oco_order.rs"
-
-[[example]]
-name="trade_cancel_oco_order"
-path="trade/cancel_oco_order.rs"
-
-[[example]]
-name="trade_get_oco_orders"
-path="trade/get_oco_orders.rs"
-
-[[example]]
-name="trade_get_open_oco_orders"
-path="trade/get_open_oco_orders.rs"
-
-[[example]]
 name="trade_account"
 path="trade/account.rs"
 
 [[example]]
-name="trade_my_trades"
-path="trade/my_trades.rs"
+name="trade_user_trades"
+path="trade/user_trades.rs"
+
+[[example]]
+name="trade_margin_type"
+path="trade/margin_type.rs"
+
+[[example]]
+name="trade_position_side"
+path="trade/position_side.rs"
 
 [[example]]
 name="trade_order_limit_usage"

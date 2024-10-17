@@ -6,22 +6,11 @@ use crate::http::{request::Request, Method};
 ///
 /// * If the symbol is not sent, tickers for all symbols will be returned in an array.
 ///
-/// Weight(IP):
-/// * `1` for a single symbol;
-/// * `40` when the symbol parameter is omitted;
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::market;
-///
-/// let request = market::ticker_twenty_four_hr().symbol("BNBUSDT").symbols(vec!["BTCUSDT","BNBBTC"]);
-/// ```
-pub struct Ticker24hr {
+pub struct Ticker24hrRequest {
     symbol: Option<String>,
 }
 
-impl Ticker24hr {
+impl Ticker24hrRequest {
     pub fn new() -> Self {
         Self {
             symbol: None,
@@ -34,8 +23,8 @@ impl Ticker24hr {
     }
 }
 
-impl From<Ticker24hr> for Request {
-    fn from(request: Ticker24hr) -> Request {
+impl From<Ticker24hrRequest> for Request {
+    fn from(request: Ticker24hrRequest) -> Request {
         let mut params = vec![];
 
         if let Some(symbol) = request.symbol {
@@ -49,11 +38,5 @@ impl From<Ticker24hr> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-impl Default for Ticker24hr {
-    fn default() -> Self {
-        Self::new()
     }
 }

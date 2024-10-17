@@ -5,12 +5,12 @@ use crate::http::{request::Request, Method};
 /// Cancels all active orders on a symbol.
 /// This includes OCO orders.
 
-pub struct CancelOpenOrders {
+pub struct CancelOpenOrdersRequest {
     symbol: String,
     recv_window: Option<u64>,
 }
 
-impl CancelOpenOrders {
+impl CancelOpenOrdersRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -24,8 +24,8 @@ impl CancelOpenOrders {
     }
 }
 
-impl From<CancelOpenOrders> for Request {
-    fn from(request: CancelOpenOrders) -> Request {
+impl From<CancelOpenOrdersRequest> for Request {
+    fn from(request: CancelOpenOrdersRequest) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(recv_window) = request.recv_window {

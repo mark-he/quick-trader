@@ -1,30 +1,34 @@
 use crate::http::{request::Request, Method};
 
-pub struct CountdownCancelAllRequest {
+use super::enums::MarginType;
+
+/// `GET /fapi/v1/MarginTypeRequest`
+///
+/// Get trades for a specific account and symbol.
+///
+
+
+
+pub struct MarginTypeRequest {
     pub symbol: String,
-    pub countdown_time: i64,
+    pub margin_type: MarginType,
     pub recv_window: Option<i64>,
 }
 
-impl CountdownCancelAllRequest {
-    pub fn new(symbol: &str, countdown_time: i64) -> Self {
+impl MarginTypeRequest {
+    pub fn new(symbol: &str, margin_type: MarginType) -> Self {
         Self {
             symbol: symbol.to_owned(),
-            countdown_time,
+            margin_type,
             recv_window: None,
         }
-    }
-
-    pub fn set_recv_window(mut self, recv_window: i64) -> Self {
-        self.recv_window = Some(recv_window);
-        self
     }
 
     pub fn get_params(&self) -> Vec<(String, String)> {
         let mut params = Vec::new();
         params.push(("symbol".to_owned(), self.symbol.clone()));
-        params.push(("countdownTime".to_owned(), self.countdown_time.to_string()));
-
+        params.push(("marginType".to_owned(), self.margin_type.to_string()));
+        
         if let Some(recv_window) = self.recv_window {
             params.push(("recvWindow".to_owned(), recv_window.to_string()));
         }
@@ -33,13 +37,12 @@ impl CountdownCancelAllRequest {
     }
 }
 
-
-impl From<CountdownCancelAllRequest> for Request {
-    fn from(request: CountdownCancelAllRequest) -> Request {
+impl From<MarginTypeRequest> for Request {
+    fn from(request: MarginTypeRequest) -> Request {
         let params = request.get_params();
 
         Request {
-            path: "/fapi/v1/countdownCancelAll".to_owned(),
+            path: "/fapi/v1/marginType".to_owned(),
             method: Method::Post,
             params,
             credentials: None,

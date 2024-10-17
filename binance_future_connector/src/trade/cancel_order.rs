@@ -6,14 +6,14 @@ use crate::http::{request::Request, Method};
 ///
 /// Either `orderId` or `origClientOrderId` must be sent.
 ///
-pub struct CancelOrder {
+pub struct CancelOrderRequest {
     symbol: String,
     order_id: Option<u64>,
     orig_client_order_id: Option<String>,
     recv_window: Option<u64>,
 }
 
-impl CancelOrder {
+impl CancelOrderRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -57,8 +57,8 @@ impl CancelOrder {
     }
 }
 
-impl From<CancelOrder> for Request {
-    fn from(request: CancelOrder) -> Request {
+impl From<CancelOrderRequest> for Request {
+    fn from(request: CancelOrderRequest) -> Request {
         let params = request.get_params();
 
         Request {

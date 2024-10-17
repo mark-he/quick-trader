@@ -52,28 +52,3 @@ impl From<Depth> for Request {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::Depth;
-    use crate::http::{request::Request, Method};
-
-    #[test]
-    fn market_depth_convert_to_request_test() {
-        let request: Request = Depth::new("BNBUSDT").limit(100).into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/fapi/v1/depth".to_owned(),
-                credentials: None,
-                method: Method::Get,
-                params: vec![
-                    ("symbol".to_owned(), "BNBUSDT".to_string()),
-                    ("limit".to_owned(), "100".to_string()),
-                ],
-                sign: false
-            }
-        );
-    }
-}

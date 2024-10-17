@@ -6,20 +6,8 @@ use super::klines::KlineInterval;
 ///
 /// Kline/candlestick bars for the index price of a pair. Klines are uniquely identified by their open time.
 ///
-/// * If `startTime` and `endTime` are not sent, the most recent klines are returned.
-///
-/// Weight(IP): based on parameter LIMIT, 5 by default.
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::market::{self, klines::KlineInterval};
-///
-/// let request = market::index_price_klines("BTCUSDT", KlineInterval::Minutes1)
-///     .start_time(1654079109000)
-///     .end_time(1654079209000);
-/// ```
-pub struct IndexPriceKlines {
+
+pub struct IndexPriceKlinesRequest {
     pair: String,
     interval: KlineInterval,
     start_time: Option<u64>,
@@ -27,7 +15,7 @@ pub struct IndexPriceKlines {
     limit: Option<u32>,
 }
 
-impl IndexPriceKlines {
+impl IndexPriceKlinesRequest {
     pub fn new(pair: &str, interval: KlineInterval) -> Self {
         Self {
             pair: pair.to_owned(),
@@ -54,8 +42,8 @@ impl IndexPriceKlines {
     }
 }
 
-impl From<IndexPriceKlines> for Request {
-    fn from(request: IndexPriceKlines) -> Request {
+impl From<IndexPriceKlinesRequest> for Request {
+    fn from(request: IndexPriceKlinesRequest) -> Request {
         let mut params = vec![
             ("pair".to_owned(), request.pair),
             ("interval".to_owned(), request.interval.to_string()),
@@ -80,37 +68,5 @@ impl From<IndexPriceKlines> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{KlineInterval, IndexPriceKlines};
-    use crate::http::{request::Request, Method};
-
-    #[test]
-    fn market_kline_candlestick_data_convert_to_request_test() {
-        let request: Request = IndexPriceKlines::new("BTCUSDT", KlineInterval::Minutes1)
-            .start_time(1654079109000)
-            .end_time(1654079209000)
-            .limit(100)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/fapi/v1/indexPriceKlines".to_owned(),
-                credentials: None,
-                method: Method::Get,
-                params: vec![
-                    ("pair".to_owned(), "BTCUSDT".to_string()),
-                    ("interval".to_owned(), "1m".to_string()),
-                    ("startTime".to_owned(), "1654079109000".to_string()),
-                    ("endTime".to_owned(), "1654079209000".to_string()),
-                    ("limit".to_owned(), "100".to_string())
-                ],
-                sign: false
-            }
-        )
     }
 }

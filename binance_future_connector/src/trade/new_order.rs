@@ -1,8 +1,8 @@
 use crate::http::{request::Request, Method};
-use crate::trade::order::{NewOrderResponseType, Side, TimeInForce};
+use crate::trade::enums::{NewOrderResponseType, Side, TimeInForce};
 use rust_decimal::Decimal;
 
-use super::order::{OrderType, PriceMatch};
+use super::enums::{OrderType, PriceMatch};
 
 /// `POST /api/v3/order`
 ///
@@ -35,7 +35,7 @@ use super::order::{OrderType, PriceMatch};
 ///     .quantity(dec!(0.1));
 /// ```
 
-pub struct NewOrder {
+pub struct NewOrderRequest {
     pub symbol: String,
     pub side: Side,
     pub position_side: Option<String>,
@@ -58,7 +58,7 @@ pub struct NewOrder {
     pub recv_window: Option<i64>,
 }
 
-impl NewOrder {
+impl NewOrderRequest {
     pub fn new(symbol: &str, side: Side, type_: OrderType) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -238,8 +238,8 @@ impl NewOrder {
     }
 }
 
-impl From<NewOrder> for Request {
-    fn from(request: NewOrder) -> Request {
+impl From<NewOrderRequest> for Request {
+    fn from(request: NewOrderRequest) -> Request {
         let params = request.get_params();
         Request {
             path: "/fapi/v1/order".to_owned(),

@@ -1,6 +1,22 @@
 use strum::Display;
 
 #[derive(Copy, Clone, Display)]
+pub enum PositionSide {
+    #[strum(serialize = "true")]
+    HedgeMode,
+    #[strum(serialize = "false")]
+    OneWayMode,
+}
+
+#[derive(Copy, Clone, Display)]
+pub enum MarginType {
+    #[strum(serialize = "ISOLATED")]
+    Isolated,
+    #[strum(serialize = "CROSSED")]
+    Crossed,
+}
+
+#[derive(Copy, Clone, Display)]
 pub enum AutoCloseType {
     #[strum(serialize = "LIQUIDATION")]
     Liquidation,

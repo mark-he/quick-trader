@@ -4,11 +4,11 @@ use crate::http::{request::Request, Method};
 ///
 /// Query funding rate info for symbols that had FundingRateCap/ FundingRateFloor / fundingIntervalHours adjustment
 /// ```
-pub struct OpenInterest {
+pub struct OpenInterestRequest {
     symbol: String,
 }
 
-impl OpenInterest {
+impl OpenInterestRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -16,8 +16,8 @@ impl OpenInterest {
     }
 }
 
-impl From<OpenInterest> for Request {
-    fn from(request: OpenInterest) -> Request {
+impl From<OpenInterestRequest> for Request {
+    fn from(request: OpenInterestRequest) -> Request {
         let params = vec![
             ("symbol".to_owned(), request.symbol),
         ];

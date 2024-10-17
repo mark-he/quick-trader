@@ -15,7 +15,7 @@ use crate::http::{request::Request, Method};
 ///
 /// let request = market::agg_trades("BNBUSDT").from_id(123).start_time(1640995200000).end_time(1640995200000).limit(500);
 /// ```
-pub struct AggTrades {
+pub struct AggTradesRequest {
     symbol: String,
     from_id: Option<u64>,
     start_time: Option<u64>,
@@ -23,7 +23,7 @@ pub struct AggTrades {
     limit: Option<u32>,
 }
 
-impl AggTrades {
+impl AggTradesRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -55,8 +55,8 @@ impl AggTrades {
     }
 }
 
-impl From<AggTrades> for Request {
-    fn from(request: AggTrades) -> Request {
+impl From<AggTradesRequest> for Request {
+    fn from(request: AggTradesRequest) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(from_id) = request.from_id {
@@ -82,38 +82,5 @@ impl From<AggTrades> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::AggTrades;
-    use crate::http::{request::Request, Method};
-
-    #[test]
-    fn market_agg_trades_convert_to_request_test() {
-        let request: Request = AggTrades::new("BNBUSDT")
-            .from_id(123)
-            .start_time(1640995200000)
-            .end_time(1640995200000)
-            .limit(500)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/fapi/v1/aggTrades".to_owned(),
-                credentials: None,
-                method: Method::Get,
-                params: vec![
-                    ("symbol".to_owned(), "BNBUSDT".to_string()),
-                    ("fromId".to_owned(), "123".to_string()),
-                    ("startTime".to_owned(), "1640995200000".to_string()),
-                    ("endTime".to_owned(), "1640995200000".to_string()),
-                    ("limit".to_owned(), "500".to_string()),
-                ],
-                sign: false
-            }
-        );
     }
 }

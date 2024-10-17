@@ -8,7 +8,7 @@ use crate::http::{request::Request, Method};
 /// * For some historical orders `cummulativeQuoteQty` will be &lt; 0, meaning the data is not available at this time.
 /// * If `startTime` and/or `endTime` provided, `orderId` is not required
 ///
-pub struct AllOrders {
+pub struct AllOrdersRequest {
     symbol: String,
     order_id: Option<u64>,
     start_time: Option<u64>,
@@ -17,7 +17,7 @@ pub struct AllOrders {
     recv_window: Option<u64>,
 }
 
-impl AllOrders {
+impl AllOrdersRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -55,8 +55,8 @@ impl AllOrders {
     }
 }
 
-impl From<AllOrders> for Request {
-    fn from(request: AllOrders) -> Request {
+impl From<AllOrdersRequest> for Request {
+    fn from(request: AllOrdersRequest) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(order_id) = request.order_id {

@@ -6,18 +6,18 @@ use crate::http::{request::Request, Method};
 ///
 /// Query funding rate info for symbols that had FundingRateCap/ FundingRateFloor / fundingIntervalHours adjustment
 /// ```
-pub struct FundingInfo {
+pub struct FundingInfoRequest {
 }
 
-impl FundingInfo {
+impl FundingInfoRequest {
     pub fn new() -> Self {
         Self {
         }
     }
 }
 
-impl From<FundingInfo> for Request {
-    fn from(_: FundingInfo) -> Request {
+impl From<FundingInfoRequest> for Request {
+    fn from(_: FundingInfoRequest) -> Request {
         let params = vec![
         ];
 

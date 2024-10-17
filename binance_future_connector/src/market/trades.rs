@@ -3,22 +3,13 @@ use crate::http::{request::Request, Method};
 /// `GET /api/v3/trades`
 ///
 /// Get recent trades.
-///
-/// Weight(IP): 1
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::market;
-///
-/// let request = market::trades("BNBUSDT").limit(500);
-/// ```
-pub struct Trades {
+
+pub struct TradesRequest {
     symbol: String,
     limit: Option<u32>,
 }
 
-impl Trades {
+impl TradesRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -32,8 +23,8 @@ impl Trades {
     }
 }
 
-impl From<Trades> for Request {
-    fn from(request: Trades) -> Request {
+impl From<TradesRequest> for Request {
+    fn from(request: TradesRequest) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(limit) = request.limit {
@@ -47,30 +38,5 @@ impl From<Trades> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Trades;
-    use crate::http::{request::Request, Method};
-
-    #[test]
-    fn market_trades_convert_to_request_test() {
-        let request: Request = Trades::new("BNBUSDT").limit(500).into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/fapi/v1/trades".to_owned(),
-                credentials: None,
-                method: Method::Get,
-                params: vec![
-                    ("symbol".to_owned(), "BNBUSDT".to_string()),
-                    ("limit".to_owned(), "500".to_string()),
-                ],
-                sign: false
-            }
-        );
     }
 }

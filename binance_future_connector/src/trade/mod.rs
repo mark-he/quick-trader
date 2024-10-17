@@ -3,20 +3,14 @@
 //! [API Documentation]()
 pub mod account;
 pub mod all_orders;
-pub mod cancel_an_existing_order_and_send_a_new_order;
-pub mod cancel_oco_order;
 pub mod cancel_open_orders;
 pub mod cancel_order;
-pub mod get_oco_order;
-pub mod get_oco_orders;
-pub mod get_open_oco_orders;
 pub mod get_order;
-pub mod my_trades;
-pub mod new_oco_order;
+pub mod user_trades;
 pub mod new_order;
 pub mod new_order_test;
 pub mod open_orders;
-pub mod order;
+pub mod enums;
 pub mod order_limit_usage;
 pub mod new_multi_order;
 pub mod modify_order;
@@ -25,130 +19,107 @@ pub mod order_amendment;
 pub mod cancel_multi_order;
 pub mod countdown_cancel_all;
 pub mod force_orders;
+pub mod margin_type;
+pub mod position_side;
+pub mod get_open_order;
 
-use cancel_multi_order::CancelMultiOrder;
-use countdown_cancel_all::CountdownCancelAll;
-use force_orders::ForceOrders;
-use modify_multi_order::ModifyMultiOrder;
-use modify_order::ModifyOrder;
-use new_multi_order::NewMultiOrder;
-use order_amendment::OrderAmendment;
+use cancel_multi_order::CancelMultiOrderRequest;
+use cancel_open_orders::CancelOpenOrdersRequest;
+use countdown_cancel_all::CountdownCancelAllRequest;
+use force_orders::ForceOrdersRequest;
+use get_open_order::GetOpenOrderRequest;
+use margin_type::MarginTypeRequest;
+use modify_multi_order::ModifyMultiOrderRequest;
+use modify_order::ModifyOrderRequest;
+use new_multi_order::NewMultiOrderRequest;
+use order_amendment::OrderAmendmentRequest;
+use position_side::PositionSideRequest;
 use rust_decimal::Decimal;
 use account::Account;
-use all_orders::AllOrders;
-use cancel_an_existing_order_and_send_a_new_order::CancelAnExistingOrderAndSendANewOrder;
-use cancel_oco_order::CancelOCOOrder;
-use cancel_open_orders::CancelOpenOrders;
-use cancel_order::CancelOrder;
-use get_oco_order::GetOCOOrder;
-use get_oco_orders::GetOCOOrders;
-use get_open_oco_orders::GetOpenOCOOrders;
-use get_order::GetOrder;
-use my_trades::MyTrades;
-use new_oco_order::NewOCOOrder;
-use new_order::NewOrder;
+use all_orders::AllOrdersRequest;
+use cancel_order::CancelOrderRequest;
+use get_order::GetOrderRequest;
+use user_trades::UserTradesRequest;
+use new_order::NewOrderRequest;
 use new_order_test::NewOrderTest;
-use open_orders::OpenOrders;
-use order::{CancelReplaceMode, OrderType, Side};
+use open_orders::OpenOrdersRequest;
+use enums::{MarginType, OrderType, PositionSide, Side};
 use order_limit_usage::OrderLimitUsage;
 
 pub fn new_order_test(symbol: &str, side: Side, r#type: &str) -> NewOrderTest {
     NewOrderTest::new(symbol, side, r#type)
 }
 
-pub fn get_order(symbol: &str) -> GetOrder {
-    GetOrder::new(symbol)
+pub fn get_open_order(symbol: &str) -> GetOpenOrderRequest {
+    GetOpenOrderRequest::new(symbol)
 }
 
-pub fn cancel_an_existing_order_and_send_a_new_order(
-    symbol: &str,
-    side: Side,
-    r#type: &str,
-    cancel_replace_mode: CancelReplaceMode,
-) -> CancelAnExistingOrderAndSendANewOrder {
-    CancelAnExistingOrderAndSendANewOrder::new(symbol, side, r#type, cancel_replace_mode)
+pub fn get_order(symbol: &str) -> GetOrderRequest {
+    GetOrderRequest::new(symbol)
 }
 
-pub fn new_order(symbol: &str, side: Side, type_: OrderType) -> NewOrder {
-    NewOrder::new(symbol, side, type_)
+pub fn new_order(symbol: &str, side: Side, type_: OrderType) -> NewOrderRequest {
+    NewOrderRequest::new(symbol, side, type_)
 }
 
-pub fn modify_order(symbol: &str, side: Side, quantity: Decimal, price: Decimal) -> ModifyOrder {
-    ModifyOrder::new(symbol, side, quantity, price)
+pub fn modify_order(symbol: &str, side: Side, quantity: Decimal, price: Decimal) -> ModifyOrderRequest {
+    ModifyOrderRequest::new(symbol, side, quantity, price)
 }
 
-pub fn new_multi_order() -> NewMultiOrder {
-    NewMultiOrder::new()
+pub fn new_multi_order() -> NewMultiOrderRequest {
+    NewMultiOrderRequest::new()
 }
 
-pub fn modify_multi_order() -> ModifyMultiOrder {
-    ModifyMultiOrder::new()
+pub fn modify_multi_order() -> ModifyMultiOrderRequest {
+    ModifyMultiOrderRequest::new()
 }
 
-pub fn order_amendment(symbol: &str) -> OrderAmendment {
-    OrderAmendment::new(symbol)
+pub fn order_amendment(symbol: &str) -> OrderAmendmentRequest {
+    OrderAmendmentRequest::new(symbol)
 }
 
-pub fn cancel_order(symbol: &str) -> CancelOrder {
-    CancelOrder::new(symbol)
+pub fn cancel_order(symbol: &str) -> CancelOrderRequest {
+    CancelOrderRequest::new(symbol)
 }
 
-pub fn cancel_multi_order(symbol: &str) -> CancelMultiOrder {
-    CancelMultiOrder::new(symbol)
+pub fn cancel_multi_order(symbol: &str) -> CancelMultiOrderRequest {
+    CancelMultiOrderRequest::new(symbol)
 }
 
-pub fn open_orders() -> OpenOrders {
-    OpenOrders::new()
+pub fn cancel_open_orders(symbol: &str) -> CancelOpenOrdersRequest {
+    CancelOpenOrdersRequest::new(symbol)
 }
 
-pub fn cancel_open_orders(symbol: &str) -> CancelOpenOrders {
-    CancelOpenOrders::new(symbol)
+pub fn open_orders() -> OpenOrdersRequest {
+    OpenOrdersRequest::new()
 }
 
-pub fn countdown_cancel_all(symbol: &str, countdown_time: i64) -> CountdownCancelAll {
-    CountdownCancelAll::new(symbol, countdown_time)
+pub fn countdown_cancel_all(symbol: &str, countdown_time: i64) -> CountdownCancelAllRequest {
+    CountdownCancelAllRequest::new(symbol, countdown_time)
 }
 
-pub fn all_orders(symbol: &str) -> AllOrders {
-    AllOrders::new(symbol)
+pub fn all_orders(symbol: &str) -> AllOrdersRequest {
+    AllOrdersRequest::new(symbol)
 }
 
-pub fn force_orders() -> ForceOrders {
-    ForceOrders::new()
+pub fn force_orders() -> ForceOrdersRequest {
+    ForceOrdersRequest::new()
 }
 
-pub fn new_oco_order(
-    symbol: &str,
-    side: Side,
-    quantity: Decimal,
-    price: Decimal,
-    stop_price: Decimal,
-) -> NewOCOOrder {
-    NewOCOOrder::new(symbol, side, quantity, price, stop_price)
+pub fn margin_type(symbol: &str, margin_type: MarginType) -> MarginTypeRequest {
+    MarginTypeRequest::new(symbol, margin_type)
 }
 
-pub fn get_oco_order() -> GetOCOOrder {
-    GetOCOOrder::new()
-}
-
-pub fn cancel_oco_order(symbol: &str) -> CancelOCOOrder {
-    CancelOCOOrder::new(symbol)
-}
-
-pub fn get_oco_orders() -> GetOCOOrders {
-    GetOCOOrders::new()
-}
-
-pub fn get_open_oco_orders() -> GetOpenOCOOrders {
-    GetOpenOCOOrders::new()
+pub fn position_side(dual_side_position: PositionSide) -> PositionSideRequest {
+    PositionSideRequest::new(dual_side_position)
 }
 
 pub fn account() -> Account {
     Account::new()
 }
 
-pub fn my_trades(symbol: &str) -> MyTrades {
-    MyTrades::new(symbol)
+pub fn user_trades(symbol: &str) -> UserTradesRequest {
+    UserTradesRequest::new(symbol)
 }
 
 pub fn order_limit_usage() -> OrderLimitUsage {

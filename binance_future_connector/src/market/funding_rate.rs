@@ -5,27 +5,15 @@ use crate::http::{request::Request, Method};
 ///
 /// Premium index kline bars of a symbol. Klines are uniquely identified by their open time.
 ///
-/// * If `startTime` and `endTime` are not sent, the most recent klines are returned.
-///
-/// Weight(IP): based on parameter LIMIT, 5 by default.
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::market::{self, klines::KlineInterval};
-///
-/// let request = market::mark_price_klines("BTCUSDT", KlineInterval::Minutes1)
-///     .start_time(1654079109000)
-///     .end_time(1654079209000);
-/// ```
-pub struct FundingRate {
+
+pub struct FundingRateRequest {
     symbol: String,
     start_time: Option<u64>,
     end_time: Option<u64>,
     limit: Option<u32>,
 }
 
-impl FundingRate {
+impl FundingRateRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -51,8 +39,8 @@ impl FundingRate {
     }
 }
 
-impl From<FundingRate> for Request {
-    fn from(request: FundingRate) -> Request {
+impl From<FundingRateRequest> for Request {
+    fn from(request: FundingRateRequest) -> Request {
         let mut params = vec![
             ("symbol".to_owned(), request.symbol),
         ];

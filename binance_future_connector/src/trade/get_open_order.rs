@@ -7,14 +7,14 @@ use crate::http::{request::Request, Method};
 /// * Either `orderId` or `origClientOrderId` must be sent.
 /// * For some historical orders `cummulativeQuoteQty` will be &lt; 0, meaning the data is not available at this time.
 
-pub struct GetOpenOrder {
+pub struct GetOpenOrderRequest {
     symbol: String,
     order_id: Option<u64>,
     orig_client_order_id: Option<String>,
     recv_window: Option<u64>,
 }
 
-impl GetOpenOrder {
+impl GetOpenOrderRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -40,8 +40,8 @@ impl GetOpenOrder {
     }
 }
 
-impl From<GetOpenOrder> for Request {
-    fn from(request: GetOpenOrder) -> Request {
+impl From<GetOpenOrderRequest> for Request {
+    fn from(request: GetOpenOrderRequest) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(order_id) = request.order_id {

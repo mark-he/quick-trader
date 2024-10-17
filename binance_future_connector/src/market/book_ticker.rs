@@ -17,11 +17,11 @@ use crate::http::{request::Request, Method};
 ///
 /// let request = market::book_ticker().symbol("BNBUSDT").symbols(vec!["BTCUSDT","BNBBTC"]);
 /// ```
-pub struct BookTicker {
+pub struct BookTickerRequest {
     symbol: Option<String>,
 }
 
-impl BookTicker {
+impl BookTickerRequest {
     pub fn new() -> Self {
         Self {
             symbol: None,
@@ -34,14 +34,14 @@ impl BookTicker {
     }
 }
 
-impl Default for BookTicker {
+impl Default for BookTickerRequest {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl From<BookTicker> for Request {
-    fn from(request: BookTicker) -> Request {
+impl From<BookTickerRequest> for Request {
+    fn from(request: BookTickerRequest) -> Request {
         let mut params = vec![];
 
         if let Some(symbol) = request.symbol {

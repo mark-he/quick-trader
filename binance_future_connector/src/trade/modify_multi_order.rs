@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use serde_json::json;
-use super::modify_order::ModifyOrder;
+use super::modify_order::ModifyOrderRequest;
 use crate::http::{request::Request, Method};
 
-pub struct ModifyMultiOrder {
-    pub batch_orders: Vec<ModifyOrder>,
+pub struct ModifyMultiOrderRequest {
+    pub batch_orders: Vec<ModifyOrderRequest>,
     pub recv_window: Option<i64>,
 }
 
-impl ModifyMultiOrder {
+impl ModifyMultiOrderRequest {
     pub fn new() -> Self {
         Self {
             batch_orders: vec![],
@@ -16,7 +16,7 @@ impl ModifyMultiOrder {
         }
     }
 
-    pub fn add(mut self, order: ModifyOrder) -> Self {
+    pub fn add(mut self, order: ModifyOrderRequest) -> Self {
         self.batch_orders.push(order);
         self
     }
@@ -27,8 +27,8 @@ impl ModifyMultiOrder {
     }
 }
 
-impl From<ModifyMultiOrder> for Request {
-    fn from(request: ModifyMultiOrder) -> Request {
+impl From<ModifyMultiOrderRequest> for Request {
+    fn from(request: ModifyMultiOrderRequest) -> Request {
         let mut v = vec![];
         for order in &request.batch_orders {
             let v_params = order.get_params();

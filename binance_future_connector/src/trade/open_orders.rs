@@ -5,12 +5,12 @@ use crate::http::{request::Request, Method};
 /// Get all open orders on a symbol. Careful when accessing this with no symbol.
 ///
 
-pub struct OpenOrders {
+pub struct OpenOrdersRequest {
     symbol: Option<String>,
     recv_window: Option<u64>,
 }
 
-impl OpenOrders {
+impl OpenOrdersRequest {
     pub fn new() -> Self {
         Self {
             symbol: None,
@@ -29,14 +29,14 @@ impl OpenOrders {
     }
 }
 
-impl Default for OpenOrders {
+impl Default for OpenOrdersRequest {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl From<OpenOrders> for Request {
-    fn from(request: OpenOrders) -> Request {
+impl From<OpenOrdersRequest> for Request {
+    fn from(request: OpenOrdersRequest) -> Request {
         let mut params = vec![];
 
         if let Some(symbol) = request.symbol {

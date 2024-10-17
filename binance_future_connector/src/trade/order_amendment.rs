@@ -4,7 +4,7 @@ use crate::http::{request::Request, Method};
 ///
 /// Get Order Modify History
 ///
-pub struct OrderAmendment {
+pub struct OrderAmendmentRequest {
     pub symbol: String,
     pub order_id: Option<i64>,
     pub orig_client_order_id: Option<String>,
@@ -14,7 +14,7 @@ pub struct OrderAmendment {
     pub recv_window: Option<i64>,
 }
 
-impl OrderAmendment {
+impl OrderAmendmentRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -90,8 +90,8 @@ impl OrderAmendment {
 
 }
 
-impl From<OrderAmendment> for Request {
-    fn from(request: OrderAmendment) -> Request {
+impl From<OrderAmendmentRequest> for Request {
+    fn from(request: OrderAmendmentRequest) -> Request {
         let params = request.get_params();
         Request {
             path: "/fapi/v1/orderAmendment".to_owned(),

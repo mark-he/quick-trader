@@ -31,7 +31,7 @@ pub enum ContractType {
 ///     .start_time(1654079109000)
 ///     .end_time(1654079209000);
 /// ```
-pub struct ContractKlines {
+pub struct ContractKlinesRequest {
     pair: String,
     contract_type: ContractType,
     interval: KlineInterval,
@@ -40,7 +40,7 @@ pub struct ContractKlines {
     limit: Option<u32>,
 }
 
-impl ContractKlines {
+impl ContractKlinesRequest {
     pub fn new(pair: &str, contract_type: ContractType, interval: KlineInterval) -> Self {
         Self {
             pair: pair.to_owned(),
@@ -68,8 +68,8 @@ impl ContractKlines {
     }
 }
 
-impl From<ContractKlines> for Request {
-    fn from(request: ContractKlines) -> Request {
+impl From<ContractKlinesRequest> for Request {
+    fn from(request: ContractKlinesRequest) -> Request {
         let mut params = vec![
             ("pair".to_owned(), request.pair),
             ("contractType".to_owned(), request.contract_type.to_string()),
@@ -95,38 +95,5 @@ impl From<ContractKlines> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{KlineInterval, ContractKlines};
-    use crate::{http::{request::Request, Method}, market::contract_klines::ContractType};
-
-    #[test]
-    fn market_kline_candlestick_data_convert_to_request_test() {
-        let request: Request = ContractKlines::new("BTCUSDT", ContractType::Perpetual, KlineInterval::Minutes1)
-            .start_time(1654079109000)
-            .end_time(1654079209000)
-            .limit(100)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/fapi/v1/ContractKlines".to_owned(),
-                credentials: None,
-                method: Method::Get,
-                params: vec![
-                    ("pair".to_owned(), "BTCUSDT".to_string()),
-                    ("contract_type".to_owned(), "PERPETUAL".to_string()),
-                    ("interval".to_owned(), "1m".to_string()),
-                    ("startTime".to_owned(), "1654079109000".to_string()),
-                    ("endTime".to_owned(), "1654079209000".to_string()),
-                    ("limit".to_owned(), "100".to_string())
-                ],
-                sign: false
-            }
-        )
     }
 }

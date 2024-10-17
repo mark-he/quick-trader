@@ -19,93 +19,93 @@ pub mod funding_rate;
 pub mod funding_info;
 pub mod open_interest;
 
-use agg_trades::AggTrades;
-use book_ticker::BookTicker;
-use contract_klines::{ContractKlines, ContractType};
+use agg_trades::AggTradesRequest;
+use book_ticker::BookTickerRequest;
+use contract_klines::{ContractKlinesRequest, ContractType};
 use depth::Depth;
-use exchange_info::ExchangeInfo;
-use funding_info::FundingInfo;
-use funding_rate::FundingRate;
-use historical_trades::HistoricalTrades;
-use index_price_klines::IndexPriceKlines;
-use klines::{KlineInterval, Klines};
-use open_interest::OpenInterest;
-use ping::Ping;
-use premium_index::PremiumIndex;
-use premium_index_klines::PremiumIndexKlines;
-use ticker_price::TickerPrice;
-use ticker_twenty_four_hr::Ticker24hr;
-use time::Time;
-use trades::Trades;
+use exchange_info::ExchangeInfoRequest;
+use funding_info::FundingInfoRequest;
+use funding_rate::FundingRateRequest;
+use historical_trades::HistoricalTradesRequest;
+use index_price_klines::IndexPriceKlinesRequest;
+use klines::{KlineInterval, KlinesRequest};
+use open_interest::OpenInterestRequest;
+use ping::PingRequest;
+use premium_index::PremiumIndexRequest;
+use premium_index_klines::PremiumIndexKlinesRequest;
+use ticker_price::TickerPriceRequest;
+use ticker_twenty_four_hr::Ticker24hrRequest;
+use time::TimeRequests;
+use trades::TradesRequest;
 
-pub fn ping() -> Ping {
-    Ping::new()
+pub fn ping() -> PingRequest {
+    PingRequest::new()
 }
 
-pub fn time() -> Time {
-    Time::new()
+pub fn time() -> TimeRequests {
+    TimeRequests::new()
 }
 
-pub fn exchange_info() -> ExchangeInfo {
-    ExchangeInfo::new()
+pub fn exchange_info() -> ExchangeInfoRequest {
+    ExchangeInfoRequest::new()
 }
 
 pub fn depth(symbol: &str) -> Depth {
     Depth::new(symbol)
 }
 
-pub fn trades(symbol: &str) -> Trades {
-    Trades::new(symbol)
+pub fn trades(symbol: &str) -> TradesRequest {
+    TradesRequest::new(symbol)
 }
 
-pub fn historical_trades(symbol: &str) -> HistoricalTrades {
-    HistoricalTrades::new(symbol)
+pub fn historical_trades(symbol: &str) -> HistoricalTradesRequest {
+    HistoricalTradesRequest::new(symbol)
 }
 
-pub fn agg_trades(symbol: &str) -> AggTrades {
-    AggTrades::new(symbol)
+pub fn agg_trades(symbol: &str) -> AggTradesRequest {
+    AggTradesRequest::new(symbol)
 }
 
-pub fn klines(symbol: &str, interval: KlineInterval) -> Klines {
-    Klines::new(symbol, interval)
+pub fn klines(symbol: &str, interval: KlineInterval) -> KlinesRequest {
+    KlinesRequest::new(symbol, interval)
 }
 
-pub fn contract_klines(pair: &str, contract_type: ContractType, interval: KlineInterval) -> ContractKlines {
-    ContractKlines::new(pair, contract_type, interval)
+pub fn contract_klines(pair: &str, contract_type: ContractType, interval: KlineInterval) -> ContractKlinesRequest {
+    ContractKlinesRequest::new(pair, contract_type, interval)
 }
 
-pub fn index_price_klines(pair: &str, interval: KlineInterval) -> IndexPriceKlines {
-    IndexPriceKlines::new(pair, interval)
+pub fn index_price_klines(pair: &str, interval: KlineInterval) -> IndexPriceKlinesRequest {
+    IndexPriceKlinesRequest::new(pair, interval)
 }
 
-pub fn premium_index_klines(pair: &str, interval: KlineInterval) -> PremiumIndexKlines {
-    PremiumIndexKlines::new(pair, interval)
+pub fn premium_index_klines(pair: &str, interval: KlineInterval) -> PremiumIndexKlinesRequest {
+    PremiumIndexKlinesRequest::new(pair, interval)
 }
 
-pub fn premium_index(symbol: &str) -> PremiumIndex {
-    PremiumIndex::new(symbol)
+pub fn premium_index(symbol: &str) -> PremiumIndexRequest {
+    PremiumIndexRequest::new(symbol)
 }
 
-pub fn funding_rate(symbol: &str) -> FundingRate {
-    FundingRate::new(symbol)
+pub fn funding_rate(symbol: &str) -> FundingRateRequest {
+    FundingRateRequest::new(symbol)
 }
 
-pub fn funding_info() -> FundingInfo {
-    FundingInfo::new()
+pub fn funding_info() -> FundingInfoRequest {
+    FundingInfoRequest::new()
 }
 
-pub fn ticker_twenty_four_hr() -> Ticker24hr {
-    Ticker24hr::new()
+pub fn ticker_twenty_four_hr() -> Ticker24hrRequest {
+    Ticker24hrRequest::new()
 }
 
-pub fn ticker_price() -> TickerPrice {
-    TickerPrice::new()
+pub fn ticker_price() -> TickerPriceRequest {
+    TickerPriceRequest::new()
 }
 
-pub fn book_ticker() -> BookTicker {
-    BookTicker::new()
+pub fn book_ticker() -> BookTickerRequest {
+    BookTickerRequest::new()
 }
 
-pub fn open_interest(symbol: &str) -> OpenInterest {
-    OpenInterest::new(symbol)
+pub fn open_interest(symbol: &str) -> OpenInterestRequest {
+    OpenInterestRequest::new(symbol)
 }

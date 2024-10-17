@@ -6,22 +6,11 @@ use crate::http::{request::Request, Method};
 ///
 /// * If the symbol is not sent, prices for all symbols will be returned in an array.
 ///
-/// Weight(IP):
-/// * `1` for a single symbol;
-/// * `2` when the symbol parameter is omitted;
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::market;
-///
-/// let request = market::ticker_price().symbol("BNBUSDT").symbols(vec!["BTCUSDT","BNBBTC"]);
-/// ```
-pub struct TickerPrice {
+pub struct TickerPriceRequest {
     symbol: Option<String>,
 }
 
-impl TickerPrice {
+impl TickerPriceRequest {
     pub fn new() -> Self {
         Self {
             symbol: None,
@@ -34,8 +23,8 @@ impl TickerPrice {
     }
 }
 
-impl From<TickerPrice> for Request {
-    fn from(request: TickerPrice) -> Request {
+impl From<TickerPriceRequest> for Request {
+    fn from(request: TickerPriceRequest) -> Request {
         let mut params = vec![];
 
         if let Some(symbol) = request.symbol {
@@ -49,11 +38,5 @@ impl From<TickerPrice> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-impl Default for TickerPrice {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,7 +1,7 @@
 use binance_future_connector::{
     http::Credentials,
     hyper::{BinanceHttpClient, Error},
-    trade::{self, order::Side},
+    trade::{self, enums::Side},
 };
 use env_logger::Builder;
 use rust_decimal_macros::dec;

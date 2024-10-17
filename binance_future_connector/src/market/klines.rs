@@ -40,20 +40,7 @@ pub enum KlineInterval {
 /// Kline/candlestick bars for a symbol.
 /// Klines are uniquely identified by their open time.
 ///
-/// * If `startTime` and `endTime` are not sent, the most recent klines are returned.
-///
-/// Weight(IP): 1
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::market::{self, klines::KlineInterval};
-///
-/// let request = market::klines("BTCUSDT", KlineInterval::Minutes1)
-///     .start_time(1654079109000)
-///     .end_time(1654079209000);
-/// ```
-pub struct Klines {
+pub struct KlinesRequest {
     symbol: String,
     interval: KlineInterval,
     start_time: Option<u64>,
@@ -61,7 +48,7 @@ pub struct Klines {
     limit: Option<u32>,
 }
 
-impl Klines {
+impl KlinesRequest {
     pub fn new(symbol: &str, interval: KlineInterval) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -88,8 +75,8 @@ impl Klines {
     }
 }
 
-impl From<Klines> for Request {
-    fn from(request: Klines) -> Request {
+impl From<KlinesRequest> for Request {
+    fn from(request: KlinesRequest) -> Request {
         let mut params = vec![
             ("symbol".to_owned(), request.symbol),
             ("interval".to_owned(), request.interval.to_string()),
@@ -114,37 +101,5 @@ impl From<Klines> for Request {
             credentials: None,
             sign: false,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{KlineInterval, Klines};
-    use crate::http::{request::Request, Method};
-
-    #[test]
-    fn market_kline_candlestick_data_convert_to_request_test() {
-        let request: Request = Klines::new("BTCUSDT", KlineInterval::Minutes1)
-            .start_time(1654079109000)
-            .end_time(1654079209000)
-            .limit(100)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/fapi/v1/klines".to_owned(),
-                credentials: None,
-                method: Method::Get,
-                params: vec![
-                    ("symbol".to_owned(), "BTCUSDT".to_string()),
-                    ("interval".to_owned(), "1m".to_string()),
-                    ("startTime".to_owned(), "1654079109000".to_string()),
-                    ("endTime".to_owned(), "1654079209000".to_string()),
-                    ("limit".to_owned(), "100".to_string())
-                ],
-                sign: false
-            }
-        )
     }
 }

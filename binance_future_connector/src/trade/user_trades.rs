@@ -1,21 +1,11 @@
-use crate::http::{request::Request, Credentials, Method};
+use crate::http::{request::Request, Method};
 
-/// `GET /api/v3/myTrades`
+/// `GET /fapi/v1/userTrades`
 ///
 /// Get trades for a specific account and symbol.
 ///
-/// If `fromId` is set, it will get id &gt;= that `fromId`. Otherwise most recent orders are returned.
-///
-/// Weight(IP): 10
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::trade;
-///
-/// let request = trade::my_trades("BNBUSDT").limit(500);
-/// ```
-pub struct MyTrades {
+
+pub struct UserTradesRequest {
     symbol: String,
     order_id: Option<u64>,
     start_time: Option<u64>,
@@ -23,10 +13,9 @@ pub struct MyTrades {
     from_id: Option<u64>,
     limit: Option<u32>,
     recv_window: Option<u64>,
-    credentials: Option<Credentials>,
 }
 
-impl MyTrades {
+impl UserTradesRequest {
     pub fn new(symbol: &str) -> Self {
         Self {
             symbol: symbol.to_owned(),
@@ -36,7 +25,6 @@ impl MyTrades {
             from_id: None,
             limit: None,
             recv_window: None,
-            credentials: None,
         }
     }
 
@@ -69,15 +57,10 @@ impl MyTrades {
         self.recv_window = Some(recv_window);
         self
     }
-
-    pub fn credentials(mut self, credentials: &Credentials) -> Self {
-        self.credentials = Some(credentials.clone());
-        self
-    }
 }
 
-impl From<MyTrades> for Request {
-    fn from(request: MyTrades) -> Request {
+impl From<UserTradesRequest> for Request {
+    fn from(request: UserTradesRequest) -> Request {
         let mut params = vec![("symbol".to_owned(), request.symbol.to_string())];
 
         if let Some(order_id) = request.order_id {
@@ -105,46 +88,11 @@ impl From<MyTrades> for Request {
         }
 
         Request {
-            path: "/api/v3/myTrades".to_owned(),
+            path: "/fapi/v1/userTrades".to_owned(),
             method: Method::Get,
             params,
-            credentials: request.credentials,
+            credentials: None,
             sign: true,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::MyTrades;
-    use crate::http::{request::Request, Credentials, Method};
-
-    static API_KEY: &str = "api-key";
-    static API_SECRET: &str = "api-secret";
-
-    #[test]
-    fn trade_my_trades_convert_to_request_test() {
-        let credentials = Credentials::from_hmac(API_KEY.to_owned(), API_SECRET.to_owned());
-
-        let request: Request = MyTrades::new("BNBUSDT")
-            .limit(500)
-            .recv_window(5000)
-            .credentials(&credentials)
-            .into();
-
-        assert_eq!(
-            request,
-            Request {
-                path: "/api/v3/myTrades".to_owned(),
-                credentials: Some(credentials),
-                method: Method::Get,
-                params: vec![
-                    ("symbol".to_owned(), "BNBUSDT".to_string()),
-                    ("limit".to_owned(), "500".to_string()),
-                    ("recvWindow".to_owned(), "5000".to_string()),
-                ],
-                sign: true
-            }
-        );
     }
 }

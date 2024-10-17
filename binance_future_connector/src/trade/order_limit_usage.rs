@@ -4,15 +4,7 @@ use crate::http::{request::Request, Credentials, Method};
 ///
 /// Displays the user's current order count usage for all intervals.
 ///
-/// Weight(IP): 20
-///
-/// # Example
-///
-/// ```
-/// use binance_spot_connector::trade;
-///
-/// let request = trade::order_limit_usage();
-/// ```
+
 pub struct OrderLimitUsage {
     recv_window: Option<u64>,
     credentials: Option<Credentials>,

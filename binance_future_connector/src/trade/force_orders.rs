@@ -1,6 +1,6 @@
 use crate::http::{request::Request, Method};
 
-use super::order::AutoCloseType;
+use super::enums::AutoCloseType;
 
 /// `GET /fapi/v1/openOrders`
 ///
@@ -8,7 +8,7 @@ use super::order::AutoCloseType;
 ///
 
 
-pub struct ForceOrders {
+pub struct ForceOrdersRequest {
     pub symbol: Option<String>,
     pub auto_close_type: Option<AutoCloseType>,
     pub start_time: Option<i64>,
@@ -17,7 +17,7 @@ pub struct ForceOrders {
     pub recv_window: Option<i64>,
 }
 
-impl ForceOrders {
+impl ForceOrdersRequest {
     pub fn new() -> Self {
         Self {
             symbol: None,
@@ -83,8 +83,8 @@ impl ForceOrders {
         params
     }
 }
-impl From<ForceOrders> for Request {
-    fn from(request: ForceOrders) -> Request {
+impl From<ForceOrdersRequest> for Request {
+    fn from(request: ForceOrdersRequest) -> Request {
         let params = request.get_params();
         Request {
             path: "/fapi/v1/forceOrders".to_owned(),

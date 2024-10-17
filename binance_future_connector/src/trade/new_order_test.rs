@@ -1,5 +1,5 @@
 use crate::http::{request::Request, Credentials, Method};
-use crate::trade::order::{NewOrderResponseType, Side, TimeInForce};
+use crate::trade::enums::{NewOrderResponseType, Side, TimeInForce};
 use rust_decimal::Decimal;
 
 /// `POST /api/v3/order/test`
@@ -175,7 +175,7 @@ impl From<NewOrderTest> for Request {
 mod tests {
     use super::NewOrderTest;
     use crate::http::{request::Request, Credentials, Method};
-    use crate::trade::order::Side;
+    use crate::trade::enums::Side;
     use rust_decimal_macros::dec;
 
     static API_KEY: &str = "api-key";

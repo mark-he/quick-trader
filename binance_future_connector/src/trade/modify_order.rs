@@ -1,9 +1,9 @@
-use crate::trade::order::{Side, PriceMatch};
+use crate::trade::enums::{Side, PriceMatch};
 use crate::http::{request::Request, Method};
 use rust_decimal::Decimal;
 
 
-pub struct ModifyOrder {
+pub struct ModifyOrderRequest {
     pub order_id: Option<i64>,
     pub orig_client_order_id: Option<String>,
     pub symbol: String,
@@ -14,7 +14,7 @@ pub struct ModifyOrder {
     pub recv_window: Option<i64>,
 }
 
-impl ModifyOrder {
+impl ModifyOrderRequest {
     pub fn new(symbol: &str, side: Side, quantity: Decimal, price: Decimal) -> Self {
         Self {
             order_id: None,
@@ -74,8 +74,8 @@ impl ModifyOrder {
     }
 }
 
-impl From<ModifyOrder> for Request {
-    fn from(order: ModifyOrder) -> Request {
+impl From<ModifyOrderRequest> for Request {
+    fn from(order: ModifyOrderRequest) -> Request {
         let params = order.get_params();
         Request {
             path: "/fapi/v1/order".to_owned(),
