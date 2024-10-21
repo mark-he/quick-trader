@@ -107,4 +107,3 @@ pub mod market;
 pub mod trade;
 pub mod wallet;
 pub mod config;
-pub mod test;

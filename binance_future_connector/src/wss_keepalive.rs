@@ -68,7 +68,7 @@ impl WssKeepalive {
                                 },
                             }
                         },
-                        Err(e) => {
+                        Err(_) => {
                             self.conn = None;
                             break;
                         }

@@ -9,7 +9,7 @@ fn main() {
         .filter(None, log::LevelFilter::Debug)
         .init();
 
-    let keepalive = WssKeepalive::new(binance_future_connector::config::WSS_API).prepare(|conn| {
+    let _ = WssKeepalive::new(binance_future_connector::config::WSS_API).prepare(|conn| {
         conn.subscribe(vec![
             &KlineStream::new("BTCUSDT", KlineInterval::Minutes1).into(),
         ]);

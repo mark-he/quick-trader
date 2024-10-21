@@ -110,7 +110,7 @@ impl WssListeneKeyKeepalive {
                                 },
                             }
                         },
-                        Err(e) => {
+                        Err(_) => {
                             self.conn = None;
                             break;
                         }

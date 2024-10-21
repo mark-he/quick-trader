@@ -1,4 +1,4 @@
-use crate::http::{request::Request, Credentials, Method};
+use crate::http::{request::Request, Method};
 
 /// `DELETE /sapi/v1/userDataStream`
 ///
