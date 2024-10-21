@@ -100,9 +100,11 @@ pub mod margin_stream;
 pub mod market_stream;
 pub mod stream;
 pub mod user_data_stream;
-pub mod wss_keepalive_api;
+pub mod wss_keepalive;
+pub mod wss_listen_key_keepalive;
 
 pub mod market;
 pub mod trade;
 pub mod wallet;
 pub mod config;
+pub mod test;

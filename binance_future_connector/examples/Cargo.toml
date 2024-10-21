@@ -12,6 +12,7 @@ futures-util = "0.3.21"
 env_logger = "0.11.3"
 rust_decimal = "1.24.0"
 rust_decimal_macros = "1.24.0"
+serde_json = "*"
 
 [[example]]
 name="hyper"
@@ -20,6 +21,14 @@ path="hyper.rs"
 [[example]]
 name="ureq"
 path="ureq.rs"
+
+[[example]]
+name="wss_keepalive"
+path="wss_keepalive.rs"
+
+[[example]]
+name="user_data_stream/wss_listen_key_keepalive"
+path="user_data_stream/wss_listen_key_keepalive.rs"
 
 [[example]]
 name="tokio_tungstenite"
