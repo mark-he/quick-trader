@@ -29,8 +29,13 @@ fn main() {
             }
         }
         None
-
-    }, 24 * 3600).stream(|m| {
+    }, 24 * 3600).renew_listen_key(|listen_key| {
+        let credentials = Credentials::from_hmac("13d233877484f4ea87afbbb8c29e52072c4e4a4a8650fcd689e076fab082bdc6".to_owned(), "671b347de4235aa3c2d3d15664db16180593ab21f65f4826e54b8f8e1ba11395".to_owned());
+        let client = BinanceHttpClient::default().credentials(credentials);
+        let request = user_data_stream::renew_listen_key(listen_key);
+        let ret = client.send(request);
+    }, 3600)
+    .stream(|m| {
         let data = m.into_data();
         let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
         log::info!("{}", &string_data);

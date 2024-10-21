@@ -9,8 +9,9 @@ pub struct WssListeneKeyKeepalive {
     new_interval: u32,
     url: String,
     new_block: Option<Box<dyn Fn() -> Option<String>>>,
-    renew_block: Option<Arc<Mutex<Box<dyn Fn() + Send + 'static>>>>,
+    renew_block: Option<Arc<Mutex<Box<dyn Fn(&str) + Send + 'static>>>>,
     conn: Option<Conn>,
+    listen_key: String,
 }
 
 impl WssListeneKeyKeepalive {
@@ -22,10 +23,12 @@ impl WssListeneKeyKeepalive {
             new_block: None,
             renew_block: None,
             conn: None,
+            listen_key: "".to_string(),
         }
     }
 
     fn connect(&mut self, listen_key: &str) -> &Self {
+        self.listen_key = listen_key.to_string();
         let ret = BinanceWebSocketClient::connect_with_url(format!("{}/{}", self.url.as_str(), listen_key).as_str());
         if let Ok(conn) = ret {
             self.conn = Some(conn);
@@ -47,7 +50,7 @@ impl WssListeneKeyKeepalive {
     }
 
     pub fn renew_listen_key<F: 'static>(mut self, block: F, renew_interval: u32) -> Self 
-        where F: Fn() + Send + 'static {
+        where F: Fn(&str) + Send + 'static {
         self.renew_block = Some(Arc::new(Mutex::new(Box::new(block))));
         self.renew_interval = renew_interval;
         self
@@ -57,6 +60,7 @@ impl WssListeneKeyKeepalive {
         if self.renew_block.is_some() {
             let renew_block_ref = self.renew_block.as_ref().unwrap().clone();
             let duration = self.renew_interval as u64 * 0.75 as u64;
+            let listen_key = self.listen_key.clone();
             thread::spawn(move || {
                 let runtime = Runtime::new().unwrap();
                 let mut interval = interval(TokioDuration::from_secs(duration));
@@ -64,7 +68,7 @@ impl WssListeneKeyKeepalive {
                 runtime.block_on(async {
                     interval.tick().await;
                 });
-                block();
+                block(listen_key.as_str());
             });  
         }
     }
