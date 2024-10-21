@@ -15,7 +15,7 @@ use std::thread::{self};
 use common::msmc::*;
 use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime};
 
 const BINANCE_WSS_BASE_URL: &str = "wss://testnet.binance.vision/ws";
 
@@ -312,7 +312,7 @@ impl MarketServer for BnMarketServer {
                         if event_type.as_str().unwrap() == "kline" {
                             match serde_json::from_str::<BinanceKline>(&string_data) {
                                 Ok(kline) => {
-                                    let datetime = NaiveDateTime::from_timestamp((kline.kline_data.start_time/1000) as i64, 0);
+                                    let datetime = DateTime::from_timestamp((kline.kline_data.start_time/1000) as i64, 0).unwrap();
                                     let k = KLine {
                                         symbol: kline.kline_data.symbol.clone(),
                                         interval: kline.kline_data.interval.clone(),
@@ -331,7 +331,7 @@ impl MarketServer for BnMarketServer {
                         } else {
                             match serde_json::from_str::<BinanceTick>(&string_data) {
                                 Ok(tick) => {
-                                    let datetime = NaiveDateTime::from_timestamp((tick.statistics_open_time/1000) as i64, 0);
+                                    let datetime = DateTime::from_timestamp((tick.statistics_open_time/1000) as i64, 0).unwrap();
                                     let t = Tick {
                                         symbol: tick.symbol.clone(),
                                         datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
