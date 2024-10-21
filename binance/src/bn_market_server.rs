@@ -15,7 +15,7 @@ use std::thread::{self};
 use common::msmc::*;
 use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, NaiveDateTime};
+use chrono::DateTime;
 
 const BINANCE_WSS_BASE_URL: &str = "wss://testnet.binance.vision/ws";
 
