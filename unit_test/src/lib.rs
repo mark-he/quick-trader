@@ -217,10 +217,8 @@ mod tests {
         let mut server = BnMarketServer::new();
         let prop : HashMap<String, String> = HashMap::new();
         let ret = server.connect(&prop); 
-        println!("{:?}", ret.is_err());
         let _ = server.subscribe_tick("BTCUSDT");
         let _ = server.subscribe_kline("BTCUSDT", "1m");
-        println!("{:?}", ret.is_err());
         let _ = server.start();
 
 

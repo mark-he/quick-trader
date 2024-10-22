@@ -7,10 +7,8 @@ use market::kline::KLineCombiner;
 use super::ctp_market_spi::Spi;
 use market::market_server::{KLine, MarketData, MarketServer};
 use libctp_sys::*;
-use std::sync::{Mutex, Arc, RwLock};
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
-use std::thread;
 use common::msmc::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -349,7 +347,7 @@ impl MarketServer for CtpMarketServer {
                                         high: t.high,
                                         low: t.low,
                                         close: t.close,
-                                        volume: t.volume,
+                                        volume: t.volume as i32,
                                         turnover: t.turnover,
                                     };
                                     let mut new_kline = combiner.combine_tick(&kline, true);

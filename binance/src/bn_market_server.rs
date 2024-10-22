@@ -1,4 +1,4 @@
-use binance_future_connector::market_stream::ticker::TickerStream;
+use binance_future_connector::market_stream::mini_ticker::MiniTickerStream;
 use binance_future_connector::wss_keepalive::WssKeepalive;
 use binance_future_connector::{config, market_stream::kline::KlineStream, market::klines::interval_from_str,
 };
@@ -86,7 +86,7 @@ impl MarketServer for BnMarketServer {
                     if topic.interval == "" {
                         if !tick_set.contains(topic.symbol.as_str()) {
                             conn.subscribe(vec![
-                                &TickerStream::from_symbol(topic.symbol.as_str()).into(),
+                                &MiniTickerStream::from_symbol(topic.symbol.as_str()).into(),
                             ]);
                             tick_set.insert(topic.symbol.to_string());
                         }
@@ -103,7 +103,7 @@ impl MarketServer for BnMarketServer {
                                 ]);
                                 if !tick_set.contains(topic.symbol.as_str()) {
                                     conn.subscribe(vec![
-                                        &TickerStream::from_symbol(topic.symbol.as_str()).into(),
+                                        &MiniTickerStream::from_symbol(topic.symbol.as_str()).into(),
                                     ]);
                                     tick_set.insert(topic.symbol.to_string());
                                 }
@@ -127,7 +127,6 @@ impl MarketServer for BnMarketServer {
                 let data = message.into_data();
                 let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
-                
                 match json_value.get("e") {
                     Some(event_type) => {
                         if event_type.as_str().unwrap() == "kline" {
@@ -151,10 +150,10 @@ impl MarketServer for BnMarketServer {
                                 },
                                 _ => {},
                             }
-                        } else {
+                        } else if event_type.as_str().unwrap() == "24hrMiniTicker" {
                             match serde_json::from_str::<model::BinanceTick>(&string_data) {
                                 Ok(tick) => {
-                                    let datetime = DateTime::from_timestamp((tick.statistics_open_time/1000) as i64, 0).unwrap();
+                                    let datetime = DateTime::from_timestamp((tick.event_time/1000) as i64, 0).unwrap();
                                     let t = Tick {
                                         symbol: tick.symbol.clone(),
                                         datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -162,15 +161,17 @@ impl MarketServer for BnMarketServer {
                                         open: tick.open_price.parse::<f64>().unwrap(),
                                         high: tick.high_price.parse::<f64>().unwrap(),
                                         low: tick.low_price.parse::<f64>().unwrap(),
-                                        close: tick.last_price.parse::<f64>().unwrap(),
-                                        volume: tick.total_number_of_trades as i32,
+                                        close: tick.close_price.parse::<f64>().unwrap(),
+                                        volume: tick.total_traded_base_asset_volume.parse::<f64>().unwrap(),
                                         turnover: tick.total_traded_quote_asset_volume.parse::<f64>().unwrap(),
-                                        open_interest: tick.last_quantity.parse::<f64>().unwrap(),
+                                        open_interest: 0 as f64,
                                         ..Default::default()
                                     };
                                     self.subscription.send(&Some(MarketData::Tick(t)));
                                 },
-                                _ => {},
+                                Err(e) => {
+                                    println!("{:?}", e);
+                                },
                             }
                         }
                     },

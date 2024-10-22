@@ -104,7 +104,7 @@ impl MarketServer for BacktestMarketServer {
                                         high: t.high,
                                         low: t.low,
                                         close: t.close,
-                                        volume: t.volume,
+                                        volume: t.volume as i32,
                                         turnover: t.turnover,
                                     };
                                     let mut new_kline = combiner.combine_tick(&kline, true);
@@ -184,7 +184,7 @@ fn _convert_tick(symbol : &str, order_book : &OrderBook) -> Result<Tick, AppErro
         high: _convert_str_f64(order_book.high.as_str())?,
         low: _convert_str_f64(order_book.low.as_str())?,
         close: _convert_str_f64(order_book.close.as_str())?,
-        volume: _convert_str_i32(order_book.volume.as_str())?,
+        volume: _convert_str_f64(order_book.volume.as_str())?,
         turnover: _convert_str_f64(order_book.turnover.as_str())?,
         open_interest: _convert_str_f64(order_book.open_interest.as_str())?,
         last_price: _convert_str_f64(order_book.close.as_str())?,

@@ -80,38 +80,11 @@ pub struct BinanceTick {
     /// Event time
     pub event_time: u64,
     #[serde(rename = "s")]
-    /// Symbol of the trading pair
+    /// Symbol
     pub symbol: String,
-    #[serde(rename = "p")]
-    /// Price change
-    pub price_change: String,
-    #[serde(rename = "P")]
-    /// Percentage of price change
-    pub price_change_percent: String,
-    #[serde(rename = "w")]
-    /// Weighted average price
-    pub weighted_average_price: String,
-    #[serde(rename = "x")]
-    /// First trade price
-    pub first_trade_price: String,
     #[serde(rename = "c")]
-    /// Last price
-    pub last_price: String,
-    #[serde(rename = "Q")]
-    /// Last quantity
-    pub last_quantity: String,
-    #[serde(rename = "b")]
-    /// Best bid price
-    pub best_bid_price: String,
-    #[serde(rename = "B")]
-    /// Best bid quantity
-    pub best_bid_quantity: String,
-    #[serde(rename = "a")]
-    /// Best ask price
-    pub best_ask_price: String,
-    #[serde(rename = "A")]
-    /// Best ask quantity
-    pub best_ask_quantity: String,
+    /// Close price
+    pub close_price: String,
     #[serde(rename = "o")]
     /// Open price
     pub open_price: String,
@@ -126,20 +99,5 @@ pub struct BinanceTick {
     pub total_traded_base_asset_volume: String,
     #[serde(rename = "q")]
     /// Total traded quote asset volume
-    pub  total_traded_quote_asset_volume: String,
-    #[serde(rename = "O")]
-    /// Statistics open time
-    pub statistics_open_time: u64,
-    #[serde(rename = "C")]
-    /// Statistics close time
-    pub statistics_close_time: u64,
-    #[serde(rename = "F")]
-    /// First trade ID
-    pub first_trade_id: u64,
-    #[serde(rename = "L")]
-    /// Last trade ID
-    pub last_trade_id: u64,
-    #[serde(rename = "n")]
-    /// Total number of trades
-    pub total_number_of_trades: u64,
+    pub total_traded_quote_asset_volume: String,
 }
