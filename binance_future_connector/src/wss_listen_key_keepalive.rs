@@ -1,7 +1,8 @@
-use std::{net::TcpStream, sync::{Arc, Mutex}, thread, time::Duration};
+use std::{net::TcpStream, sync::Arc, thread, time::Duration};
 use tungstenite::{stream::MaybeTlsStream, Message};
 use crate::tungstenite::{BinanceWebSocketClient, WebSocketState};
-use tokio::{runtime::Runtime, time::{interval, Duration as TokioDuration}};
+use tokio::time::{sleep, Duration as TokioDuration};
+use tokio::sync::Mutex;
 
 type Conn = WebSocketState<MaybeTlsStream<TcpStream>>;
 pub struct WssListeneKeyKeepalive {
@@ -61,15 +62,14 @@ impl WssListeneKeyKeepalive {
             let renew_block_ref = self.renew_block.as_ref().unwrap().clone();
             let duration = self.renew_interval as u64 * 0.75 as u64;
             let listen_key = self.listen_key.clone();
-            thread::spawn(move || {
-                let runtime = Runtime::new().unwrap();
-                let mut interval = interval(TokioDuration::from_secs(duration));
-                let block = renew_block_ref.lock().unwrap();
-                runtime.block_on(async {
-                    interval.tick().await;
-                });
+            
+            let closure = async move {
+                let block = renew_block_ref.lock().await;
+                let delay = TokioDuration::from_secs(duration);
+                sleep(delay).await;
                 block(listen_key.as_str());
-            });  
+            };
+            tokio::runtime::Runtime::new().unwrap().spawn(closure);
         }
     }
 

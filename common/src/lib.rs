@@ -149,6 +149,22 @@ pub mod msmc {
             Subscription::new(rx)
         }
 
+        pub fn stream<F>(&self, f: &mut F)
+            where F : FnMut(&Option<T>) -> bool {
+            loop {
+                let ret = self.receiver.as_ref().unwrap().recv();
+                let mut data = None;
+                if let Ok(t) = ret {
+                    data = t;
+                }
+                let ret = f(&data);
+                self.send(&data);
+                if !ret {
+                    break;
+                }
+            }
+        }
+
         pub fn recv<F>(&self, f:&mut F) -> Option<T>
             where F : FnMut(&Option<T>) {
             let ret = self.receiver.as_ref().unwrap().recv();
@@ -199,6 +215,39 @@ pub mod msmc {
                 default(Duration::from_secs(secs)) => {
                     Err(())
                 }
+            }
+        }
+    }
+}
+
+pub mod thread {
+    use std::thread::{self, JoinHandle};
+    use crossbeam::channel::{unbounded, Receiver, Sender};
+    pub type Rx<T> = Receiver<T>;
+    pub type Tx<T> = Sender<T>;
+
+    pub struct InteractiveThread {
+
+    }
+
+    pub struct Handler<T> {
+        pub join_handler: JoinHandle<T>,
+        pub sender: Sender<String>,
+    }
+
+    impl InteractiveThread {
+        pub fn spawn<F, T>(f: F) -> Handler<T>
+        where
+            F: FnOnce(Receiver<String>) -> T,
+            F: Send + 'static,
+            T: Send + 'static, {
+            let (sender, receiver) = unbounded::<String>();
+            let join_handler = thread::spawn(move || {
+                f(receiver)
+            });
+            Handler {
+                join_handler,
+                sender,
             }
         }
     }

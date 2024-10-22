@@ -6,6 +6,7 @@ mod tests {
     use binance::bn_market_server::BnMarketServer;
     use common::error::AppError;
     use backtest::backtest_market_server::BacktestMarketServer;
+    use common::thread::InteractiveThread;
     use ctp::ctp_market_server::CtpMarketServer;
     use market::market_server::{MarketData, MarketServer};
     use market::market_gateway::MarketGatewayHolder;
@@ -234,6 +235,24 @@ mod tests {
             println!("wait");
             thread::sleep(Duration::from_secs(1));
         }
+    }
+
+    #[test]
+    fn test_interactive_thread() {
+        let handler = InteractiveThread::spawn(move |rx|{
+            loop {
+                let ret = rx.try_recv();
+                if let Ok(cmd) = ret {
+                    println!("command {}", cmd);
+                    break;
+                }
+                println!("Thread is running.")
+            }
+        });
+
+        thread::sleep(Duration::from_secs(5));
+        let _ = handler.sender.send("quit!!!!".to_string());
+        let _ = handler.join_handler.join();
     }
 
 }

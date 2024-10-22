@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use common::{error::AppError, msmc::Subscription};
+use common::{error::AppError, msmc::Subscription, thread::Handler};
 
 #[derive(Debug, Clone, Default)]
 pub struct Tick {
@@ -71,6 +71,6 @@ pub trait MarketServer {
     fn connect(&mut self, prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError>;
     fn subscribe_tick(&mut self, symbol: &str);
     fn subscribe_kline(&mut self, symbol: &str, interval: &str);
-    fn start(&mut self) -> Result<(), AppError>;
+    fn start(self) -> Handler<()>;
     fn close(&mut self);
 }
