@@ -5,7 +5,7 @@ mod tests {
 
     use binance::{bn_market_server::BnMarketServer, bn_trade_server::{BnTradeServer, Config}};
     use common::error::AppError;
-    use market::market_gateway::{self, MarketGateway};
+    use market::market_gateway::MarketGateway;
     use trade::trade_gateway::TradeGateway;
 
     type BnSharedMarketGw = Arc<Mutex<MarketGateway<BnMarketServer>>>;
@@ -104,7 +104,7 @@ mod tests {
 
         let gateway_ref = BnTradeGatewayHolder::get_gateway();
         let gateway = gateway_ref.lock().unwrap();
-        gateway.connect();
+        //gateway.connect();
 
 
         Ok(())

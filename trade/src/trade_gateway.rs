@@ -1,35 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use super::trade_server::*;
-use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
+use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread}};
 use crossbeam::channel::{self, Receiver, Sender};
-/*
-type SharedGw = Arc<Mutex<TradeGateway<EventTrait, TradeServer>>>;
-
-static mut INSTANCE: Option<SharedGw> = None;
-pub struct TradeGatewayHolder<S: TradeServer> {
-    _phantom: PhantomData<S>,
-}
-
-impl<S: TradeServer> TradeGatewayHolder<S> {
-    pub fn init(server: S) {
-        unsafe {
-            INSTANCE = Some(Arc::new(Mutex::new(TradeGateway {
-                server: server,
-                connected: false,
-                subscription: Subscription::top(),
-                subscribers: Vec::new(),
-            })));
-        }
-    }
-
-    pub fn get_gateway() -> SharedGw {
-        unsafe {
-            INSTANCE.as_ref().unwrap().clone()
-        }
-    }
-}
- */
 
 pub struct TradeGateway<S: TradeServer> {
     server: S,
@@ -61,9 +34,7 @@ impl<S: TradeServer> TradeGateway<S> {
                 match event {
                     Some(data) => {
                         println!("TRADE_GATEWAY: {:?}", data);
-                        match data {
-                            AccountEvent
-                        }
+                        
                     },
                     None => {
                         continue_flag = false

@@ -15,7 +15,7 @@ pub struct Config {
     pub api_secret: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AccountEvent {
     AccountUpdate(model::AccountUpdateEvent),
     OrderTradeUpdate(model::OrderTradeUpdateEvent),
@@ -150,7 +150,7 @@ impl BnTradeServer {
                 true
             });
         };
-        self.account_handler = Some(InteractiveThread::spawn(closure));
+        self.handler = Some(InteractiveThread::spawn(closure));
     }
 
     fn init_account_positions(&self) -> Result<(), AppError> {

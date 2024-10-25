@@ -1,4 +1,4 @@
-use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::Handler};
+use common::{error::AppError, msmc::{EventTrait, Subscription}};
 
 #[derive(Debug, Clone, Default)]
 pub struct Tick {
