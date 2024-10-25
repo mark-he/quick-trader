@@ -17,7 +17,7 @@ impl Spi {
 impl Rust_CThostFtdcMdSpi_Trait for Spi {
     fn on_front_connected(&mut self) {
         println!("connected.");
-        self.tx.send(&Some(MarketData::Connected));
+        self.tx.send(Some(MarketData::Connected));
     }
 
     fn on_front_disconnected(&mut self, _nReason: ::std::os::raw::c_int) {
@@ -38,9 +38,9 @@ impl Rust_CThostFtdcMdSpi_Trait for Spi {
         println!("on_rsp_user_login");
         let pRspInfo = unsafe { &mut *_pRspInfo };
         if pRspInfo.ErrorID == 0 {
-            self.tx.send(&Some(MarketData::UserLogin));
+            self.tx.send(Some(MarketData::UserLogin));
         } else {
-            self.tx.send(&Some(MarketData::Error(-1,  c_char_to_gbk_string(pRspInfo.ErrorMsg.as_ptr()))));
+            self.tx.send(Some(MarketData::Error(-1,  c_char_to_gbk_string(pRspInfo.ErrorMsg.as_ptr()))));
         }
     }
 
@@ -59,7 +59,7 @@ impl Rust_CThostFtdcMdSpi_Trait for Spi {
         } else {
             let pDepthMarketData = unsafe { &mut *pDepthMarketData };
             let tick = _convert_tick(pDepthMarketData);
-            self.tx.send(&Some(MarketData::Tick(tick)));
+            self.tx.send(Some(MarketData::Tick(tick)));
         }
     }
 }

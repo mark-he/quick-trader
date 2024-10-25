@@ -25,14 +25,10 @@ pub mod error {
             }
         }
         
-        pub fn cause(&self, error: Box<dyn Error>) -> Self {
-            AppError {
-                source: Some(error),
-                code : self.code,
-                message: self.message.clone(),
-            }
+        pub fn cause(mut self, error: Box<dyn Error>) -> Self {
+            self.source = Some(error);
+            self
         }
-    
     }
     
     impl Error for AppError {
@@ -76,24 +72,25 @@ pub mod c {
 }
 
 pub mod msmc {
-    use std::time::Duration;
+    use std::{fmt::Debug, marker::PhantomData, thread, time::Duration};
     use crossbeam::{channel::{unbounded, Receiver, Sender}, select};
+
     pub type Rx<T> = Receiver<Option<T>>;
     pub type Tx<T> = Sender<Option<T>>;
 
-    struct Spout<T> {
+    struct Spout<T: EventTrait> {
         filter: Option<Box<dyn Fn(&T)->bool>>,
         sender: Tx<T>,
     }
 
-    unsafe impl <T> Sync for Spout<T> {
+    unsafe impl <T: EventTrait> Sync for Spout<T> {
     }
 
-    unsafe impl <T> Send for Spout<T> {
+    unsafe impl <T: EventTrait> Send for Spout<T> {
         
     }
 
-    impl <T: Clone> Spout<T> {
+    impl <T: EventTrait> Spout<T> {
         fn new(filter: Option<Box<dyn Fn(&T)->bool>>, sender: Sender<Option<T>>) -> Self {
             Spout {
                 filter,
@@ -102,14 +99,20 @@ pub mod msmc {
         }
     }
 
-    pub struct Subscription<T : Clone> {
+    pub trait EventTrait : Clone + Send + Debug {
+    
+    }
+
+    pub struct Subscription<T: EventTrait> {
+        _phantom_data: PhantomData<T>,
         receiver: Option<Rx<T>>,
         subscribers: Vec<Spout<T>>,
     }
 
-    impl <T : Clone> Subscription<T> {
+    impl <T : EventTrait> Subscription<T> {
         pub fn top() -> Subscription<T> {
             Subscription {
+                _phantom_data: PhantomData::default(),
                 receiver: None,
                 subscribers: vec![],
             }
@@ -117,6 +120,7 @@ pub mod msmc {
 
         pub fn new(rx: Rx<T>) -> Subscription<T> {
             Subscription {
+                _phantom_data: PhantomData::default(),
                 receiver: Some(rx),
                 subscribers: vec![],
             }
@@ -152,36 +156,28 @@ pub mod msmc {
         pub fn stream<F>(&self, f: &mut F)
             where F : FnMut(&Option<T>) -> bool {
             loop {
-                let ret = self.receiver.as_ref().unwrap().recv();
-                let mut data = None;
-                if let Ok(t) = ret {
-                    data = t;
-                }
-                let ret = f(&data);
-                self.send(&data);
-                if !ret {
-                    break;
-                }
-            }
-        }
+                let ret = self.receiver.as_ref().unwrap().try_recv();
+                match ret {
+                    Ok(opt) => {
+                        let continue_flag = f(&opt);
+                        self.send(&opt);
 
-        pub fn recv<F>(&self, f:&mut F) -> Option<T>
-            where F : FnMut(&Option<T>) {
-            let ret = self.receiver.as_ref().unwrap().recv();
-            let mut data = None;
-            if let Ok(t) = ret {
-                data = t;
+                        if !continue_flag {
+                            break;
+                        }
+                    },
+                    Err(_) => {
+                        thread::sleep(Duration::from_millis(100));
+                    },
+                }
             }
-            f(&data);
-            self.send(&data);
-            data
         }
 
         pub fn send(&self, data : &Option<T>) {
             for s in self.subscribers.iter() {
                 match &s.filter {
                     Some(f) => {
-                        match data {
+                        match data.as_ref() {
                             Some(x) => {
                                 if f(x) {
                                     let _ = s.sender.send(data.clone());
@@ -221,7 +217,7 @@ pub mod msmc {
 }
 
 pub mod thread {
-    use std::thread::{self, JoinHandle};
+    use std::{sync::{Arc, Mutex}, thread::{self, JoinHandle}};
     use crossbeam::channel::{unbounded, Receiver, Sender};
     pub type Rx<T> = Receiver<T>;
     pub type Tx<T> = Sender<T>;
@@ -231,7 +227,7 @@ pub mod thread {
     }
 
     pub struct Handler<T> {
-        pub join_handler: JoinHandle<T>,
+        pub join_handler: Arc<Mutex<Option<JoinHandle<T>>>>,
         pub sender: Sender<String>,
     }
 
@@ -246,7 +242,7 @@ pub mod thread {
                 f(receiver)
             });
             Handler {
-                join_handler,
+                join_handler: Arc::new(Mutex::new(Some(join_handler))),
                 sender,
             }
         }

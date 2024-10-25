@@ -1,59 +1,46 @@
 use super::market_server::{MarketData, MarketServer};
-use std::{collections::HashMap, thread::{self, JoinHandle}};
-use common::{error::AppError, msmc::Subscription};
-use std::sync::{Arc, Mutex, RwLock};
+use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
+use std::{sync::{Arc, Mutex}, vec};
 use crossbeam::channel::{self, Receiver, Sender};
 
-type SharedGw = Arc<Mutex<MarketGateway>>;
-
-static mut INSTANCE: Option<SharedGw> = None;
-pub struct MarketGatewayHolder {
-}
-
-impl MarketGatewayHolder {
-    pub fn init(server: Box<dyn MarketServer>) {
-        unsafe {
-            INSTANCE = Some(Arc::new(Mutex::new(MarketGateway {
-                server: server,
-                connected: false,
-                subscription: None,
-                subscribers: Vec::new(),
-            })));
-        }
-    }
-
-    pub fn get_gateway() -> SharedGw {
-        unsafe {
-            INSTANCE.as_ref().unwrap().clone()
-        }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Subscriber {
     symbol: String,
     interval: String,
     sender: Sender<MarketData>,
 }
 
-pub struct MarketGateway {
-    server: Box<dyn MarketServer>,
+pub struct MarketGateway<S: MarketServer> {
+    server: S,
     connected: bool,
-    subscription: Option<Arc<RwLock<Subscription<MarketData>>>>,
+    subscription: Arc<Mutex<Subscription<MarketData>>>,
     subscribers : Vec<Subscriber>,
+    pub handler: Option<Handler<()>>,
 }
 
-impl MarketGateway {
-    pub fn connect(&mut self, prop : &HashMap<String, String>)  -> Result<(), AppError> {
+impl <S: MarketServer> MarketGateway<S> {
+    pub fn new(server: S) -> Self {
+        MarketGateway {
+            server,
+            connected: false,
+            subscription: Arc::new(Mutex::new(Subscription::top())),
+            subscribers: vec![],
+            handler: None,
+        }
+    }
+}
+
+impl<S: MarketServer> MarketGateway<S> {
+    pub fn connect(&mut self) -> Result<(), AppError> {
         if !self.connected {
-            self.subscription = Some(Arc::new(RwLock::new(self.server.connect(prop)?)));
+            self.subscription = Arc::new(Mutex::new(self.server.connect()?));
             self.connected = true;
         }
         Ok(())
     }
 
     pub fn get_tick_sub(&mut self) -> Subscription<MarketData> {
-        self.subscription.as_mut().unwrap().write().unwrap().subscribe_with_filter(|event| {
+        self.subscription.lock().unwrap().subscribe_with_filter(|event| {
             match event {
                 MarketData::Tick(_) => {
                     true
@@ -89,51 +76,57 @@ impl MarketGateway {
         rx
     }
   
-    pub fn start(&self) -> JoinHandle<()> {
-        let subscribers = self.subscribers.clone();
-        let subscription_ref = self.subscription.as_ref().unwrap().clone();
+    pub fn start(&mut self) {
+        self.server.start();
 
-        thread::spawn(move || {
-            let mut should_break = false;
-            let subscription = subscription_ref.read().unwrap();
-            loop {
-                let _ = subscription.recv(&mut |event| {
-                    let subs_loop = & *subscribers; 
-                    match event {
-                        Some(data) => {
-                            match data {
-                                MarketData::Tick(t) => {
-                                    for sub in subs_loop {
-                                        if t.symbol == sub.symbol && sub.interval == "" {
-                                            let _ = sub.sender.send(MarketData::Tick(t.clone()));
-                                        }
+        let subscription_ref = self.subscription.clone();
+        let subscribers = self.subscribers.clone();
+
+        let closure = move |_: Rx<String>| {
+            let mut continue_flag = true;
+            let subscription = subscription_ref.lock().unwrap();
+            subscription.stream(&mut |event| {
+                match event {
+                    Some(data) => {
+                        println!("MARKET_GATEWAY: {:?}", data);
+                        match data {
+                            MarketData::Tick(t) => {
+                                for sub in subscribers.iter() {
+                                    if t.symbol == sub.symbol && sub.interval == "" {
+                                        let _ = sub.sender.send(MarketData::Tick(t.clone()));
                                     }
-                                },
-                                MarketData::Kline(k) => {
-                                    for sub in subs_loop {
-                                        if k.symbol == sub.symbol && k.interval == sub.interval {
-                                            let _ = sub.sender.send(MarketData::Kline(k.clone()));
-                                        }
+                                }
+                            },
+                            MarketData::Kline(k) => {
+                                for sub in subscribers.iter() {
+                                    if k.symbol == sub.symbol && k.interval == sub.interval {
+                                        let _ = sub.sender.send(MarketData::Kline(k.clone()));
                                     }
-                                },
-                                MarketData::MarketClosed => {
-                                    for sub in subs_loop.iter() {
-                                        let _ = sub.sender.send(MarketData::MarketClosed);
-                                    }
-                                    should_break = true;
-                                },
-                                _ => {},
-                            }
-                        },
-                        None => {
-                            should_break = true;
-                        },
-                    }
-                });
-                if should_break {
-                    break;
+                                }
+                            },
+                            MarketData::MarketClosed => {
+                                for sub in subscribers.iter() {
+                                    let _ = sub.sender.send(MarketData::MarketClosed);
+                                }
+                                continue_flag = false;
+                            },
+                            _ => {},
+                        }
+                    },
+                    None => {
+                        continue_flag = false;
+                    },
                 }
-            }
-        })
+                continue_flag
+            });
+        };
+        self.handler = Some(InteractiveThread::spawn(closure));
+    }
+
+    pub fn close(self) {
+        if let Some(h) = self.handler.as_ref() {
+            let _ = h.sender.send("QUIT".to_string());
+        }
+        self.server.close();
     }
 }

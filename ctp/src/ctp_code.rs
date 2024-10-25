@@ -4,9 +4,9 @@ use std::sync::{Arc, LazyLock};
 use trade::code::{self};
 
 pub const ORDER_STATUS_ALL_TRADED : CtpCode = CtpCode {code: code::ORDER_STATUS_ALL_TRADED, ctp_code: "0"};//全部成交
-pub const ORDER_STATUS_PART_TRADED_QUEUEING : CtpCode = CtpCode {code: code::ORDER_STATUS_PART_TRADED_QUEUEING, ctp_code : "1"};//部分成交还在队列中
+pub const ORDER_STATUS_PART_TRADED_QUEUEING : CtpCode = CtpCode {code: code::ORDER_STATUS_PART_TRADED, ctp_code : "1"};//部分成交还在队列中
 pub const ORDER_STATUS_PART_TRADED_NOT_QUEUEING : CtpCode = CtpCode {code: "PART_TRADED_NOT_QUEUEING", ctp_code : "2"};//部分成交不在队列中
-pub const ORDER_STATUS_NO_TRADED_QUEUEING : CtpCode = CtpCode {code: code::ORDER_STATUS_NO_TRADED_QUEUEING, ctp_code : "3"};//未成交还在队列中
+pub const ORDER_STATUS_NO_TRADED_QUEUEING : CtpCode = CtpCode {code: code::ORDER_STATUS_NO_TRADED, ctp_code : "3"};//未成交还在队列中
 pub const ORDER_STATUS_NO_TRADED_NOT_QUEUEING : CtpCode = CtpCode {code: "NO_TRADED_NOT_QUEUEING", ctp_code : "4"};//未成交不在队列中
 pub const ORDER_STATUS_CANCELLED : CtpCode = CtpCode {code: code::ORDER_STATUS_CANCELLED, ctp_code : "5"};//撤单
 pub const ORDER_STATUS_UNKNOWN : CtpCode = CtpCode {code: "UNKNOWN", ctp_code : "a"};//提交中

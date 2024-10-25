@@ -92,7 +92,7 @@ impl MarketServer for BacktestMarketServer {
                         thread::sleep(Duration::from_millis(500));
                         let result = _convert_tick(symbol.as_str(), &o);
                         if let Ok(t) = result {
-                            let _ = self.subscription.send(&Some(MarketData::Tick(t.clone())));
+                            let _ = self.subscription.send(Some(MarketData::Tick(t.clone())));
                             for topic in self.topics.iter() {
                                 if topic.symbol == symbol && topic.interval != "" {
                                     let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
@@ -109,7 +109,7 @@ impl MarketServer for BacktestMarketServer {
                                     };
                                     let mut new_kline = combiner.combine_tick(&kline, true);
                                     if let Some(kline) = new_kline.take() {
-                                        let _ = self.subscription.send(&Some(MarketData::Kline(kline)));
+                                        let _ = self.subscription.send(Some(MarketData::Kline(kline)));
                                     }
                                 }
                             }

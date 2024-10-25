@@ -179,7 +179,7 @@ impl AccountStorage {
                 let orders = &mut self.orders;
                 orders.remove(index);
             } else if ret_order.volume_traded > 0 {   
-                ret_order.status = code::ORDER_STATUS_PART_TRADED_QUEUEING.to_string();
+                ret_order.status = code::ORDER_STATUS_PART_TRADED.to_string();
             }
             Some((ret_order, trade))
         } else {
@@ -283,7 +283,7 @@ impl TradeServer for BacktestTradeServer {
             submit_status: code::ORDER_SUBMIT_ACCEPTED_SUBMITTED.to_string(), 
             sys_id: self.order_id_gen.to_string(), 
             order_type: order_insert.order_type.clone(),
-            status: code::ORDER_STATUS_NO_TRADED_QUEUEING.to_string(), 
+            status: code::ORDER_STATUS_NO_TRADED.to_string(), 
             volume_traded: 0, 
             volume_total: order_insert.volume_total, 
             status_msg: "已提交未成交".to_string(), 

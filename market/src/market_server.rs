@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use common::{error::AppError, msmc::Subscription, thread::Handler};
+use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::Handler};
 
 #[derive(Debug, Clone, Default)]
 pub struct Tick {
@@ -36,7 +35,7 @@ pub struct Tick {
     pub ask_volume5: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct KLine {
     pub symbol: String,
     pub interval: String,
@@ -47,12 +46,6 @@ pub struct KLine {
     pub close: f64,
     pub volume: i32,
     pub turnover: f64,
-}
-
-#[derive(Debug, Clone)]
-pub struct Event {
-    pub code: i32,
-    pub message: String,
 }
 
 #[derive(Debug, Clone)]
@@ -67,10 +60,12 @@ pub enum MarketData {
     Error(i32, String),
 }
 
+impl EventTrait for MarketData {   
+}
 pub trait MarketServer {
-    fn connect(&mut self, prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError>;
+    fn connect(&mut self) -> Result<Subscription<MarketData>, AppError>;
     fn subscribe_tick(&mut self, symbol: &str);
     fn subscribe_kline(&mut self, symbol: &str, interval: &str);
-    fn start(self) -> Handler<()>;
-    fn close(&mut self);
+    fn start(&mut self);
+    fn close(self);
 }

@@ -1,24 +1,24 @@
+use std::sync::{Arc, Mutex};
+
 use super::trade_server::*;
-use std::{collections::HashMap, thread::{self, JoinHandle}};
-use common::{error::AppError, msmc::Subscription};
-use std::sync::{Arc, Mutex, RwLock};
+use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use crossbeam::channel::{self, Receiver, Sender};
-type SharedGw = Arc<Mutex<TradeGateway>>;
+/*
+type SharedGw = Arc<Mutex<TradeGateway<EventTrait, TradeServer>>>;
 
 static mut INSTANCE: Option<SharedGw> = None;
-pub struct TradeGatewayHolder {
+pub struct TradeGatewayHolder<S: TradeServer> {
+    _phantom: PhantomData<S>,
 }
 
-impl TradeGatewayHolder {
-    pub fn init(server: Box<dyn TradeServer>) {
+impl<S: TradeServer> TradeGatewayHolder<S> {
+    pub fn init(server: S) {
         unsafe {
             INSTANCE = Some(Arc::new(Mutex::new(TradeGateway {
                 server: server,
                 connected: false,
-                subscription: None,
-                subscribers: Arc::new(RwLock::new(Vec::new())),
-                request_id_seq: 0,
-                request_unit_map: Arc::new(Mutex::new(HashMap::new())),
+                subscription: Subscription::top(),
+                subscribers: Vec::new(),
             })));
         }
     }
@@ -29,93 +29,88 @@ impl TradeGatewayHolder {
         }
     }
 }
+ */
 
-pub struct TradeGateway {
-    server: Box<dyn TradeServer>,
+pub struct TradeGateway<S: TradeServer> {
+    server: S,
     connected: bool,
-    subscription: Option<Arc<RwLock<Subscription<(i32, TradeData)>>>>,
-    subscribers : Arc<RwLock<Vec<(String, Sender<TradeData>)>>>,
-    request_id_seq: i32,                                 //it needs to reset every trading day
-    request_unit_map : Arc<Mutex<HashMap<i32, String>>>, //it needs to reset every trading day
+    subscription: Arc<Mutex<Subscription<S::Event>>>,
+    subscribers : Vec<(String, Sender<S::Event>)>,
+    pub handler: Option<Handler<()>>,
 }
 
-impl TradeGateway {
-    pub fn connect(&mut self, config : &TradeConfig)  -> Result<(), AppError> {
+impl<S: TradeServer> TradeGateway<S> {
+    pub fn new(server: S) -> Self {
+        TradeGateway {
+            server,
+            connected: false,
+            subscription: Arc::new(Mutex::new(Subscription::top())),
+            subscribers: vec![],
+            handler: None,
+        }
+    }
+
+    pub fn start(&mut self) {
+        let subscription_ref = self.subscription.clone();
+        let subscribers = self.subscribers.clone();
+
+        let closure = move |_| {
+            let subscription = subscription_ref.lock().unwrap();
+            let mut continue_flag = true;
+            subscription.stream(&mut move |event| {
+                match event {
+                    Some(data) => {
+                        println!("TRADE_GATEWAY: {:?}", data);
+                        match data {
+                            AccountEvent
+                        }
+                    },
+                    None => {
+                        continue_flag = false
+                    }
+                }
+                continue_flag
+            });
+        };
+        self.handler = Some(InteractiveThread::spawn(closure));
+    }
+
+    pub fn close(self) {
+        if let Some(h) = self.handler {
+            let _ = h.sender.send("QUIT".to_string());
+        }
+        self.server.close();
+    }
+
+    pub fn connect(&mut self)  -> Result<(), AppError> {
         if !self.connected {
-            self.subscription = Some(Arc::new(RwLock::new(self.server.connect(config)?)));
+            self.subscription = Arc::new(Mutex::new(self.server.connect()?));
             self.connected = true;
         }
-        
         Ok(())
     }
 
-    fn apply_request_id(&mut self, unit_id: &str) -> i32 {
-        self.request_id_seq += 1;
-        self.request_unit_map.lock().unwrap().insert(self.request_id_seq.clone(), unit_id.to_string());
-        self.request_id_seq
-    }
-    
-    pub fn subscribe(&mut self, unit_id: &str) -> Result<Receiver<TradeData>, AppError> {
-        let (tx, rx) = channel::unbounded::<TradeData>();
-        self.subscribers.write().unwrap().push((unit_id.to_string(), tx));
+    pub fn register(&mut self, symbols: Vec<String>) -> Result<Receiver<S::Event>, AppError> {
+        let (tx, rx) = channel::unbounded::<S::Event>();
+        for symbol in symbols {
+            self.subscribers.push((symbol, tx.clone()));
+        }
         Ok(rx)
     }
 
-    pub fn start(&self) -> JoinHandle<()> {
-        let subscription = self.subscription.as_ref().unwrap().clone();
-        let subscribers = self.subscribers.clone();
-
-        let request_unit_map_ref = self.request_unit_map.clone();
-        thread::spawn(move || {
-            let mut should_break = false;
-            loop {
-                let _ = subscription.read().unwrap().recv(&mut |event| {
-                    match event {
-                        Some((request_id, data)) => {
-                            match data {
-                                _ => {
-                                    for sub in subscribers.read().unwrap().iter() {
-                                        let request_unit_map = request_unit_map_ref.lock().unwrap();
-                                        let opt = request_unit_map.get(&request_id);
-                                        if let Some(unit_id) = opt {
-                                            if *unit_id == sub.0 {
-                                                let _ = sub.1.clone().send(data.clone());
-                                            }
-                                        }
-                                    }
-                                },
-                            }
-                        },
-                        None => {
-                            should_break = true;
-                        },
-                    }
-                });
-
-                if should_break {
-                    break;
-                }
-            }
-        })
+    pub fn new_order(&mut self, order : S::OrderRequest) -> Result<(), AppError> {
+        self.server.new_order(order)
     }
 
-    pub fn send_order(&mut self, unit_id: &str, order : &OrderInsert) -> i32 {
-        let request_id = self.apply_request_id(unit_id);
-        self.server.send_order(&order, unit_id, request_id);
-        request_id
+    pub fn cancel_order(&mut self, symbol: &str, order_id: &str) -> Result<(), AppError> {
+        self.server.cancel_order(symbol, order_id)
     }
 
-    pub fn cancel_order(&mut self, unit_id: &str, action: &OrderAction) -> i32 {
-        let request_id = self.apply_request_id(unit_id);
-        self.server.cancel_order(action, request_id);
-        request_id
+    pub fn get_positions(&mut self, symbol: &str) -> Vec<S::Position> {
+        self.server.get_positions(symbol)
     }
 
-    pub fn get_positions(&mut self, unit_id: &str, symbol: &str) -> Vec<Position> {
-        self.server.get_positions(unit_id, symbol)
-    }
-
-    pub fn get_account(&mut self, unit_id: &str) -> Account {
-        self.server.get_account(unit_id)
+    pub fn get_account(&mut self, account_id: &str) -> Option<S::Account> {
+        self.server.get_account(account_id)
     }
 }

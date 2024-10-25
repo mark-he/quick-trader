@@ -2,7 +2,7 @@ use crate::http::{request::Request, Method};
 use crate::trade::enums::{NewOrderResponseType, Side, TimeInForceType};
 use rust_decimal::Decimal;
 
-use super::enums::{OrderType, PriceMatchType};
+use super::enums::{OrderType, PositionSide, PriceMatchType};
 
 /// `POST /api/v3/order`
 ///
@@ -26,7 +26,7 @@ use super::enums::{OrderType, PriceMatchType};
 pub struct NewOrderRequest {
     pub symbol: String,
     pub side: Side,
-    pub position_side: Option<String>,
+    pub position_side: Option<PositionSide>,
     pub type_: OrderType,
     pub reduce_only: Option<String>,
     pub quantity: Option<Decimal>,
@@ -72,8 +72,8 @@ impl NewOrderRequest {
         }
     }
 
-    pub fn position_side(mut self, position_side: &str) -> Self {
-        self.position_side = Some(position_side.to_owned());
+    pub fn position_side(mut self, position_side: PositionSide) -> Self {
+        self.position_side = Some(position_side);
         self
     }
 
@@ -165,6 +165,10 @@ impl NewOrderRequest {
 
         if let Some(time_in_force) = self.time_in_force {
             params.push(("timeInForce".to_owned(), time_in_force.to_string()));
+        }
+
+        if let Some(position_side) = self.position_side {
+            params.push(("positionSide".to_owned(), position_side.to_string()));
         }
 
         if let Some(quantity) = self.quantity {

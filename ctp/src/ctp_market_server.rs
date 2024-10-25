@@ -242,20 +242,20 @@ pub struct MarketTopic {
     pub interval: String,
 }
 pub struct CtpMarketServer {
-   topics: Vec<MarketTopic>,
-   subscription: Subscription<MarketData>,
+    mapi: Option<MDApi>,
+    topics: Vec<MarketTopic>,
+    subscription: Subscription<MarketData>,
 }
 
 impl CtpMarketServer {
     pub fn new() -> Self {
         CtpMarketServer {
+            mapi: None,
             topics: Vec::new(),
             subscription: Subscription::top(),
         }
     }
 }
-
-static mut MDAPI: Option<MDApi> = None;
 
 impl MarketServer for CtpMarketServer {
     fn connect(&mut self, _prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError> {
@@ -268,9 +268,7 @@ impl MarketServer for CtpMarketServer {
         let outer_subscription = subscription.subscribe();
         self.subscription = subscription;
 
-        unsafe {
-            MDAPI = Some(mdapi);
-        }
+        self.mapi = Some(mdapi);
         Ok(outer_subscription)
     }
 
@@ -309,15 +307,14 @@ impl MarketServer for CtpMarketServer {
         }
     }
 
-    fn start(self) -> Handler<()> {
+    fn start(mut self) -> Handler<()> {
         let closure = move |rx: Rx<String>| {
             let mut tick_set = HashSet::new();
+            let mapi = self.mapi.as_mut().unwrap();
             for topic in self.topics.iter() {
                 if topic.interval == "" {
                     if !tick_set.contains(topic.symbol.as_str()) {
-                        unsafe {
-                            MDAPI.as_mut().unwrap().subscribe_market_data(&[topic.symbol.as_str()], false).unwrap();
-                        }
+                        mapi.subscribe_market_data(&[topic.symbol.as_str()], false).unwrap();
                         tick_set.insert(topic.symbol.to_string());
                     }
                 } 
@@ -335,7 +332,7 @@ impl MarketServer for CtpMarketServer {
                 if let Some(data) = event {
                     match data {
                         MarketData::Tick(t) => {
-                            self.subscription.send(&Some(MarketData::Tick(t.clone())));
+                            self.subscription.send(Some(MarketData::Tick(t.clone())));
                             for topic in self.topics.iter() {
                                 if topic.symbol == t.symbol {
                                     let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
@@ -352,7 +349,7 @@ impl MarketServer for CtpMarketServer {
                                     };
                                     let mut new_kline = combiner.combine_tick(&kline, true);
                                     if let Some(kline) = new_kline.take() {
-                                        let _ = self.subscription.send(&Some(MarketData::Kline(kline)));
+                                        let _ = self.subscription.send(Some(MarketData::Kline(kline)));
                                     }
                                 }
                             }

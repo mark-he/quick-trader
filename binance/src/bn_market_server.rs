@@ -8,7 +8,8 @@ use serde_json::Value;
 use common::error::AppError;
 use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use common::msmc::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use chrono::DateTime;
 use super::model;
 
@@ -22,22 +23,24 @@ pub struct MarketTopic {
     pub interval: String,
 }
 pub struct BnMarketServer {
-    subscription: Subscription<MarketData>,
+    subscription: Arc<Mutex<Subscription<MarketData>>>,
     topics: Vec<MarketTopic>,
+    handler: Option<Handler<()>>,
 }
 
 impl BnMarketServer {
     pub fn new() -> Self {
         BnMarketServer {
-            subscription: Subscription::top(),
+            subscription: Arc::new(Mutex::new(Subscription::top())),
             topics: Vec::new(),
+            handler: None,
         }
     }
 }
 
 impl MarketServer for BnMarketServer {
-    fn connect(&mut self, _prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError> {
-        let outer_sucription = self.subscription.subscribe();
+    fn connect(&mut self) -> Result<Subscription<MarketData>, AppError> {
+        let outer_sucription = self.subscription.lock().unwrap().subscribe();
         Ok(outer_sucription)
     }
 
@@ -78,11 +81,14 @@ impl MarketServer for BnMarketServer {
         }
     }
 
-    fn start(self) -> Handler<()>{
+    fn start(&mut self) {
+        let topics: Vec<MarketTopic> = self.topics.clone();
+        let subscription_ref = self.subscription.clone();
+
         let closure = move |rx: Rx<String>| {
             let mut wss = WssKeepalive::new(config::WSS_API).prepare(move |conn| {
                 let mut tick_set = HashSet::new();
-                for topic in self.topics.iter() {
+                for topic in topics.iter() {
                     if topic.interval == "" {
                         if !tick_set.contains(topic.symbol.as_str()) {
                             conn.subscribe(vec![
@@ -93,7 +99,7 @@ impl MarketServer for BnMarketServer {
                     } 
                 }
     
-                for topic in self.topics.iter() {
+                for topic in topics.iter() {
                     if topic.interval != "" {
                         let kline_interval_ret= interval_from_str(topic.interval.as_str());
                         match kline_interval_ret {
@@ -116,6 +122,7 @@ impl MarketServer for BnMarketServer {
                 }
             });
 
+            let subscription = subscription_ref.lock().unwrap();
             wss.stream(|message| {
                 let command = rx.try_recv();
                 if let Ok(cmd) = command {
@@ -126,6 +133,8 @@ impl MarketServer for BnMarketServer {
 
                 let data = message.into_data();
                 let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
+
+                println!("MARKET_SERVER: {}", string_data);
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
                 match json_value.get("e") {
                     Some(event_type) => {
@@ -145,7 +154,7 @@ impl MarketServer for BnMarketServer {
                                             volume: kline.kline_data.number_of_trades as i32,
                                             turnover: kline.kline_data.quote_asset_volume.parse::<f64>().unwrap(),
                                         };
-                                        self.subscription.send(&Some(MarketData::Kline(k)));
+                                        subscription.send(&Some(MarketData::Kline(k)));
                                     }
                                 },
                                 _ => {},
@@ -167,7 +176,7 @@ impl MarketServer for BnMarketServer {
                                         open_interest: 0 as f64,
                                         ..Default::default()
                                     };
-                                    self.subscription.send(&Some(MarketData::Tick(t)));
+                                    subscription.send(&Some(MarketData::Tick(t)));
                                 },
                                 Err(e) => {
                                     println!("{:?}", e);
@@ -181,10 +190,12 @@ impl MarketServer for BnMarketServer {
             });
         };
 
-        let handler = InteractiveThread::spawn(closure);
-        handler
+        self.handler = Some(InteractiveThread::spawn(closure));
     }
 
-    fn close(&mut self) {
+    fn close(self) {
+        if let Some(h) = self.handler.as_ref() {
+            let _ = h.sender.send("QUIT".to_string());
+        }
     }
 }
