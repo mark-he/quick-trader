@@ -102,10 +102,30 @@ mod tests {
         let server = BnTradeServer::new(Config {api_key: "13d233877484f4ea87afbbb8c29e52072c4e4a4a8650fcd689e076fab082bdc6".to_string(), api_secret: "671b347de4235aa3c2d3d15664db16180593ab21f65f4826e54b8f8e1ba11395".to_string(),});
         BnTradeGatewayHolder::init(server);
 
-        let gateway_ref = BnTradeGatewayHolder::get_gateway();
-        let gateway = gateway_ref.lock().unwrap();
-        //gateway.connect();
+        let trade_gateway_ref = BnTradeGatewayHolder::get_gateway();
+        let mut trade_gateway = trade_gateway_ref.lock().unwrap();
+        let _ = trade_gateway.connect()?;
 
+        let rx = trade_gateway.register(vec!["BTCUSDT".to_string()])?;
+
+        thread::spawn(move || {
+            loop {
+                println!("Receiving account");
+                let ret = rx.recv();
+                match ret {
+                    Ok(event) => {
+                        println!("Account EVENT={:?}", event);
+                    },
+                    Err(e) => {
+                        println!("Error when receiving account messages: {}", e.to_string());
+                    }
+                }
+            }
+        });
+
+        let _ = trade_gateway.start();
+        let handler = &trade_gateway.handler.as_ref().unwrap().join_handler;
+        let _ = handler.lock().unwrap().take().unwrap().join();
 
         Ok(())
     }

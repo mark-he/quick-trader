@@ -78,7 +78,7 @@ pub mod msmc {
     pub type Rx<T> = Receiver<Option<T>>;
     pub type Tx<T> = Sender<Option<T>>;
 
-    struct Spout<T: EventTrait> {
+    pub struct Spout<T: EventTrait> {
         filter: Option<Box<dyn Fn(&T)->bool>>,
         sender: Tx<T>,
     }
@@ -105,8 +105,8 @@ pub mod msmc {
 
     pub struct Subscription<T: EventTrait> {
         _phantom_data: PhantomData<T>,
-        receiver: Option<Rx<T>>,
-        subscribers: Vec<Spout<T>>,
+        pub receiver: Option<Rx<T>>,
+        pub subscribers: Vec<Spout<T>>,
     }
 
     impl <T : EventTrait> Subscription<T> {

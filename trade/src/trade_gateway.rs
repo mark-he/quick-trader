@@ -33,8 +33,12 @@ impl<S: TradeServer> TradeGateway<S> {
             subscription.stream(&mut move |event| {
                 match event {
                     Some(data) => {
-                        println!("TRADE_GATEWAY: {:?}", data);
-                        
+                        let symbol = data.get_symbol();
+                        for subscriber in subscribers.iter() {
+                            if subscriber.0 == symbol {
+                                let _ = subscriber.1.send(data.clone());
+                            }
+                        }
                     },
                     None => {
                         continue_flag = false

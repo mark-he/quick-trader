@@ -5,7 +5,7 @@ use binance_future_connector::{
     account,
     http::Credentials, trade::{self as bn_trade, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
-use trade::trade_server::TradeServer;
+use trade::trade_server::{SymbolRoute, TradeServer};
 
 use crate::model::{self, AccountInfo, Asset, Position};
 
@@ -17,13 +17,28 @@ pub struct Config {
 
 #[derive(Clone, Debug)]
 pub enum AccountEvent {
-    AccountUpdate(model::AccountUpdateEvent),
-    OrderTradeUpdate(model::OrderTradeUpdateEvent),
+    AccountUpdate(model::AccountData),
+    OrderTradeUpdate(model::OrderData),
     TradeLite(model::TradeLiteEvent),
 }
 
 impl EventTrait for AccountEvent {}
 
+impl SymbolRoute for AccountEvent {
+    fn get_symbol(&self) -> String {
+        match self {
+            AccountEvent::OrderTradeUpdate(event) => {
+                event.symbol.to_string()
+            },
+            AccountEvent::TradeLite(event) => {
+                event.symbol.to_string()
+            },
+            _ => {
+                "".to_string()
+            }
+        }
+    }
+}
 pub struct WssStream {
     pub subscription: Subscription<AccountEvent>,
 }
@@ -70,19 +85,21 @@ impl WssStream {
             let data = message.into_data();
             let string_data = String::from_utf8(data).map_err(|e| Box::new(e))?;
             let json_value: Value = serde_json::from_str(&string_data).unwrap();
+
             match json_value.get("e") {
                 Some(event_type) => {
                     let event = event_type.as_str().unwrap();
                     match event {
                         "ACCOUNT_UPDATE" => {
                             let account_update_event: model::AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                            self.subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event)));
+                            self.subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
                         },
                         "ORDER_TRADE_UPDATE" => {
-                            let order_trade_update_event: model::OrderTradeUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                            self.subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event)));
+                            let order_trade_update_event= serde_json::from_str::<model::OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
+                            self.subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
                         },
                         "TRADE_LITE" => {
+                            println!("TRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITE");
                             let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
                             self.subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
                         },
@@ -125,7 +142,7 @@ impl BnTradeServer {
                     match e {
                         AccountEvent::AccountUpdate(a) => {
                             let mut positions = positions_ref.write().unwrap();
-                            for position_data in a.update_data.positions.iter() {
+                            for position_data in a.positions.iter() {
                                 for position in positions.iter_mut() {
                                     if position_data.symbol == position.symbol && position_data.position_side == position.position_side {
                                         position.position_amt = position_data.position_amount.clone();
@@ -134,7 +151,7 @@ impl BnTradeServer {
                                 }
                             }
                             let mut assets = assets_ref.write().unwrap();
-                            for balance_data in a.update_data.balances.iter() {
+                            for balance_data in a.balances.iter() {
                                 for asset in assets.iter_mut() {
                                     if balance_data.asset == asset.asset_name {
                                         asset.wallet_balance = balance_data.wallet_balance.clone();
@@ -180,7 +197,7 @@ impl TradeServer for BnTradeServer {
         self.init_account_positions()?;
         self.monitor_account_positions(&mut wss_stream.subscription);
 
-        let sub = wss_stream.subscription.subscribe();
+        let sub = wss_stream.subscribe();
         let credentials = self.credentials.clone();
         let _ = InteractiveThread::spawn(move |_| {
             wss_stream.connect(credentials);

@@ -88,7 +88,6 @@ impl<S: MarketServer> MarketGateway<S> {
             subscription.stream(&mut |event| {
                 match event {
                     Some(data) => {
-                        println!("MARKET_GATEWAY: {:?}", data);
                         match data {
                             MarketData::Tick(t) => {
                                 for sub in subscribers.iter() {

@@ -1,8 +1,12 @@
 
 use common::{error::AppError, msmc::{EventTrait, Subscription}};
 
+pub trait SymbolRoute {
+    fn get_symbol(&self) -> String;
+}
+
 pub trait TradeServer {
-    type Event: EventTrait + 'static;
+    type Event: EventTrait + SymbolRoute + 'static;
     type OrderRequest;
     type Position;
     type Account;

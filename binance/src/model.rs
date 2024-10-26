@@ -274,10 +274,10 @@ pub struct OrderData {
     pub position_side: String,
     #[serde(rename = "cp")]
     pub is_close_all: bool,
-    #[serde(rename = "AP")]
-    pub activation_price: String,
-    #[serde(rename = "cr")]
-    pub callback_rate: String,
+    //#[serde(rename = "AP")]
+    //pub activation_price: String,
+    //#[serde(rename = "cr")]
+    //pub callback_rate: String,
     #[serde(rename = "pP")]
     pub is_price_protection: bool,
     #[serde(rename = "si")]

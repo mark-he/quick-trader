@@ -90,26 +90,24 @@ impl WssListeneKeyKeepalive {
                 thread::sleep(Duration::from_secs(1));
             } else {
                 let conn = self.conn.as_mut().unwrap();
-
                 loop {
                     let ret = conn.as_mut().read();
-                    let mut block_ret: Result<bool, Box<dyn Error>> = Ok(true);
+                    let mut block_ret= Ok(true);
+                    let mut reset_conn_flag = false;
                     match ret {
                         Ok(message) => {
                             match message {
                                 Message::Close(_) => {
-                                    block_ret = block(message);
-                                    self.conn = None;
-                                    break;
+                                    reset_conn_flag = true;
                                 },
                                 _ => {
-                                    block_ret = block(message);
                                 },
                             }
+                            block_ret = block(message);
                         },
-                        Err(_) => {
-                            self.conn = None;
-                            break;
+                        Err(e) => {
+                            println!("Error: {:?}", e);
+                            reset_conn_flag = true;
                         }
                     }
 
@@ -120,10 +118,16 @@ impl WssListeneKeyKeepalive {
                             }
                         },
                         Err(e) => {
+                            println!("Error: {:?}", e);
                             if !skip_error {
                                 return Err(e);
                             }
                         },
+                    }
+
+                    if reset_conn_flag {
+                        self.conn = None;
+                        break;
                     }
                 }
             }
