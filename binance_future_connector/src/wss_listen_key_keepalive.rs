@@ -91,43 +91,33 @@ impl WssListeneKeyKeepalive {
             } else {
                 let conn = self.conn.as_mut().unwrap();
                 loop {
-                    let ret = conn.as_mut().read();
-                    let mut block_ret= Ok(true);
-                    let mut reset_conn_flag = false;
-                    match ret {
-                        Ok(message) => {
-                            match message {
-                                Message::Close(_) => {
-                                    reset_conn_flag = true;
-                                },
-                                _ => {
-                                },
+                    if conn.as_mut().can_read() {
+                        let ret = conn.as_mut().read();
+                        match ret {
+                            Ok(message) => {
+                                let block_ret = block(message);
+                                match block_ret {
+                                    Ok(continue_flag) => {
+                                        if !continue_flag {
+                                            return Ok(());
+                                        }
+                                    },
+                                    Err(e) => {
+                                        println!("Error: {:?}", e);
+                                        if !skip_error {
+                                            return Err(e);
+                                        }
+                                    },
+                                }
+                            },
+                            Err(e) => {
+                                println!("Error: {:?}", e);
                             }
-                            block_ret = block(message);
-                        },
-                        Err(e) => {
-                            println!("Error: {:?}", e);
-                            reset_conn_flag = true;
                         }
-                    }
-
-                    match block_ret {
-                        Ok(continue_flag) => {
-                            if !continue_flag {
-                                return Ok(());
-                            }
-                        },
-                        Err(e) => {
-                            println!("Error: {:?}", e);
-                            if !skip_error {
-                                return Err(e);
-                            }
-                        },
-                    }
-
-                    if reset_conn_flag {
+                    } else {
                         self.conn = None;
                         break;
+
                     }
                 }
             }

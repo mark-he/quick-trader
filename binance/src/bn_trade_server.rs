@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
 use serde_json::Value;
 use binance_future_connector::{
@@ -40,81 +40,104 @@ impl SymbolRoute for AccountEvent {
     }
 }
 pub struct WssStream {
-    pub subscription: Subscription<AccountEvent>,
+    subscription: Arc<Mutex<Subscription<AccountEvent>>>,
+    handler: Option<Handler<()>>,
 }
 
 impl WssStream {
     pub fn new() -> Self {
         WssStream {
-            subscription: Subscription::top(),
+            subscription: Arc::new(Mutex::new(Subscription::top())),
+            handler : None,
         }
     }
 
     pub fn subscribe(&mut self) -> Subscription<AccountEvent> {
-        self.subscription.subscribe()
+        self.subscription.lock().unwrap().subscribe()
     }
 
-    pub fn connect(self, credentials: Credentials) {
-        let credentials2 = credentials.clone();
-        let mut keepalive = WssListeneKeyKeepalive::new(binance_future_connector::config::WSS_API).new_listen_key( move || {
-            let client = BinanceHttpClient::default().credentials(credentials.clone());
-            let request = user_data_stream::new_listen_key();
-            let ret = client.send(request);
+    pub fn connect(&mut self, credentials: Credentials) {
+        let subscription_ref = self.subscription.clone();
+        let closure = move |rx: Rx<String>| {
+            let subscription = subscription_ref.lock().unwrap();
+            let credentials2 = credentials.clone();
+            let mut keepalive = WssListeneKeyKeepalive::new(binance_future_connector::config::WSS_API).new_listen_key( move || {
+                let client = BinanceHttpClient::default().credentials(credentials.clone());
+                let request = user_data_stream::new_listen_key();
+                let ret = client.send(request);
 
-            match ret {
-                Ok(resp) => {
-                    let data =  resp.into_body_str();
-                    if let Ok(string_data) = data {
-                        let json_value: Value = serde_json::from_str(&string_data).unwrap();
-                        if let Some(key) = json_value.get("listenKey") {
-                            return Some(key.as_str().unwrap().to_string());
+                match ret {
+                    Ok(resp) => {
+                        let data =  resp.into_body_str();
+                        if let Ok(string_data) = data {
+                            let json_value: Value = serde_json::from_str(&string_data).unwrap();
+                            if let Some(key) = json_value.get("listenKey") {
+                                return Some(key.as_str().unwrap().to_string());
+                            }
                         }
+                    },
+                    _ => {
                     }
-                },
-                _ => {
                 }
-            }
-            None
-        }, 24 * 3600).renew_listen_key( move |listen_key| {
-            let client = BinanceHttpClient::default().credentials(credentials2.clone());
-            let request = user_data_stream::renew_listen_key(listen_key);
-            let _ = client.send(request);
-        }, 3600);
-        
-        let _ = keepalive.stream(|message| {
-            let data = message.into_data();
-            let string_data = String::from_utf8(data).map_err(|e| Box::new(e))?;
-            let json_value: Value = serde_json::from_str(&string_data).unwrap();
+                None
+            }, 24 * 3600).renew_listen_key( move |listen_key| {
+                let client = BinanceHttpClient::default().credentials(credentials2.clone());
+                let request = user_data_stream::renew_listen_key(listen_key);
+                let _ = client.send(request);
+            }, 3600);
 
-            match json_value.get("e") {
-                Some(event_type) => {
-                    let event = event_type.as_str().unwrap();
-                    match event {
-                        "ACCOUNT_UPDATE" => {
-                            let account_update_event: model::AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                            self.subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
-                        },
-                        "ORDER_TRADE_UPDATE" => {
-                            let order_trade_update_event= serde_json::from_str::<model::OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
-                            self.subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
-                        },
-                        "TRADE_LITE" => {
-                            println!("TRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITE");
-                            let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                            self.subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
-                        },
-                        _ => {},
+            let _ = keepalive.stream(|message| {
+                let cmd = rx.try_recv();
+                if cmd.is_ok() {
+                    if cmd.unwrap() == "QUIT" {
+                        return Ok(false);
                     }
-                },
-                None => {},
-            }
-            Ok(true)
-        }, true);
+                }
+
+                let data = message.into_data();
+                let string_data = String::from_utf8(data).map_err(|e| Box::new(e))?;
+                let json_value: Value = serde_json::from_str(&string_data).unwrap();
+
+                match json_value.get("e") {
+                    Some(event_type) => {
+                        let event = event_type.as_str().unwrap();
+                        match event {
+                            "ACCOUNT_UPDATE" => {
+                                let account_update_event: model::AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
+                                subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
+                            },
+                            "ORDER_TRADE_UPDATE" => {
+                                let order_trade_update_event= serde_json::from_str::<model::OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
+                                subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
+                            },
+                            "TRADE_LITE" => {
+                                println!("TRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITE");
+                                let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
+                                subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
+                            },
+                            _ => {},
+                        }
+                    },
+                    None => {},
+                }
+                Ok(true)
+            }, true);
+        };
+
+        let handler = InteractiveThread::spawn(closure);
+        self.handler = Some(handler);
+    }
+
+    fn close(self) {
+        if let Some(h) = self.handler {
+            let _ = h.sender.send("QUIT".to_string());
+        }
     }
 }
 pub struct BnTradeServer {
     pub config: Config,
     pub credentials: Credentials,
+    pub wss_stream: WssStream,
     pub positions: Arc<RwLock<Vec<model::Position>>>,
     pub assets: Arc<RwLock<Vec<model::Asset>>>,
     pub handler: Option<Handler<()>>,
@@ -125,14 +148,14 @@ impl BnTradeServer {
         BnTradeServer {
             credentials: Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone()),
             config,
+            wss_stream: WssStream::new(),
             positions: Arc::new(RwLock::new(Vec::new())),
             assets: Arc::new(RwLock::new(Vec::new())),
             handler: None,
         }
     }
     
-    fn monitor_account_positions(&mut self, wss_sub: &mut Subscription<AccountEvent>) {
-        let sub = wss_sub.subscribe();
+    fn monitor_account_positions(&mut self, sub: Subscription<AccountEvent>) {
         let assets_ref = self.assets.clone();
         let positions_ref = self.positions.clone();
 
@@ -193,15 +216,14 @@ impl TradeServer for BnTradeServer {
     type Account = Asset;
 
     fn connect(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
-        let mut wss_stream = WssStream::new();
         self.init_account_positions()?;
-        self.monitor_account_positions(&mut wss_stream.subscription);
 
-        let sub = wss_stream.subscribe();
+        let sub = self.wss_stream.subscribe();
+        self.monitor_account_positions(sub);
+
+        let sub = self.wss_stream.subscribe();
         let credentials = self.credentials.clone();
-        let _ = InteractiveThread::spawn(move |_| {
-            wss_stream.connect(credentials);
-        });
+        self.wss_stream.connect(credentials);
         Ok(sub)
     }
 
@@ -245,5 +267,6 @@ impl TradeServer for BnTradeServer {
         if let Some(h) = self.handler {
             let _ = h.sender.send("QUIT".to_string());
         }
+        self.wss_stream.close();
     }
 }

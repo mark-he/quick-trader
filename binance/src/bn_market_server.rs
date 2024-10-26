@@ -123,18 +123,17 @@ impl MarketServer for BnMarketServer {
             });
 
             let subscription = subscription_ref.lock().unwrap();
-            wss.stream(|message| {
-                let command = rx.try_recv();
-                if let Ok(cmd) = command {
-                    if cmd == "QUIT" {
-                        return false;
+            let _ = wss.stream(|message| {
+                let cmd = rx.try_recv();
+                if cmd.is_ok() {
+                    if cmd.unwrap() == "QUIT" {
+                        return Ok(false);
                     }
                 }
 
                 let data = message.into_data();
                 let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
 
-                println!("MARKET_SERVER: {}", string_data);
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
                 match json_value.get("e") {
                     Some(event_type) => {
@@ -186,8 +185,8 @@ impl MarketServer for BnMarketServer {
                     },
                     None => {},
                 }
-                true
-            });
+                Ok(true)
+            }, true);
         };
 
         self.handler = Some(InteractiveThread::spawn(closure));

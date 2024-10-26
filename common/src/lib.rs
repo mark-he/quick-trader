@@ -156,19 +156,20 @@ pub mod msmc {
         pub fn stream<F>(&self, f: &mut F)
             where F : FnMut(&Option<T>) -> bool {
             loop {
+                let continue_flag ;
                 let ret = self.receiver.as_ref().unwrap().try_recv();
                 match ret {
                     Ok(opt) => {
-                        let continue_flag = f(&opt);
+                        continue_flag = f(&opt);
                         self.send(&opt);
-
-                        if !continue_flag {
-                            break;
-                        }
                     },
                     Err(_) => {
+                        continue_flag = f(&None);
                         thread::sleep(Duration::from_millis(100));
                     },
+                }
+                if !continue_flag {
+                    break;
                 }
             }
         }

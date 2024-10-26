@@ -17,7 +17,7 @@ fn main() {
         let data = m.into_data();
         let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
         log::info!("{}", &string_data);
-        true
-    });
+        Ok(true)
+    }, false);
 }
 

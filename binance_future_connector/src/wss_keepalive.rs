@@ -1,6 +1,7 @@
 use std::{net::TcpStream, thread, time::Duration};
 use tungstenite::{stream::MaybeTlsStream, Message};
 use crate::tungstenite::{BinanceWebSocketClient, WebSocketState};
+use std::error::Error;
 
 type Conn = WebSocketState<MaybeTlsStream<TcpStream>>;
 pub struct WssKeepalive {
@@ -34,8 +35,8 @@ impl WssKeepalive {
         self
     }
 
-    pub fn stream<F>(&mut self, block: F) 
-        where F: Fn(Message) -> bool {
+    pub fn stream<F>(&mut self, block: F, skip_error: bool) -> Result<(), Box<dyn Error>>
+        where F: Fn(Message) -> Result<bool, Box<dyn Error>> {
         loop {
             if self.conn.is_none() {
                 self.connect();
@@ -47,36 +48,39 @@ impl WssKeepalive {
                     thread::sleep(Duration::from_secs(1));
                 }
             } else {
-                let mut exit_flag = false;
                 let conn = self.conn.as_mut().unwrap();
 
                 loop {
-                    let ret = conn.as_mut().read();
-                    match ret {
-                        Ok(message) => {
-                            match message {
-                                Message::Close(_) => {
-                                    self.conn = None;
-                                    exit_flag = !block(message);
-                                    break;
-                                },
-                                _ => {
-                                    exit_flag = !block(message);
-                                    if exit_flag {
-                                        break;
-                                    }
-                                },
+                    if conn.as_mut().can_read() {
+                        let ret = conn.as_mut().read();
+                        match ret {
+                            Ok(message) => {
+                                match message {
+                                    _ => {
+                                        let block_ret = block(message);
+                                        match block_ret {
+                                            Ok(continue_flag) => {
+                                                if !continue_flag {
+                                                    return Ok(());
+                                                }
+                                            },
+                                            Err(e) => {
+                                                println!("Error: {:?}", e);
+                                                if !skip_error {
+                                                    return Err(e);
+                                                }
+                                            },
+                                        }
+                                    },
+                                }
+                            },
+                            Err(_) => {
                             }
-                        },
-                        Err(_) => {
-                            self.conn = None;
-                            break;
                         }
+                    } else {
+                        self.conn = None;
+                        break;
                     }
-                }
-
-                if exit_flag {
-                    break;
                 }
             }
         }
