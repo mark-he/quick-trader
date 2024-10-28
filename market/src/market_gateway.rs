@@ -82,10 +82,17 @@ impl<S: MarketServer> MarketGateway<S> {
         let subscription_ref = self.subscription.clone();
         let subscribers = self.subscribers.clone();
 
-        let closure = move |_: Rx<String>| {
+        let closure = move |rx: Rx<String>| {
             let mut continue_flag = true;
             let subscription = subscription_ref.lock().unwrap();
-            subscription.stream(&mut |event| {
+            let _ = subscription.stream(&mut |event| {
+                let cmd = rx.try_recv();
+                if cmd.is_ok() {
+                    if cmd.unwrap() == "QUIT" {
+                        return Ok(false);
+                    }
+                }
+    
                 match event {
                     Some(data) => {
                         match data {
@@ -116,8 +123,8 @@ impl<S: MarketServer> MarketGateway<S> {
                         continue_flag = false;
                     },
                 }
-                continue_flag
-            });
+                Ok(continue_flag)
+            }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));
     }

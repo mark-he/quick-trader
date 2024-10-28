@@ -86,7 +86,7 @@ impl MarketServer for BnMarketServer {
         let subscription_ref = self.subscription.clone();
 
         let closure = move |rx: Rx<String>| {
-            let mut wss = WssKeepalive::new(config::WSS_API).prepare(move |conn| {
+            let mut wss = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
                 let mut tick_set = HashSet::new();
                 for topic in topics.iter() {
                     if topic.interval == "" {
@@ -132,7 +132,7 @@ impl MarketServer for BnMarketServer {
                 }
 
                 let data = message.into_data();
-                let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
+                let string_data = String::from_utf8(data)?;
 
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
                 match json_value.get("e") {

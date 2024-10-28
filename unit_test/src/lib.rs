@@ -35,7 +35,10 @@ mod tests {
         let market_gateway_ref = BnMarketGatewayHolder::get_gateway();
         let mut market_gateway = market_gateway_ref.lock().unwrap();
 
-        let _ = market_gateway.connect()?;
+        let ret = market_gateway.connect();
+        if ret.is_err() {
+            panic!("{:?}", ret.unwrap_err());
+        }
         let rx = market_gateway.subscribe_tick("BTCUSDT");
         let rx2 = market_gateway.subscribe_kline("BTCUSDT", "5m");
         

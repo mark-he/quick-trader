@@ -21,7 +21,7 @@ impl BinanceWebSocketClient {
     }
 
     pub fn connect() -> Result<WebSocketState<MaybeTlsStream<TcpStream>>, Error> {
-        BinanceWebSocketClient::connect_with_url(crate::config::WSS_API)
+        BinanceWebSocketClient::connect_with_url(&crate::config::wss_api())
     }
 }
 

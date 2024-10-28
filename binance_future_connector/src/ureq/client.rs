@@ -122,7 +122,7 @@ impl BinanceHttpClient {
 
 impl Default for BinanceHttpClient {
     fn default() -> Self {
-        Self::new(AgentBuilder::new().build(),             crate::config::REST_API,)
+        Self::new(AgentBuilder::new().build(),             &crate::config::rest_api(),)
     }
 }
 

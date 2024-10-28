@@ -8,7 +8,7 @@ fn main() {
         .init();
     // Establish connection
     let mut conn =
-        BinanceWebSocketClient::connect_with_url(binance_future_connector::config::WSS_API).expect("Failed to connect");
+        BinanceWebSocketClient::connect_with_url(&binance_future_connector::config::wss_api()).expect("Failed to connect");
     // Subscribe to streams
     conn.subscribe(vec![
         &MarkPriceStream::from_symbol("BTCUSDT").update_interval(UpdateInterval::Sec1).into(),

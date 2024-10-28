@@ -1,0 +1,10 @@
+[package]
+name = "binance_assembler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+binance = { path = "../binance"}
+market = { path = "../market"}
+trade = { path = "../trade"}
+common = { path = "../common"}

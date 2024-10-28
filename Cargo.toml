@@ -2,5 +2,5 @@
 members = [ "account", "binance", "binance_spot_connector", "binance_future_connector", "binance_spot_connector/examples", "binance_future_connector/examples",
     "common",
     "market", "trade", "unit_test"
-]
+, "binance_assembler"]
 resolver = "2"

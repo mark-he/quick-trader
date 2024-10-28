@@ -29,7 +29,7 @@ impl BinanceWebSocketClient {
 
     pub async fn connect_async_default(
     ) -> Result<(WebSocketState<MaybeTlsStream<TcpStream>>, Response), Error> {
-        BinanceWebSocketClient::connect_async(crate::config::WSS_API).await
+        BinanceWebSocketClient::connect_async(&crate::config::wss_api()).await
     }
 }
 

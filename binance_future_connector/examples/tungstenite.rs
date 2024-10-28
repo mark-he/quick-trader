@@ -10,9 +10,8 @@ fn main() {
         .filter(None, log::LevelFilter::Debug)
         .init();
     // Establish connection
-    println!("{}", binance_future_connector::config::WSS_API);
     let mut conn =
-        BinanceWebSocketClient::connect_with_url(binance_future_connector::config::WSS_API).expect("Failed to connect");
+        BinanceWebSocketClient::connect_with_url(&binance_future_connector::config::wss_api()).expect("Failed to connect");
     // Subscribe to streams
     conn.subscribe(vec![
         &KlineStream::new("BTCUSDT", KlineInterval::Minutes1).into(),

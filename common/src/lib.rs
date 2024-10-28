@@ -72,7 +72,7 @@ pub mod c {
 }
 
 pub mod msmc {
-    use std::{fmt::Debug, marker::PhantomData, thread, time::Duration};
+    use std::{error::Error, fmt::Debug, marker::PhantomData, thread, time::Duration};
     use crossbeam::{channel::{unbounded, Receiver, Sender}, select};
 
     pub type Rx<T> = Receiver<Option<T>>;
@@ -153,23 +153,34 @@ pub mod msmc {
             Subscription::new(rx)
         }
 
-        pub fn stream<F>(&self, f: &mut F)
-            where F : FnMut(&Option<T>) -> bool {
+        pub fn stream<F>(&self, f: &mut F, skip_error: bool) ->  Result<(), Box<dyn Error>>
+            where F : FnMut(&Option<T>) -> Result<bool, Box<dyn Error>> {
             loop {
-                let continue_flag ;
+                let block_ret ;
                 let ret = self.receiver.as_ref().unwrap().try_recv();
                 match ret {
                     Ok(opt) => {
-                        continue_flag = f(&opt);
+                        block_ret = f(&opt);
                         self.send(&opt);
                     },
                     Err(_) => {
-                        continue_flag = f(&None);
+                        block_ret = f(&None);
                         thread::sleep(Duration::from_millis(100));
                     },
                 }
-                if !continue_flag {
-                    break;
+
+                match block_ret {
+                    Ok(continue_flag) => {
+                        if !continue_flag {
+                            return Ok(());
+                        }
+                    },
+                    Err(e) => {
+                        println!("Error: {:?}", e);
+                        if !skip_error {
+                            return Err(e);
+                        }
+                    },
                 }
             }
         }

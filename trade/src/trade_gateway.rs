@@ -30,7 +30,7 @@ impl<S: TradeServer> TradeGateway<S> {
         let closure = move |_| {
             let subscription = subscription_ref.lock().unwrap();
             let mut continue_flag = true;
-            subscription.stream(&mut move |event| {
+            let _ = subscription.stream(&mut move |event| {
                 match event {
                     Some(data) => {
                         let symbol = data.get_symbol();
@@ -44,8 +44,8 @@ impl<S: TradeServer> TradeGateway<S> {
                         continue_flag = false
                     }
                 }
-                continue_flag
-            });
+                Ok(continue_flag)
+            }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));
     }

@@ -129,7 +129,7 @@ impl Default for BinanceHttpClient<HttpsConnector<HttpConnector>> {
     fn default() -> Self {
         Self::new(
             Client::builder().build::<_, hyper::Body>(HttpsConnector::new()),
-            crate::config::REST_API,
+            &crate::config::rest_api(),
         )
     }
 }

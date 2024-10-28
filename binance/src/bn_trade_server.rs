@@ -61,7 +61,7 @@ impl WssStream {
         let closure = move |rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
             let credentials2 = credentials.clone();
-            let mut keepalive = WssListeneKeyKeepalive::new(binance_future_connector::config::WSS_API).new_listen_key( move || {
+            let mut keepalive = WssListeneKeyKeepalive::new(&binance_future_connector::config::wss_api()).new_listen_key( move || {
                 let client = BinanceHttpClient::default().credentials(credentials.clone());
                 let request = user_data_stream::new_listen_key();
                 let ret = client.send(request);
@@ -160,7 +160,7 @@ impl BnTradeServer {
         let positions_ref = self.positions.clone();
 
         let closure = move |_: Rx<String>| {
-            sub.stream(&mut |event| {
+            let _ = sub.stream(&mut |event| {
                 if let Some(e) = event {
                     match e {
                         AccountEvent::AccountUpdate(a) => {
@@ -187,8 +187,8 @@ impl BnTradeServer {
                         _ => {},
                     }
                 }
-                true
-            });
+                Ok(true)
+            }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));
     }
