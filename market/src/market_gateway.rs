@@ -92,7 +92,6 @@ impl<S: MarketServer> MarketGateway<S> {
                         return Ok(false);
                     }
                 }
-    
                 match event {
                     Some(data) => {
                         match data {
@@ -120,7 +119,7 @@ impl<S: MarketServer> MarketGateway<S> {
                         }
                     },
                     None => {
-                        continue_flag = false;
+                        
                     },
                 }
                 Ok(continue_flag)

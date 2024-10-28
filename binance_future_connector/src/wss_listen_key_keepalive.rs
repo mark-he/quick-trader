@@ -31,10 +31,14 @@ impl WssListeneKeyKeepalive {
     fn connect(&mut self, listen_key: &str) -> &Self {
         self.listen_key = listen_key.to_string();
         let ret = BinanceWebSocketClient::connect_with_url(format!("{}/{}", self.url.as_str(), listen_key).as_str());
-        if let Ok(conn) = ret {
-            self.conn = Some(conn);
-        } else {
-            self.conn = None;
+        match ret {
+            Ok(conn) => {
+                self.conn = Some(conn);
+            },
+            Err(e) => {
+                println!("CONNECTED FAILED!: {:?}", e);
+                self.conn = None;
+            },
         }
         self
     }

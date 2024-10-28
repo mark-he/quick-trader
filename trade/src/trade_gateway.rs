@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use super::trade_server::*;
-use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread}};
+use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use crossbeam::channel::{self, Receiver, Sender};
 
 pub struct TradeGateway<S: TradeServer> {
@@ -27,10 +27,17 @@ impl<S: TradeServer> TradeGateway<S> {
         let subscription_ref = self.subscription.clone();
         let subscribers = self.subscribers.clone();
 
-        let closure = move |_| {
+        let closure = move |rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
-            let mut continue_flag = true;
+ 
             let _ = subscription.stream(&mut move |event| {
+                let cmd = rx.try_recv();
+                if cmd.is_ok() {
+                    if cmd.unwrap() == "QUIT" {
+                        return Ok(false);
+                    }
+                }
+
                 match event {
                     Some(data) => {
                         let symbol = data.get_symbol();
@@ -41,10 +48,10 @@ impl<S: TradeServer> TradeGateway<S> {
                         }
                     },
                     None => {
-                        continue_flag = false
+                        
                     }
                 }
-                Ok(continue_flag)
+                Ok(true)
             }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));

@@ -86,7 +86,7 @@ impl MarketServer for BnMarketServer {
         let subscription_ref = self.subscription.clone();
 
         let closure = move |rx: Rx<String>| {
-            let mut wss = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
+            let mut wss: WssKeepalive = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
                 let mut tick_set = HashSet::new();
                 for topic in topics.iter() {
                     if topic.interval == "" {
@@ -146,12 +146,12 @@ impl MarketServer for BnMarketServer {
                                             symbol: kline.kline_data.symbol.clone(),
                                             interval: kline.kline_data.interval.clone(),
                                             datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                            open: kline.kline_data.open_price.parse::<f64>().unwrap(),
-                                            high: kline.kline_data.high_price.parse::<f64>().unwrap(),
-                                            low: kline.kline_data.low_price.parse::<f64>().unwrap(),
-                                            close: kline.kline_data.close_price.parse::<f64>().unwrap(),
+                                            open: kline.kline_data.open_price,
+                                            high: kline.kline_data.high_price,
+                                            low: kline.kline_data.low_price,
+                                            close: kline.kline_data.close_price,
                                             volume: kline.kline_data.number_of_trades as i32,
-                                            turnover: kline.kline_data.quote_asset_volume.parse::<f64>().unwrap(),
+                                            turnover: kline.kline_data.quote_asset_volume,
                                         };
                                         subscription.send(&Some(MarketData::Kline(k)));
                                     }
@@ -166,12 +166,12 @@ impl MarketServer for BnMarketServer {
                                         symbol: tick.symbol.clone(),
                                         datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
                                         trading_day: datetime.format("%Y-%m-%d").to_string(),
-                                        open: tick.open_price.parse::<f64>().unwrap(),
-                                        high: tick.high_price.parse::<f64>().unwrap(),
-                                        low: tick.low_price.parse::<f64>().unwrap(),
-                                        close: tick.close_price.parse::<f64>().unwrap(),
-                                        volume: tick.total_traded_base_asset_volume.parse::<f64>().unwrap(),
-                                        turnover: tick.total_traded_quote_asset_volume.parse::<f64>().unwrap(),
+                                        open: tick.open_price,
+                                        high: tick.high_price,
+                                        low: tick.low_price,
+                                        close: tick.close_price,
+                                        volume: tick.total_traded_base_asset_volume,
+                                        turnover: tick.total_traded_quote_asset_volume,
                                         open_interest: 0 as f64,
                                         ..Default::default()
                                     };

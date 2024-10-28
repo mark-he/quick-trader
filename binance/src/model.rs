@@ -1,5 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+
+fn string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
+   where
+       D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    s.parse::<f64>().map_err(serde::de::Error::custom)
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BinanceKline {
     /// Event type
@@ -37,20 +46,20 @@ pub struct KlineData {
     #[serde(rename = "L")]
     pub last_trade_id: u64,
     /// Open price
-    #[serde(rename = "o")]
-    pub open_price: String,
+    #[serde(rename = "o", deserialize_with = "string_to_f64")]
+    pub open_price: f64,
     /// Close price
-    #[serde(rename = "c")]
-    pub close_price: String,
+    #[serde(rename = "c", deserialize_with = "string_to_f64")]
+    pub close_price: f64,
     /// High price
-    #[serde(rename = "h")]
-    pub high_price: String,
+    #[serde(rename = "h", deserialize_with = "string_to_f64")]
+    pub high_price: f64,
     /// Low price
-    #[serde(rename = "l")]
-    pub low_price: String,
+    #[serde(rename = "l", deserialize_with = "string_to_f64")]
+    pub low_price: f64,
     /// Volume of the base asset
-    #[serde(rename = "v")]
-    pub base_asset_volume: String,
+    #[serde(rename = "v", deserialize_with = "string_to_f64")]
+    pub base_asset_volume: f64,
     /// Number of trades
     #[serde(rename = "n")]
     pub number_of_trades: u64,
@@ -58,14 +67,14 @@ pub struct KlineData {
     #[serde(rename = "x")]
     pub is_closed: bool,
     /// Volume of the quote asset
-    #[serde(rename = "q")]
-    pub quote_asset_volume: String,
+    #[serde(rename = "q", deserialize_with = "string_to_f64")]
+    pub quote_asset_volume: f64,
     /// Taker buy volume of the base asset
-    #[serde(rename = "V")]
-    pub taker_buy_base_asset_volume: String,
+    #[serde(rename = "V", deserialize_with = "string_to_f64")]
+    pub taker_buy_base_asset_volume: f64,
     /// Taker buy volume of the quote asset
-    #[serde(rename = "Q")]
-    pub taker_buy_quote_asset_volume: String,
+    #[serde(rename = "Q", deserialize_with = "string_to_f64")]
+    pub taker_buy_quote_asset_volume: f64,
     /// Ignore
     #[serde(rename = "B")]
     ignored_value: String,
@@ -82,24 +91,24 @@ pub struct BinanceTick {
     #[serde(rename = "s")]
     /// Symbol
     pub symbol: String,
-    #[serde(rename = "c")]
+    #[serde(rename = "c", deserialize_with = "string_to_f64")]
     /// Close price
-    pub close_price: String,
-    #[serde(rename = "o")]
+    pub close_price: f64,
+    #[serde(rename = "o", deserialize_with = "string_to_f64")]
     /// Open price
-    pub open_price: String,
-    #[serde(rename = "h")]
+    pub open_price: f64,
+    #[serde(rename = "h", deserialize_with = "string_to_f64")]
     /// High price
-    pub high_price: String,
-    #[serde(rename = "l")]
+    pub high_price: f64,
+    #[serde(rename = "l", deserialize_with = "string_to_f64")]
     /// Low price
-    pub low_price: String,
-    #[serde(rename = "v")]
+    pub low_price: f64,
+    #[serde(rename = "v", deserialize_with = "string_to_f64")]
     /// Total traded base asset volume
-    pub total_traded_base_asset_volume: String,
-    #[serde(rename = "q")]
+    pub total_traded_base_asset_volume: f64,
+    #[serde(rename = "q", deserialize_with = "string_to_f64")]
     /// Total traded quote asset volume
-    pub total_traded_quote_asset_volume: String,
+    pub total_traded_quote_asset_volume: f64,
 }
 
 

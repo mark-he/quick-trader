@@ -20,11 +20,15 @@ impl WssKeepalive {
     }
 
     fn connect(&mut self) -> &Self {
-        let ret = BinanceWebSocketClient::connect_with_url(self.url.as_str());
-        if let Ok(conn) = ret {
-            self.conn = Some(conn);
-        } else {
-            self.conn = None;
+        let ret = BinanceWebSocketClient::connect_with_url(&self.url);
+        match ret {
+            Ok(conn) => {
+                self.conn = Some(conn);
+            },
+            Err(e) => {
+                println!("CONNECTED FAILED!: {:?}", e);
+                self.conn = None;
+            },
         }
         self
     }

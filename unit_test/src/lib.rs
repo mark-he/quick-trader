@@ -29,6 +29,8 @@ mod tests {
     }
     #[test]
     fn test_bn_market_gateway() -> Result<(), AppError> {
+        binance::enable_prod(false);
+
         let server = BnMarketServer::new();
         BnMarketGatewayHolder::init(server);
 
@@ -37,11 +39,13 @@ mod tests {
 
         let ret = market_gateway.connect();
         if ret.is_err() {
-            panic!("{:?}", ret.unwrap_err());
+            panic!("XXXXXXXXXXXX{:?}XXXXXXXXXXXXXX", ret.unwrap_err());
         }
         let rx = market_gateway.subscribe_tick("BTCUSDT");
         let rx2 = market_gateway.subscribe_kline("BTCUSDT", "5m");
-        
+         
+        let _ = market_gateway.start();
+
         thread::spawn(move || {
             loop {
                 println!("Receiving tick");
@@ -71,11 +75,8 @@ mod tests {
                 }
             }
         });
-         
-        let _ = market_gateway.start();
         let handler = &market_gateway.handler.as_ref().unwrap().join_handler;
-        let _ = handler.lock().unwrap().take().unwrap().join();
-        println!("=========QUIT============");
+        let _ = handler.lock().unwrap().take().unwrap().join().unwrap();
         Ok(())
     }
     
@@ -107,8 +108,10 @@ mod tests {
 
         let trade_gateway_ref = BnTradeGatewayHolder::get_gateway();
         let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-        let _ = trade_gateway.connect()?;
-
+        let ret = trade_gateway.connect();
+        if ret.is_err() {
+            panic!("{:?}", ret.unwrap_err());
+        }
         let rx = trade_gateway.register(vec!["BTCUSDT".to_string()])?;
 
         thread::spawn(move || {

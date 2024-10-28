@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 tungstenite = {version = "0.23.0", features = ["native-tls"]}
 binance_future_connector = { path = "../binance_future_connector", features = ["enable-tungstenite"]}
-account = { path = "../account"}
+
 
 log = "0.4.14"
 tokio = { version = "1", features = ["full"] }
