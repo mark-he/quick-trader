@@ -116,20 +116,20 @@ pub struct BinanceTick {
 pub struct OrderInfo {
     #[serde(rename = "clientOrderId")]
     pub client_order_id: String,
-    #[serde(rename = "cumQty")]
-    pub cum_qty: String,
-    #[serde(rename = "cumQuote")]
-    pub cum_quote: String,
-    #[serde(rename = "executedQty")]
-    pub executed_qty: String,
+    #[serde(rename = "cumQty", deserialize_with = "string_to_f64")]
+    pub cum_qty: f64,
+    #[serde(rename = "cumQuote", deserialize_with = "string_to_f64")]
+    pub cum_quote: f64,
+    #[serde(rename = "executedQty", deserialize_with = "string_to_f64")]
+    pub executed_qty: f64,
     #[serde(rename = "orderId")]
     pub order_id: u64,
-    #[serde(rename = "avgPrice")]
-    pub avg_price: String,
-    #[serde(rename = "origQty")]
-    pub orig_qty: String,
-    #[serde(rename = "price")]
-    pub price: String,
+    #[serde(rename = "avgPrice", deserialize_with = "string_to_f64")]
+    pub avg_price: f64,
+    #[serde(rename = "origQty", deserialize_with = "string_to_f64")]
+    pub orig_qty: f64,
+    #[serde(rename = "price", deserialize_with = "string_to_f64")]
+    pub price: f64,
     #[serde(rename = "reduceOnly")]
     pub reduce_only: bool,
     #[serde(rename = "side")]
@@ -138,8 +138,8 @@ pub struct OrderInfo {
     pub position_side: String,
     #[serde(rename = "status")]
     pub status: String,
-    #[serde(rename = "stopPrice")]
-    pub stop_price: String,
+    #[serde(rename = "stopPrice", deserialize_with = "string_to_f64")]
+    pub stop_price: f64,
     #[serde(rename = "closePosition")]
     pub close_position: bool,
     #[serde(rename = "symbol")]
@@ -150,8 +150,8 @@ pub struct OrderInfo {
     pub order_type: String,
     #[serde(rename = "origType")]
     pub orig_type: String,
-    #[serde(rename = "activatePrice")]
-    pub activate_price: String,
+    #[serde(rename = "activatePrice", deserialize_with = "string_to_f64")]
+    pub activate_price: f64,
     #[serde(rename = "priceRate")]
     pub price_rate: String,
     #[serde(rename = "updateTime")]
@@ -173,32 +173,32 @@ pub struct OrderInfo {
 pub struct BalanceData {
     #[serde(rename = "a")]
     pub asset: String,
-    #[serde(rename = "wb")]
-    pub wallet_balance: String,
-    #[serde(rename = "cw")]
-    pub cross_wallet_balance: String,
-    #[serde(rename = "bc")]
-    pub balance_change: String,
+    #[serde(rename = "wb", deserialize_with = "string_to_f64")]
+    pub wallet_balance: f64,
+    #[serde(rename = "cw", deserialize_with = "string_to_f64")]
+    pub cross_wallet_balance: f64,
+    #[serde(rename = "bc", deserialize_with = "string_to_f64")]
+    pub balance_change: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PositionData {
     #[serde(rename = "s")]
     pub symbol: String,
-    #[serde(rename = "pa")]
-    pub position_amount: String,
-    #[serde(rename = "ep")]
-    pub entry_price: String,
-    #[serde(rename = "bep")]
-    pub breakeven_price: String,
-    #[serde(rename = "cr")]
-    pub accumulated_realized: String,
-    #[serde(rename = "up")]
-    pub unrealized_pnl: String,
+    #[serde(rename = "pa", deserialize_with = "string_to_f64")]
+    pub position_amount: f64,
+    #[serde(rename = "ep", deserialize_with = "string_to_f64")]
+    pub entry_price: f64,
+    #[serde(rename = "bep", deserialize_with = "string_to_f64")]
+    pub breakeven_price: f64,
+    #[serde(rename = "cr", deserialize_with = "string_to_f64")]
+    pub accumulated_realized: f64,
+    #[serde(rename = "up", deserialize_with = "string_to_f64")]
+    pub unrealized_pnl: f64,
     #[serde(rename = "mt")]
     pub margin_type: String,
-    #[serde(rename = "iw")]
-    pub isolated_wallet: String,
+    #[serde(rename = "iw", deserialize_with = "string_to_f64")]
+    pub isolated_wallet: f64,
     #[serde(rename = "ps")]
     pub position_side: String,
     
@@ -239,26 +239,26 @@ pub struct OrderData {
     pub order_type: String,
     #[serde(rename = "f")]
     pub time_in_force: String,
-    #[serde(rename = "q")]
-    pub original_quantity: String,
-    #[serde(rename = "p")]
-    pub original_price: String,
-    #[serde(rename = "ap")]
-    pub average_price: String,
-    #[serde(rename = "sp")]
-    pub stop_price: String,
+    #[serde(rename = "q", deserialize_with = "string_to_f64")]
+    pub original_quantity: f64,
+    #[serde(rename = "p", deserialize_with = "string_to_f64")]
+    pub original_price: f64,
+    #[serde(rename = "ap", deserialize_with = "string_to_f64")]
+    pub average_price: f64,
+    #[serde(rename = "sp", deserialize_with = "string_to_f64")]
+    pub stop_price: f64,
     #[serde(rename = "x")]
     pub execution_type: String,
     #[serde(rename = "X")]
     pub order_status: String,
     #[serde(rename = "i")]
     pub order_id: u64,
-    #[serde(rename = "l")]
-    pub order_last_filled_quantity: String,
-    #[serde(rename = "z")]
-    pub order_filled_accumulated_quantity: String,
-    #[serde(rename = "L")]
-    pub last_filled_price: String,
+    #[serde(rename = "l", deserialize_with = "string_to_f64")]
+    pub order_last_filled_quantity: f64,
+    #[serde(rename = "z", deserialize_with = "string_to_f64")]
+    pub order_filled_accumulated_quantity: f64,
+    #[serde(rename = "L", deserialize_with = "string_to_f64")]
+    pub last_filled_price: f64,
     #[serde(rename = "N")]
     pub commission_asset: String,
     #[serde(rename = "n")]
@@ -293,8 +293,8 @@ pub struct OrderData {
     pub ignore_si: u64,
     #[serde(rename = "ss")]
     pub ignore_ss: u64,
-    #[serde(rename = "rp")]
-    pub realized_profit: String,
+    #[serde(rename = "rp", deserialize_with = "string_to_f64")]
+    pub realized_profit: f64,
     #[serde(rename = "V")]
     pub stp_mode: String,
     #[serde(rename = "pm")]
@@ -327,20 +327,20 @@ pub struct TradeLiteEvent {
     pub transaction_time: u64,
     #[serde(rename = "s")]
     pub symbol: String,
-    #[serde(rename = "q")]
-    pub original_quantity: String,
-    #[serde(rename = "p")]
-    pub original_price: String,
+    #[serde(rename = "q", deserialize_with = "string_to_f64")]
+    pub original_quantity: f64,
+    #[serde(rename = "p", deserialize_with = "string_to_f64")]
+    pub original_price: f64,
     #[serde(rename = "m")]
     pub is_maker_side: bool,
     #[serde(rename = "c")]
     pub client_order_id: String,
     #[serde(rename = "S")]
     pub side: String,
-    #[serde(rename = "L")]
-    pub last_filled_price: String,
-    #[serde(rename = "l")]
-    pub order_last_filled_quantity: String,
+    #[serde(rename = "L", deserialize_with = "string_to_f64")]
+    pub last_filled_price: f64,
+    #[serde(rename = "l", deserialize_with = "string_to_f64")]
+    pub order_last_filled_quantity: f64,
     #[serde(rename = "t")]
     pub trade_id: u64,
     #[serde(rename = "i")]
@@ -350,85 +350,111 @@ pub struct TradeLiteEvent {
 //Account info
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Account {
+    #[serde(rename = "feeTier")]
+    pub fee_tier: u32,
+    #[serde(rename = "feeBurn")]
+    pub fee_burn: bool,
+    #[serde(rename = "canTrade")]
+    pub can_trade: bool,
+    #[serde(rename = "canDeposit")]
+    pub can_deposit: bool,
+    #[serde(rename = "canWithdraw")]
+    pub can_withdraw: bool,
+    #[serde(rename = "updateTime")]
+    pub update_time: u64,
+    #[serde(rename = "multiAssetsMargin")]
+    pub multi_assets_margin: bool,
+    #[serde(rename = "tradeGroupId")]
+    pub trade_group_id: i32,
+    #[serde(rename = "totalInitialMargin", deserialize_with = "string_to_f64")]
+    pub total_initial_margin: f64,
+    #[serde(rename = "totalMaintMargin", deserialize_with = "string_to_f64")]
+    pub total_maint_margin: f64,
+    #[serde(rename = "totalWalletBalance", deserialize_with = "string_to_f64")]
+    pub total_wallet_balance: f64,
+    #[serde(rename = "totalUnrealizedProfit", deserialize_with = "string_to_f64")]
+    pub total_unrealized_profit: f64,
+    #[serde(rename = "totalMarginBalance", deserialize_with = "string_to_f64")]
+    pub total_margin_balance: f64,
+    #[serde(rename = "totalPositionInitialMargin", deserialize_with = "string_to_f64")]
+    pub total_position_initial_margin: f64,
+    #[serde(rename = "totalOpenOrderInitialMargin", deserialize_with = "string_to_f64")]
+    pub total_open_order_initial_margin: f64,
+    #[serde(rename = "totalCrossWalletBalance", deserialize_with = "string_to_f64")]
+    pub total_cross_wallet_balance: f64,
+    #[serde(rename = "totalCrossUnPnl", deserialize_with = "string_to_f64")]
+    pub total_cross_unpnl: f64,
+    #[serde(rename = "availableBalance", deserialize_with = "string_to_f64")]
+    pub available_balance: f64,
+    #[serde(rename = "maxWithdrawAmount", deserialize_with = "string_to_f64")]
+    pub max_withdraw_amount: f64,
+    pub assets: Vec<Asset>,
+    pub positions: Vec<Position>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Asset {
     #[serde(rename = "asset")]
-    pub asset_name: String,
-    #[serde(rename = "walletBalance")]
-    pub wallet_balance: String,
-    #[serde(rename = "unrealizedProfit")]
-    pub unrealized_profit: String,
-    #[serde(rename = "marginBalance")]
-    pub margin_balance: String,
-    #[serde(rename = "maintMargin")]
-    pub maint_margin: String,
-    #[serde(rename = "initialMargin")]
-    pub initial_margin: String,
-    #[serde(rename = "positionInitialMargin")]
-    pub position_initial_margin: String,
-    #[serde(rename = "openOrderInitialMargin")]
-    pub open_order_initial_margin: String,
-    #[serde(rename = "crossWalletBalance")]
-    pub cross_wallet_balance: String,
-    #[serde(rename = "crossUnPnl")]
-    pub cross_un_pnl: String,
-    #[serde(rename = "availableBalance")]
-    pub available_balance: String,
-    #[serde(rename = "maxWithdrawAmount")]
-    pub max_withdraw_amount: String,
+    pub asset: String,
+    #[serde(rename = "walletBalance", deserialize_with = "string_to_f64")]
+    pub wallet_balance: f64,
+    #[serde(rename = "unrealizedProfit", deserialize_with = "string_to_f64")]
+    pub unrealized_profit: f64,
+    #[serde(rename = "marginBalance", deserialize_with = "string_to_f64")]
+    pub margin_balance: f64,
+    #[serde(rename = "maintMargin", deserialize_with = "string_to_f64")]
+    pub maint_margin: f64,
+    #[serde(rename = "initialMargin", deserialize_with = "string_to_f64")]
+    pub initial_margin: f64,
+    #[serde(rename = "positionInitialMargin", deserialize_with = "string_to_f64")]
+    pub position_initial_margin: f64,
+    #[serde(rename = "openOrderInitialMargin", deserialize_with = "string_to_f64")]
+    pub open_order_initial_margin: f64,
+    #[serde(rename = "crossWalletBalance", deserialize_with = "string_to_f64")]
+    pub cross_wallet_balance: f64,
+    #[serde(rename = "crossUnPnl", deserialize_with = "string_to_f64")]
+    pub cross_unpnl: f64,
+    #[serde(rename = "availableBalance", deserialize_with = "string_to_f64")]
+    pub available_balance: f64,
+    #[serde(rename = "maxWithdrawAmount", deserialize_with = "string_to_f64")]
+    pub max_withdraw_amount: f64,
+    #[serde(rename = "marginAvailable")]
+    pub margin_available: bool,
     #[serde(rename = "updateTime")]
     pub update_time: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Position {
     #[serde(rename = "symbol")]
     pub symbol: String,
+    #[serde(rename = "initialMargin", deserialize_with = "string_to_f64")]
+    pub initial_margin: f64,
+    #[serde(rename = "maintMargin", deserialize_with = "string_to_f64")]
+    pub maint_margin: f64,
+    #[serde(rename = "unrealizedProfit", deserialize_with = "string_to_f64")]
+    pub unrealized_profit: f64,
+    #[serde(rename = "positionInitialMargin", deserialize_with = "string_to_f64")]
+    pub position_initial_margin: f64,
+    #[serde(rename = "openOrderInitialMargin", deserialize_with = "string_to_f64")]
+    pub open_order_initial_margin: f64,
+    #[serde(rename = "leverage")]
+    pub leverage: String,
+    #[serde(rename = "isolated")]
+    pub isolated: bool,
+    #[serde(rename = "entryPrice", deserialize_with = "string_to_f64")]
+    pub entry_price: f64,
+    #[serde(rename = "maxNotional", deserialize_with = "string_to_f64")]
+    pub max_notional: f64,
+    #[serde(rename = "bidNotional", deserialize_with = "string_to_f64")]
+    pub bid_notional: f64,
+    #[serde(rename = "askNotional", deserialize_with = "string_to_f64")]
+    pub ask_notional: f64,
     #[serde(rename = "positionSide")]
     pub position_side: String,
-    #[serde(rename = "positionAmt")]
-    pub position_amt: String,
-    #[serde(rename = "unrealizedProfit")]
-    pub unrealized_profit: String,
-    #[serde(rename = "isolatedMargin")]
-    pub isolated_margin: String,
-    #[serde(rename = "notional")]
-    pub notional: String,
-    #[serde(rename = "isolatedWallet")]
-    pub isolated_wallet: String,
-    #[serde(rename = "initialMargin")]
-    pub initial_margin: String,
-    #[serde(rename = "maintMargin")]
-    pub maint_margin: String,
+    #[serde(rename = "positionAmt", deserialize_with = "string_to_f64")]
+    pub position_amt: f64,
     #[serde(rename = "updateTime")]
     pub update_time: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AccountInfo {
-    #[serde(rename = "totalInitialMargin")]
-    pub total_initial_margin: String,
-    #[serde(rename = "totalMaintMargin")]
-    pub total_maint_margin: String,
-    #[serde(rename = "totalWalletBalance")]
-    pub total_wallet_balance: String,
-    #[serde(rename = "totalUnrealizedProfit")]
-    pub total_unrealized_profit: String,
-    #[serde(rename = "totalMarginBalance")]
-    pub total_margin_balance: String,
-    #[serde(rename = "totalPositionInitialMargin")]
-    pub total_position_initial_margin: String,
-    #[serde(rename = "totalOpenOrderInitialMargin")]
-    pub total_open_order_initial_margin: String,
-    #[serde(rename = "totalCrossWalletBalance")]
-    pub total_cross_wallet_balance: String,
-    #[serde(rename = "totalCrossUnPnl")]
-    pub total_cross_un_pnl: String,
-    #[serde(rename = "availableBalance")]
-    pub available_balance: String,
-    #[serde(rename = "maxWithdrawAmount")]
-    pub max_withdraw_amount: String,
-    #[serde(rename = "assets")]
-    pub assets: Vec<Asset>,
-    #[serde(rename = "positions")]
-    pub positions: Vec<Position>,
 }

@@ -32,7 +32,7 @@ impl From<AccountRequest> for Request {
     fn from(request: AccountRequest) -> Request {
         let params = request.get_params();
         Request {
-            path: "/fapi/v3/account".to_owned(),
+            path: "/fapi/v2/account".to_owned(),
             method: Method::Get,
             params,
             credentials: None,

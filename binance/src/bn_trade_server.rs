@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex, RwLock};
+use chrono::Local;
 use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
 use serde_json::Value;
 use binance_future_connector::{
@@ -7,7 +8,7 @@ use binance_future_connector::{
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
-use crate::model::{self, AccountInfo, Asset, Position};
+use crate::model::{self, Account, Asset, Position};
 
 #[derive(Clone)]
 pub struct Config {
@@ -166,21 +167,49 @@ impl BnTradeServer {
                         AccountEvent::AccountUpdate(a) => {
                             let mut positions = positions_ref.write().unwrap();
                             for position_data in a.positions.iter() {
+                                let mut found = false;
                                 for position in positions.iter_mut() {
                                     if position_data.symbol == position.symbol && position_data.position_side == position.position_side {
                                         position.position_amt = position_data.position_amount.clone();
+                                        position.entry_price = position_data.entry_price;
+                                        position.unrealized_profit = position_data.unrealized_pnl;
+                                        position.update_time = Local::now().timestamp_millis() as u64;
+                                        found = true;
                                         break;
                                     }
                                 }
+                                if !found {
+                                    positions.push(Position {
+                                        symbol: position_data.symbol.clone(),
+                                        position_side: position_data.position_side.clone(),
+                                        position_amt: position_data.position_amount,
+                                        unrealized_profit: position_data.unrealized_pnl,
+                                        entry_price: position_data.entry_price,
+                                        update_time: Local::now().timestamp_millis() as u64,
+                                        ..Default::default()
+                                    });
+                                }
                             }
+
                             let mut assets = assets_ref.write().unwrap();
                             for balance_data in a.balances.iter() {
+                                let mut found = false;
                                 for asset in assets.iter_mut() {
-                                    if balance_data.asset == asset.asset_name {
+                                    if balance_data.asset == asset.asset {
                                         asset.wallet_balance = balance_data.wallet_balance.clone();
                                         asset.cross_wallet_balance = balance_data.cross_wallet_balance.clone();
+                                        found = true;
                                         break;
                                     }
+                                }
+                                if !found {
+                                    assets.push(Asset {
+                                        asset: balance_data.asset.clone(),
+                                        wallet_balance: balance_data.wallet_balance.clone(),
+                                        cross_wallet_balance: balance_data.cross_wallet_balance,
+                                        update_time: Local::now().timestamp_millis() as u64,
+                                        ..Default::default()
+                                    });
                                 }
                             }
                         },
@@ -196,7 +225,7 @@ impl BnTradeServer {
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let data = self.get_resp_result(client.send(account::account()))?;
-        let account_info: AccountInfo = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let account_info: Account = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         *self.assets.write().unwrap() = account_info.assets;
         *self.positions.write().unwrap() = account_info.positions;
         Ok(())
@@ -244,7 +273,7 @@ impl TradeServer for BnTradeServer {
         let positions = self.positions.read().unwrap();
         let mut ret = vec![];
         for position in positions.iter() {
-            if position.symbol == symbol {
+            if position.symbol == symbol && position.position_amt > 0.0 {
                 ret.push(position.clone());
             }
         }
@@ -255,7 +284,7 @@ impl TradeServer for BnTradeServer {
         let assets = self.assets.read().unwrap();
         let mut ret = None;
         for asset in assets.iter() {
-            if account_id == asset.asset_name {
+            if account_id == asset.asset && asset.cross_wallet_balance > 0.0 {
                 ret = Some(asset.clone());
                 break;
             }
