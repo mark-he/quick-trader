@@ -94,7 +94,6 @@ impl WssStream {
                         return Ok(false);
                     }
                 }
-
                 let data = message.into_data();
                 let string_data = String::from_utf8(data).map_err(|e| Box::new(e))?;
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
@@ -224,14 +223,14 @@ impl BnTradeServer {
 
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let data = self.get_resp_result(client.send(account::account()))?;
+        let data = Self::get_resp_result(client.send(account::account()))?;
         let account_info: Account = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         *self.assets.write().unwrap() = account_info.assets;
         *self.positions.write().unwrap() = account_info.positions;
         Ok(())
     }
 
-    fn get_resp_result(&self, ret: Result<Response, Box<Error>>) -> Result<String, AppError> {
+    fn get_resp_result(ret: Result<Response, Box<Error>>) -> Result<String, AppError> {
         let body = ret.map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         let data = body.into_body_str().map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         Ok(data)

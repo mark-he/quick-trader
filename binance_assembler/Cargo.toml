@@ -3,8 +3,18 @@ name = "binance_assembler"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "quick_trader_bn"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
 [dependencies]
 binance = { path = "../binance"}
 market = { path = "../market"}
 trade = { path = "../trade"}
 common = { path = "../common"}
+binance_future_connector = { path = "../binance_future_connector", features = ["enable-tungstenite"]}
+rust_decimal_macros = "1.24.0"
+rust_decimal = "*"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

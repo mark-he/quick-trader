@@ -1,6 +1,7 @@
 use common::{error::AppError, msmc::{EventTrait, Subscription}};
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize,)]
 pub struct Tick {
     pub symbol: String,
     pub datetime: String,
@@ -35,7 +36,7 @@ pub struct Tick {
     pub ask_volume5: f64,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize,)]
 pub struct KLine {
     pub symbol: String,
     pub interval: String,
@@ -44,7 +45,7 @@ pub struct KLine {
     pub high: f64,
     pub low: f64,
     pub close: f64,
-    pub volume: i32,
+    pub volume: f64,
     pub turnover: f64,
 }
 
@@ -68,4 +69,5 @@ pub trait MarketServer {
     fn subscribe_kline(&mut self, symbol: &str, interval: &str);
     fn start(&mut self);
     fn close(self);
+    fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError>;
 }

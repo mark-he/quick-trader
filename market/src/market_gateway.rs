@@ -1,3 +1,5 @@
+use crate::market_server::KLine;
+
 use super::market_server::{MarketData, MarketServer};
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use std::{sync::{Arc, Mutex}, vec};
@@ -52,6 +54,10 @@ impl<S: MarketServer> MarketGateway<S> {
         })
     }
     
+    pub fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
+        self.server.load_kline(symbol, interval, count)
+    }
+
     pub fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Receiver<MarketData> {
         let _ = self.server.subscribe_kline(symbol, interval);
 

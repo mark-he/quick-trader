@@ -113,7 +113,7 @@ pub struct BinanceTick {
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct OrderInfo {
+pub struct Order {
     #[serde(rename = "clientOrderId")]
     pub client_order_id: String,
     #[serde(rename = "cumQty", deserialize_with = "string_to_f64")]

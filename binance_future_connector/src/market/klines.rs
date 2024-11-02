@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use crate::http::{request::Request, Method};
 use strum::Display;
 
@@ -35,27 +37,31 @@ pub enum KlineInterval {
     Months1,
 }
 
+impl FromStr for KlineInterval {
+    type Err = String;
 
-pub fn interval_from_str(s: &str) -> Result<KlineInterval, String> {
-    match s {
-        "1m" => Ok(KlineInterval::Minutes1),
-        "3m" => Ok(KlineInterval::Minutes3),
-        "5m" => Ok(KlineInterval::Minutes5),
-        "15m" => Ok(KlineInterval::Minutes15),
-        "30m" => Ok(KlineInterval::Minutes30),
-        "1h" => Ok(KlineInterval::Hours1),
-        "2h" => Ok(KlineInterval::Hours2),
-        "4h" => Ok(KlineInterval::Hours4),
-        "6h" => Ok(KlineInterval::Hours6),
-        "8h" => Ok(KlineInterval::Hours8),
-        "12h" => Ok(KlineInterval::Hours12),
-        "1d" => Ok(KlineInterval::Days1),
-        "3d" => Ok(KlineInterval::Days3),
-        "1w" => Ok(KlineInterval::Weeks1),
-        "1M" => Ok(KlineInterval::Months1),
-        _ => Err(format!("Invalid duration: {}", s)),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1m" => Ok(KlineInterval::Minutes1),
+            "3m" => Ok(KlineInterval::Minutes3),
+            "5m" => Ok(KlineInterval::Minutes5),
+            "15m" => Ok(KlineInterval::Minutes15),
+            "30m" => Ok(KlineInterval::Minutes30),
+            "1h" => Ok(KlineInterval::Hours1),
+            "2h" => Ok(KlineInterval::Hours2),
+            "4h" => Ok(KlineInterval::Hours4),
+            "6h" => Ok(KlineInterval::Hours6),
+            "8h" => Ok(KlineInterval::Hours8),
+            "12h" => Ok(KlineInterval::Hours12),
+            "1d" => Ok(KlineInterval::Days1),
+            "3d" => Ok(KlineInterval::Days3),
+            "1w" => Ok(KlineInterval::Weeks1),
+            "1M" => Ok(KlineInterval::Months1),
+            _ => Err("Invalid KlineInterval".to_string()),
+        }
     }
 }
+
 /// `GET /api/v3/klines`
 ///
 /// Kline/candlestick bars for a symbol.
