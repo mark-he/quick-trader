@@ -28,7 +28,7 @@ pub extern "C" fn start() {
 
 
 #[no_mangle]
-pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char, interval : *const c_char, count: i32, callback: extern "C" fn(*const c_char, *const CKLine)) -> CKLines {
+pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char, interval : *const c_char, count: i32, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
     let symbol_rust = c_char_to_string(symbol);
     let interval_rust = c_char_to_string(interval);
 
@@ -37,43 +37,31 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
 
     let rx  = gateway.subscribe_kline(&symbol_rust, interval_rust.as_str());
     let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
-
     thread::spawn(move || {
         loop {
             if let Ok(data) = rx.recv() {
                 match data {
                     MarketData::Kline(k) => {
-                        let kline = convert_c_kline(k);
-                        callback(sub_id_rust.as_ptr(), &kline);
+                        let json = serde_json::to_string(&k).unwrap();
+                        let json_rust = CString::new(json).expect("CString failed");
+                        callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
                     },
                     _ => {},
                 }
             }
         }
     });
-
     let ret = gateway.load_kline(&symbol_rust, &interval_rust, count as u32);
     if ret.is_err() {
         panic!("{:?}", ret.unwrap_err());
     }
-
     let klines: Vec<KLine> = ret.unwrap();
-    let mut v = Vec::with_capacity(klines.len());
-    for k in klines {
-        let kline = convert_c_kline(k);
-        v.push(kline);
-    }
-    let len = v.len();
-    let boxed_data = Box::new(v);
-    
-    CKLines {
-        length: len,
-        ptr: Box::leak(boxed_data).as_ptr(),
-    }
+    let json = serde_json::to_string(&klines).unwrap();
+    Box::new(CString::new(json).unwrap())
 }
 
 #[no_mangle]
-pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char, callback: extern "C" fn(*const c_char, *const CTick)) {
+pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) {
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_market_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
@@ -84,8 +72,9 @@ pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char,
             if let Ok(data) = rx.recv() {
                 match data {
                     MarketData::Tick(tick) => {
-                        let market_data = convert_c_tick(tick);
-                        callback(sub_id_rust.as_ptr(), &market_data);
+                        let json = serde_json::to_string(&tick).unwrap();
+                        let json_rust = CString::new(json).expect("CString failed");
+                        callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
                     },
                     _ => {},
                 }
@@ -96,20 +85,18 @@ pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char,
 }
 
 #[no_mangle]
-pub extern "C" fn init(config: *const CTradeConfig) {
-    let config_ref = unsafe { &*config };
+pub extern "C" fn init(env: *const c_char, config: *const c_char) {
+    let env_rust = c_char_to_string(env);
+    let config_rust = c_char_to_string(config);
+    let ret = serde_json::from_str::<Config>(&config_rust);
+    if ret.is_err() {
+        panic!("{:?}", ret.unwrap_err());
+    }
 
-    let env = c_char_to_string(config_ref.env);
-    binance::enable_prod(env == "PROD");
-
-    let trade_config = Config {
-        api_key: c_char_to_string(config_ref.api_key),
-        api_secret: c_char_to_string(config_ref.api_secret),
-    };
-
-    println!("start to initialize binance...");
+    binance::enable_prod(env_rust == "PROD");
+    println!("start to initialize binance...{:?}", ret.as_ref().unwrap());
     let market_server = BnMarketServer::new();
-    let trade_server = BnTradeServer::new(trade_config);
+    let trade_server = BnTradeServer::new(ret.unwrap());
     context::init(market_server, trade_server);
 
     let market_gateway_ref = context::get_market_gateway();
@@ -129,10 +116,14 @@ pub extern "C" fn init(config: *const CTradeConfig) {
 }
 
 #[no_mangle]
-pub extern "C" fn new_order(order_request: *const CNewOrderRequest) {
+pub extern "C" fn new_order(order_request: *const c_char) {
+    let order_request_rust = c_char_to_string(order_request);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    let ret = convert_c_neworder(order_request);
+
+    println!("{}", order_request_rust);
+    let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
+    println!("{:?}", ret);
     match ret {
         Ok(order) => {
             let ret = gateway.new_order(order);
@@ -161,21 +152,26 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
 }
 
 #[no_mangle]
-pub extern "C" fn get_positions(symbol : *const c_char) {
+pub extern "C" fn get_positions(symbol : *const c_char)  -> Box<CString> {
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
     let positions = gateway.get_positions(&symbol_rust);
+    let json = serde_json::to_string(&positions).unwrap();
+    Box::new(CString::new(json).unwrap())
 }
 
 #[no_mangle]
-pub extern "C" fn get_account(asset : *const c_char) {
+pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
     let asset_rust = c_char_to_string(asset);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    let account = gateway.get_account(&asset_rust);    
+    let account = gateway.get_account(&asset_rust);
+    let json = serde_json::to_string(&account).unwrap();
+    Box::new(CString::new(json).unwrap()) 
 }
 
+/*
 fn convert_c_neworder(order_request: *const CNewOrderRequest) -> Result<NewOrderRequest, Box<dyn Error>> {
     let order_request_ref = unsafe { &*order_request };
 
@@ -201,58 +197,6 @@ fn convert_c_neworder(order_request: *const CNewOrderRequest) -> Result<NewOrder
         good_till_date: None,
         recv_window: None,
     };
-
     Ok(request)
-}
+} */
 
-fn convert_c_kline(kline: KLine) -> CKLine {
-    let market_data: CKLine = CKLine {
-        symbol: string_to_c_char::<100>(kline.symbol.clone()),
-        interval: string_to_c_char::<100>(kline.interval.clone()),
-        datetime: string_to_c_char::<100>(kline.datetime.clone()),
-        open: kline.open,
-        high: kline.high,
-        low: kline.low,
-        close: kline.close,
-        volume: kline.volume,
-        turnover: kline.turnover,
-    };
-    market_data
-}
-
-fn convert_c_tick(tick: Tick) -> CTick {
-    let market_data: CTick = CTick {
-        symbol: string_to_c_char::<100>(tick.symbol.clone()),
-        trading_day: string_to_c_char::<100>(tick.trading_day.clone()),
-        datetime: string_to_c_char::<100>(tick.datetime.clone()),
-        open: tick.open,
-        high: tick.high,
-        low: tick.low,
-        close: tick.close,
-        volume: tick.volume,
-        turnover: tick.turnover,
-        open_interest: tick.open_interest,
-        last_price: tick.last_price,
-        bid_price1: tick.bid_price1,
-        bid_price2: tick.bid_price2,
-        bid_price3: tick.bid_price3,
-        bid_price4: tick.bid_price4,
-        bid_price5: tick.bid_price5,
-        bid_volume1: tick.bid_volume1,
-        bid_volume2: tick.bid_volume2,
-        bid_volume3: tick.bid_volume3,
-        bid_volume4: tick.bid_volume4,
-        bid_volume5: tick.bid_volume5,
-        ask_price1: tick.ask_price1,
-        ask_price2: tick.ask_price2,
-        ask_price3: tick.ask_price3,
-        ask_price4: tick.ask_price4,
-        ask_price5: tick.ask_price5,
-        ask_volume1: tick.ask_volume1,
-        ask_volume2: tick.ask_volume2,
-        ask_volume3: tick.ask_volume3,
-        ask_volume4: tick.ask_volume4,
-        ask_volume5: tick.ask_volume5,
-    };
-    market_data
-}

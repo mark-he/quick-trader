@@ -1,8 +1,7 @@
 use crate::http::{request::Request, Method};
-use crate::trade::enums::{NewOrderResponseType, Side, TimeInForceType};
+use crate::trade::enums::{NewOrderResponseType, Side, TimeInForceType, OrderType, PositionSide, PriceMatchType};
 use rust_decimal::Decimal;
-
-use super::enums::{OrderType, PositionSide, PriceMatchType};
+use serde::{Serialize, Deserialize};
 
 /// `POST /api/v3/order`
 ///
@@ -23,6 +22,7 @@ use super::enums::{OrderType, PositionSide, PriceMatchType};
 /// * Price below market price: `STOP_LOSS` `SELL`, `TAKE_PROFIT` `BUY`
 ///
 
+#[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct NewOrderRequest {
     pub symbol: String,
     pub side: Side,

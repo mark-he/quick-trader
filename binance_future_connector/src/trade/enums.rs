@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use strum::Display;
+use serde::{Deserialize, Deserializer, Serialize};
 
 pub fn optional<T: FromStr>(value: &str) -> Result<Option<T>, <T as FromStr>::Err> {
     if value == "" {
@@ -10,15 +11,64 @@ pub fn optional<T: FromStr>(value: &str) -> Result<Option<T>, <T as FromStr>::Er
     }
 }
 
-#[derive(Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum Side {
+    Buy,
+    Sell,
+}
+impl FromStr for Side {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "BUY" => Ok(Side::Buy),
+            "SELL" => Ok(Side::Sell),
+            _ => Err("Invalid Side".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for Side {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum PositionMarginType {
     #[strum(serialize = "1")]
     Add,
     #[strum(serialize = "2")]
     Reduce,
 }
+impl FromStr for PositionMarginType {
+    type Err = String;
 
-#[derive(Copy, Clone, Display)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1" => Ok(PositionMarginType::Add),
+            "2" => Ok(PositionMarginType::Reduce),
+            _ => Err("Invalid PositionMarginType".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for PositionMarginType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum PositionSide {
     #[strum(serialize = "LONG")]
     Long,
@@ -27,7 +77,6 @@ pub enum PositionSide {
     #[strum(serialize = "BOTH")]
     Both,
 }
-
 impl FromStr for PositionSide {
     type Err = String;
 
@@ -40,40 +89,134 @@ impl FromStr for PositionSide {
         }
     }
 }
+impl<'de> Deserialize<'de> for PositionSide {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
 
-#[derive(Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum MarginAssetMode {
     #[strum(serialize = "true")]
     MultiAssets,
     #[strum(serialize = "false")]
     SingleAsset,
 }
+impl FromStr for MarginAssetMode {
+    type Err = String;
 
-#[derive(Copy, Clone, Display)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "true" => Ok(MarginAssetMode::MultiAssets),
+            "false" => Ok(MarginAssetMode::SingleAsset),
+            _ => Err("Invalid MarginAssetMode".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for MarginAssetMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum PositionMode {
     #[strum(serialize = "true")]
     HedgeMode,
     #[strum(serialize = "false")]
     OneWayMode,
 }
+impl FromStr for PositionMode {
+    type Err = String;
 
-#[derive(Copy, Clone, Display)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "true" => Ok(PositionMode::HedgeMode),
+            "false" => Ok(PositionMode::OneWayMode),
+            _ => Err("Invalid MarginAssetMode".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for PositionMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum MarginType {
     #[strum(serialize = "ISOLATED")]
     Isolated,
     #[strum(serialize = "CROSSED")]
     Crossed,
 }
+impl FromStr for MarginType {
+    type Err = String;
 
-#[derive(Copy, Clone, Display)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ISOLATED" => Ok(MarginType::Isolated),
+            "CROSSED" => Ok(MarginType::Crossed),
+            _ => Err("Invalid MarginType".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for MarginType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum AutoCloseType {
     #[strum(serialize = "LIQUIDATION")]
     Liquidation,
     #[strum(serialize = "ADL")]
     ADL,
 }
+impl FromStr for AutoCloseType {
+    type Err = String;
 
-#[derive(Copy, Clone, Display)]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "LIQUIDATION" => Ok(AutoCloseType::Liquidation),
+            "ADL" => Ok(AutoCloseType::ADL),
+            _ => Err("Invalid AutoCloseType".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for AutoCloseType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum PriceMatchType {
     #[strum(serialize = "OPPONENT")]
     Opponent,
@@ -109,27 +252,19 @@ impl FromStr for PriceMatchType {
         }
     }
 }
-
-#[derive(Copy, Clone, Display)]
-#[strum(serialize_all = "UPPERCASE")]
-pub enum Side {
-    Buy,
-    Sell,
-}
-
-impl FromStr for Side {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "BUY" => Ok(Side::Buy),
-            "SELL" => Ok(Side::Sell),
-            _ => Err("Invalid Side".to_string()),
-        }
+impl<'de> Deserialize<'de> for PriceMatchType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
     }
 }
 
-#[derive(Copy, Clone, Display)]
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 pub enum OrderType {
     #[strum(serialize = "LIMIT")]
     Limit,
@@ -146,7 +281,6 @@ pub enum OrderType {
     #[strum(serialize = "TRAILING_STOP_MARKET")]
     TrailingStopMarket,
 }
-
 impl FromStr for OrderType {
     type Err = String;
 
@@ -163,8 +297,18 @@ impl FromStr for OrderType {
         }
     }
 }
+impl<'de> Deserialize<'de> for OrderType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
 
-#[derive(Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum TimeInForceType {
     Gtc,
@@ -183,15 +327,24 @@ impl FromStr for TimeInForceType {
         }
     }
 }
+impl<'de> Deserialize<'de> for TimeInForceType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
 
-#[derive(Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum NewOrderResponseType {
     Ack,
     Result,
     Full,
 }
-
 impl FromStr for NewOrderResponseType {
     type Err = String;
 
@@ -202,5 +355,14 @@ impl FromStr for NewOrderResponseType {
             "FULL" => Ok(NewOrderResponseType::Full),
             _ => Err("Invalid NewOrderResponseType".to_string()),
         }
+    }
+}
+impl<'de> Deserialize<'de> for NewOrderResponseType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
     }
 }

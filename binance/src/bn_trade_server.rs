@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
     account,
@@ -10,7 +11,7 @@ use trade::trade_server::{SymbolRoute, TradeServer};
 
 use crate::model::{self, Account, Asset, Position};
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct Config {
     pub api_key: String, 
     pub api_secret: String,
