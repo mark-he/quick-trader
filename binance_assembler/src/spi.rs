@@ -1,20 +1,14 @@
 
 
-
-use std::error::Error;
 use std::os::raw::*;
 use std::ffi::CString;
-use std::str::FromStr;
 use std::thread;
 use binance::bn_market_server::BnMarketServer;
 use binance::bn_trade_server::{BnTradeServer, Config};
-use binance_future_connector::trade::enums::*;
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use common::c::*;
-use market::market_server::{KLine, MarketData, Tick};
+use market::market_server::{KLine, MarketData};
 use crate::context;
-use crate::c_model::*;
-use rust_decimal::Decimal;
 
 #[no_mangle]
 pub extern "C" fn start() {
@@ -170,33 +164,4 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
     let json = serde_json::to_string(&account).unwrap();
     Box::new(CString::new(json).unwrap()) 
 }
-
-/*
-fn convert_c_neworder(order_request: *const CNewOrderRequest) -> Result<NewOrderRequest, Box<dyn Error>> {
-    let order_request_ref = unsafe { &*order_request };
-
-    let request = NewOrderRequest {
-        symbol: c_char_to_string(order_request_ref.symbol),
-        side: Side::from_str(&c_char_to_string(order_request_ref.side))?,
-        position_side: optional::<PositionSide>(&c_char_to_string(order_request_ref.position_side))?,
-        type_: OrderType::from_str(&c_char_to_string(order_request_ref.type_))?,
-        reduce_only: optional::<String>(&c_char_to_string(order_request_ref.reduce_only))?,
-        quantity: Decimal::from_f64_retain(order_request_ref.quantity),
-        price: Decimal::from_f64_retain(order_request_ref.price),
-        new_client_order_id: optional::<String>(&c_char_to_string(order_request_ref.new_client_order_id))?,
-        stop_price: Decimal::from_f64_retain(order_request_ref.stop_price),
-        close_position: optional::<String>(&c_char_to_string(order_request_ref.close_position))?,
-        activation_price: Decimal::from_f64_retain(order_request_ref.activation_price),
-        callback_rate: Decimal::from_f64_retain(order_request_ref.callback_rate),
-        time_in_force: optional::<TimeInForceType>(&c_char_to_string(order_request_ref.time_in_force))?,
-        working_type: optional::<String>(&c_char_to_string(order_request_ref.working_type))?,
-        price_protect: optional::<String>(&c_char_to_string(order_request_ref.price_protect))?,
-        new_order_resp_type: optional::<NewOrderResponseType>(&c_char_to_string(order_request_ref.new_order_resp_type))?,
-        price_match: optional::<PriceMatchType>(&c_char_to_string(order_request_ref.price_match))?,
-        self_trade_prevention_mode: optional::<String>(&c_char_to_string(order_request_ref.self_trade_prevention_mode))?,
-        good_till_date: None,
-        recv_window: None,
-    };
-    Ok(request)
-} */
 

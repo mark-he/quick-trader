@@ -348,7 +348,6 @@ pub struct TradeLiteEvent {
 }
 
 //Account info
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Account {
     #[serde(rename = "feeTier")]

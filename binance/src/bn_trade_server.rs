@@ -284,7 +284,7 @@ impl TradeServer for BnTradeServer {
         let assets = self.assets.read().unwrap();
         let mut ret = None;
         for asset in assets.iter() {
-            if account_id == asset.asset && asset.cross_wallet_balance > 0.0 {
+            if account_id == asset.asset && asset.wallet_balance > 0.0 {
                 ret = Some(asset.clone());
                 break;
             }
