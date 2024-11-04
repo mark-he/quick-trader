@@ -177,7 +177,7 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
 }
 
 #[no_mangle]
-pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) {
+pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
     let symbol_rust = c_char_to_string(symbol);
     let config_rust = c_char_to_string(config);
     let ret = serde_json::from_str::<SymbolConfig>(&config_rust);
@@ -187,12 +187,14 @@ pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, c
 
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    let ret = gateway.register_symbol(&symbol_rust, ret.unwrap());
+
+    let ret = gateway.init_symbol(&symbol_rust, ret.unwrap());
     if ret.is_err() {
         panic!("{:?}", ret.unwrap_err());
     }
+    let symbol_info = ret.unwrap();
+    let rx = gateway.register_symbol(&symbol_rust);
 
-    let rx  = ret.unwrap();
     let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
     thread::spawn(move || {
         loop {
@@ -227,4 +229,6 @@ pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, c
             }
         }
     });
+    let json = serde_json::to_string(&symbol_info).unwrap();
+    Box::new(CString::new(json).unwrap()) 
 }

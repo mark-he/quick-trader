@@ -457,3 +457,28 @@ pub struct Position {
     #[serde(rename = "updateTime")]
     pub update_time: u64,
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct Bracket {
+    #[serde(rename = "bracket")]
+    pub bracket: usize,
+    #[serde(rename = "initialLeverage")]
+    pub initial_leverge: usize,
+    #[serde(rename = "notionalCap")]
+    pub notional_cap: usize,
+    #[serde(rename = "notionalFloor")]
+    pub notional_floor: usize,
+    #[serde(rename = "maintMarginRatio")]
+    pub maint_margin_ratio: f64,
+    #[serde(rename = "cum")]
+    pub cum: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct LeverageBracket {
+    #[serde(rename = "symbol")]
+    pub symbol: String,
+    #[serde(rename = "brackets")]
+    pub brackets: Vec<Bracket>,
+}

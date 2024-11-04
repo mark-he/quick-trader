@@ -8,6 +8,6 @@ pub fn account() -> AccountRequest {
     AccountRequest::new()
 }
 
-pub fn leverageBracket() -> LeverageBracketRequest {
+pub fn leverage_bracket() -> LeverageBracketRequest {
     LeverageBracketRequest::new()
 }

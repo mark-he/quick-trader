@@ -3,7 +3,7 @@
 mod tests {
     use std::{sync::{Arc, Mutex}, thread};
 
-    use binance::{bn_market_server::BnMarketServer, bn_trade_server::{BnTradeServer, Config, SymbolConfig}};
+    use binance::{bn_market_server::BnMarketServer, bn_trade_server::{BnTradeServer, Config}};
     use common::error::AppError;
     use market::market_gateway::MarketGateway;
     use trade::trade_gateway::TradeGateway;
@@ -112,7 +112,7 @@ mod tests {
         if ret.is_err() {
             panic!("{:?}", ret.unwrap_err());
         }
-        let rx = trade_gateway.register_symbol("BTCUSDT", SymbolConfig::new())?;
+        let rx = trade_gateway.register_symbol("BTCUSDT");
 
         thread::spawn(move || {
             loop {

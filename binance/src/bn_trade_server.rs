@@ -9,7 +9,7 @@ use binance_future_connector::{
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
-use crate::model::{self, Account, Asset, Position};
+use crate::model::{self, Account, Asset, LeverageBracket, Position};
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct Config {
@@ -31,6 +31,13 @@ impl SymbolConfig {
             leverage: 5,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct SymbolInfo {
+    pub symbol: String, 
+    pub leverage: i32,
+    pub maint_margin_ratio: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -293,6 +300,7 @@ impl TradeServer for BnTradeServer {
     type Position = Position;
     type Account = Asset;
     type SymbolConfig = SymbolConfig;
+    type SymbolInfo = SymbolInfo;
 
     fn connect(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
         self.init_account()?;
@@ -350,7 +358,7 @@ impl TradeServer for BnTradeServer {
         ret
     }
     
-    fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig) -> Result<(), AppError> {
+    fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig) -> Result<SymbolInfo, AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
 
         let request = bn_trade::margin_type(symbol, config.margin_type);
@@ -358,7 +366,27 @@ impl TradeServer for BnTradeServer {
 
         let request = bn_trade::leverage(symbol, config.leverage);
         let _ = Self::get_resp_result(client.send(request), vec![])?;
-        Ok(())
+
+        let request = account::leverage_bracket().symbol(symbol);
+        let data = Self::get_resp_result(client.send(request), vec![])?;
+        println!("{}", data);
+        let leverage_brackets: Vec<LeverageBracket> = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+
+        let mut maint_margin_ratio = 0.0;
+        if leverage_brackets.len() > 0 {
+            for bracket in leverage_brackets[0].brackets.iter() {
+                if bracket.initial_leverge <= config.leverage as usize {
+                    maint_margin_ratio = bracket.maint_margin_ratio;
+                    break;
+                }
+            }
+        }
+
+        Ok(SymbolInfo {
+            symbol: symbol.to_string(),
+            leverage: config.leverage,
+            maint_margin_ratio: maint_margin_ratio,
+        })
     }
 
     fn close(self) {
