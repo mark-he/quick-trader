@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
     account,
-    http::Credentials, trade::{self as bn_trade, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    http::Credentials, trade::{self as bn_trade, enums::{MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
@@ -15,6 +15,21 @@ use crate::model::{self, Account, Asset, Position};
 pub struct Config {
     pub api_key: String, 
     pub api_secret: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct SymbolConfig {
+    pub margin_type: MarginType, 
+    pub leverage: i32,
+}
+
+impl SymbolConfig {
+    pub fn new() -> Self {
+        SymbolConfig {
+            margin_type: MarginType::Isolated,
+            leverage: 5,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -243,6 +258,7 @@ impl TradeServer for BnTradeServer {
     type OrderRequest = NewOrderRequest;
     type Position = Position;
     type Account = Asset;
+    type SymbolConfig = SymbolConfig;
 
     fn connect(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
         self.init_account_positions()?;
@@ -290,6 +306,17 @@ impl TradeServer for BnTradeServer {
             }
         }
         ret
+    }
+    
+    fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig) -> Result<(), AppError> {
+        let client = BinanceHttpClient::default().credentials(self.credentials.clone());
+
+        let requset = bn_trade::margin_type(symbol, config.margin_type);
+        let _ = client.send(requset).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+
+        let requset = bn_trade::leverage(symbol, config.leverage);
+        let _ = client.send(requset).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        Ok(())
     }
 
     fn close(self) {

@@ -1,27 +1,19 @@
-use binance_future_connector::trade::enums::{NewOrderResponseType, Side, TimeInForceType, OrderType, PositionSide, PriceMatchType};
-use rust_decimal::Decimal;
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct NewOrderRequest2 {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct OrderEvent {
     pub symbol: String,
-    pub side: Side,
-    pub position_side: Option<PositionSide>,
-    pub type_: OrderType,
-    pub reduce_only: Option<String>,
-    pub quantity: Option<Decimal>,
-    pub price: Option<Decimal>,
-    pub new_client_order_id: Option<String>,
-    pub stop_price: Option<Decimal>,
-    pub close_position: Option<String>,
-    pub activation_price: Option<Decimal>,
-    pub callback_rate: Option<Decimal>,
-    pub time_in_force: Option<TimeInForceType>,
-    pub working_type: Option<String>,
-    pub price_protect: Option<String>,
-    pub new_order_resp_type: Option<NewOrderResponseType>,
-    pub price_match: Option<PriceMatchType>,
-    pub self_trade_prevention_mode: Option<String>,
-    pub good_till_date: Option<i64>,
-    pub recv_window: Option<i64>,
+    pub client_order_id: String,
+    pub side: String,
+    pub order_type: String,
+    pub original_quantity: f64,
+    pub original_price: f64,
+    pub average_price: f64,
+    pub stop_price: f64,
+    pub order_status: String,
+    pub order_last_filled_quantity: f64,
+    pub order_filled_accumulated_quantity: f64,
+    pub last_filled_price: f64,
+    pub order_trade_time: u64,
+    pub trade_id: u64,
 }

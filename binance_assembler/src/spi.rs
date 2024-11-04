@@ -4,10 +4,12 @@ use std::os::raw::*;
 use std::ffi::CString;
 use std::thread;
 use binance::bn_market_server::BnMarketServer;
-use binance::bn_trade_server::{BnTradeServer, Config};
+use binance::bn_trade_server::{AccountEvent, BnTradeServer, Config, SymbolConfig};
+use binance::model::Order;
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use common::c::*;
 use market::market_server::{KLine, MarketData};
+use crate::c_model::OrderEvent;
 use crate::context;
 
 #[no_mangle]
@@ -19,7 +21,6 @@ pub extern "C" fn start() {
     let mut trade_gateway = trade_gateway_ref.lock().unwrap();
     let _ = trade_gateway.start();
 }
-
 
 #[no_mangle]
 pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char, interval : *const c_char, count: i32, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
@@ -75,7 +76,6 @@ pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char,
             }
         }
     });
-
 }
 
 #[no_mangle]
@@ -88,7 +88,7 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
     }
 
     binance::enable_prod(env_rust == "PROD");
-    println!("start to initialize binance...{:?}", ret.as_ref().unwrap());
+    println!("start to initialize binance...");
     let market_server = BnMarketServer::new();
     let trade_server = BnTradeServer::new(ret.unwrap());
     context::init(market_server, trade_server);
@@ -165,3 +165,53 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
     Box::new(CString::new(json).unwrap()) 
 }
 
+#[no_mangle]
+pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) {
+    let symbol_rust = c_char_to_string(symbol);
+    let config_rust = c_char_to_string(config);
+    let ret = serde_json::from_str::<SymbolConfig>(&config_rust);
+    if ret.is_err() {
+        panic!("{:?}", ret.unwrap_err());
+    }
+
+    let gateway_ref = context::get_trade_gateway();
+    let mut gateway = gateway_ref.lock().unwrap();
+    let ret = gateway.register_symbol(&symbol_rust, ret.unwrap());
+    if ret.is_err() {
+        panic!("{:?}", ret.unwrap_err());
+    }
+
+    let rx  = ret.unwrap();
+    let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
+    thread::spawn(move || {
+        loop {
+            if let Ok(data) = rx.recv() {
+                match data {
+                    AccountEvent::OrderTradeUpdate(order) => {
+                        let order_event = OrderEvent {
+                            symbol: order.symbol.clone(),
+                            client_order_id: order.client_order_id.clone(),
+                            side: order.side.clone(),
+                            order_type: order.order_type.clone(),
+                            original_quantity: order.original_quantity,
+                            original_price: order.original_price,
+                            average_price: order.average_price,
+                            stop_price: order.stop_price,
+                            order_status: order.order_status.clone(),
+                            order_last_filled_quantity: order.order_last_filled_quantity,
+                            order_filled_accumulated_quantity: order.order_filled_accumulated_quantity,
+                            last_filled_price: order.last_filled_price,
+                            order_trade_time: order.order_trade_time,
+                            trade_id: order.trade_id,
+                        };
+
+                        let json = serde_json::to_string(&order_event).unwrap();
+                        let json_rust = CString::new(json).expect("CString failed");
+                        callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
+                    },
+                    _ => {},
+                }
+            }
+        }
+    });
+}

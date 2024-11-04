@@ -72,11 +72,10 @@ impl<S: TradeServer> TradeGateway<S> {
         Ok(())
     }
 
-    pub fn register(&mut self, symbols: Vec<String>) -> Result<Receiver<S::Event>, AppError> {
+    pub fn register_symbol(&mut self, symbol: &str, config: S::SymbolConfig) -> Result<Receiver<S::Event>, AppError> {
+        self.server.init_symbol(symbol, config)?;
         let (tx, rx) = channel::unbounded::<S::Event>();
-        for symbol in symbols {
-            self.subscribers.push((symbol, tx.clone()));
-        }
+        self.subscribers.push((symbol.to_string(), tx.clone()));
         Ok(rx)
     }
 
