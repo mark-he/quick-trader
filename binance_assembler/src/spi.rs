@@ -114,8 +114,6 @@ pub extern "C" fn new_order(order_request: *const c_char) {
     let order_request_rust = c_char_to_string(order_request);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-
-    println!("{}", order_request_rust);
     let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
     println!("{:?}", ret);
     match ret {
@@ -140,6 +138,19 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
     let mut gateway = gateway_ref.lock().unwrap();
 
     let ret = gateway.cancel_order(&symbol_rust, &order_id_rust);
+    if ret.is_err() {
+        panic!("{:?}", ret.unwrap_err());
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn cancel_orders(symbol : *const c_char) {
+    let symbol_rust = c_char_to_string(symbol);
+
+    let gateway_ref = context::get_trade_gateway();
+    let mut gateway = gateway_ref.lock().unwrap();
+
+    let ret = gateway.cancel_orders(&symbol_rust);
     if ret.is_err() {
         panic!("{:?}", ret.unwrap_err());
     }
@@ -198,6 +209,7 @@ pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, c
                             original_price: order.original_price,
                             average_price: order.average_price,
                             stop_price: order.stop_price,
+                            execution_type: order.execution_type.clone(),
                             order_status: order.order_status.clone(),
                             order_last_filled_quantity: order.order_last_filled_quantity,
                             order_filled_accumulated_quantity: order.order_filled_accumulated_quantity,

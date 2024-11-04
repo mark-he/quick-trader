@@ -87,6 +87,10 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.cancel_order(symbol, order_id)
     }
 
+    pub fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
+        self.server.cancel_orders(symbol)
+    }
+
     pub fn get_positions(&mut self, symbol: &str) -> Vec<S::Position> {
         self.server.get_positions(symbol)
     }

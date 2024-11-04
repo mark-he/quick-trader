@@ -71,8 +71,8 @@ name="market_klines"
 path="market/klines.rs"
 
 [[example]]
-name="market_contract_klines"
-path="market/contract_klines.rs"
+name="market_continuous_klines"
+path="market/continuous_klines.rs"
 
 [[example]]
 name="market_index_price_klines"

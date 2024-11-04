@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::{str::FromStr, sync::{Arc, Mutex, RwLock}};
 use chrono::Local;
 use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
     account,
-    http::Credentials, trade::{self as bn_trade, enums::MarginType, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    http::Credentials, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType}, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
@@ -15,6 +15,7 @@ use crate::model::{self, Account, Asset, Position};
 pub struct Config {
     pub api_key: String, 
     pub api_secret: String,
+    pub multi_assets_margin: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
@@ -127,7 +128,6 @@ impl WssStream {
                                 subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
                             },
                             "TRADE_LITE" => {
-                                println!("TRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITETRADE_LITE");
                                 let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
                                 subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
                             },
@@ -237,6 +237,13 @@ impl BnTradeServer {
         self.handler = Some(InteractiveThread::spawn(closure));
     }
 
+    fn init_account(&self) -> Result<(), AppError> {
+        let client = BinanceHttpClient::default().credentials(self.credentials.clone());
+        let margin_asset_mode = MarginAssetMode::from_str(&self.config.multi_assets_margin).map_err(|e| AppError::new(-200, &e))?;
+        let _ = Self::get_resp_result(client.send(bn_trade::multi_assets_margin(margin_asset_mode)))?;
+        Ok(())
+    }
+
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let data = Self::get_resp_result(client.send(account::account()))?;
@@ -261,6 +268,7 @@ impl TradeServer for BnTradeServer {
     type SymbolConfig = SymbolConfig;
 
     fn connect(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
+        self.init_account()?;
         self.init_account_positions()?;
 
         let sub = self.wss_stream.subscribe();
@@ -274,14 +282,21 @@ impl TradeServer for BnTradeServer {
 
     fn new_order(&mut self, request : NewOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let _ = client.send(request).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let _ = Self::get_resp_result(client.send(request))?;
         Ok(())
     }
 
     fn cancel_order(&mut self, symbol: &str, order_id: &str) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let requset = bn_trade::cancel_order(symbol).orig_client_order_id(order_id);
-        let _ = client.send(requset).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let _ = Self::get_resp_result(client.send(requset))?;
+        Ok(())
+    }
+
+    fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
+        let client = BinanceHttpClient::default().credentials(self.credentials.clone());
+        let requset = bn_trade::cancel_open_orders(symbol);
+        let _ = Self::get_resp_result(client.send(requset))?;
         Ok(())
     }
 
@@ -289,7 +304,7 @@ impl TradeServer for BnTradeServer {
         let positions = self.positions.read().unwrap();
         let mut ret = vec![];
         for position in positions.iter() {
-            if position.symbol == symbol && position.position_amt > 0.0 {
+            if position.symbol == symbol && position.position_amt != 0.0 {
                 ret.push(position.clone());
             }
         }
@@ -311,11 +326,11 @@ impl TradeServer for BnTradeServer {
     fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
 
-        let requset = bn_trade::margin_type(symbol, config.margin_type);
-        let _ = client.send(requset).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let request = bn_trade::margin_type(symbol, config.margin_type);
+        let _ = Self::get_resp_result(client.send(request))?;
 
-        let requset = bn_trade::leverage(symbol, config.leverage);
-        let _ = client.send(requset).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let request = bn_trade::leverage(symbol, config.leverage);
+        let _ = Self::get_resp_result(client.send(request))?;
         Ok(())
     }
 
