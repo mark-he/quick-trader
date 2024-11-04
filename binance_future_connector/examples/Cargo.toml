@@ -225,3 +225,7 @@ path="user_data_stream/renew_listen_key.rs"
 [[example]]
 name="account_account"
 path="account/account.rs"
+
+[[example]]
+name="account_leverage_bracket"
+path="account/leverage_bracket.rs"

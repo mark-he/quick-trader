@@ -57,6 +57,7 @@ impl WssKeepalive {
                 loop {
                     if conn.as_mut().can_read() {
                         let ret = conn.as_mut().read();
+                        println!("READing Market Data!");
                         match ret {
                             Ok(message) => {
                                 match message {
@@ -78,10 +79,12 @@ impl WssKeepalive {
                                     },
                                 }
                             },
-                            Err(_) => {
+                            Err(e) => {
+                                println!("Error Market Data {:?}", e);
                             }
                         }
                     } else {
+                        println!("Can't read Market Data");
                         self.conn = None;
                         break;
                     }

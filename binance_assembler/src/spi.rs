@@ -105,7 +105,6 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
     let ret = trade_gateway.connect();
 
     if ret.is_err() {
-        println!("aaaasssxxxx2233");
         panic!("{:?}", ret.unwrap_err());
     }
     println!("binance initialized.");
@@ -117,7 +116,6 @@ pub extern "C" fn new_order(order_request: *const c_char) {
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
     let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
-    println!("{:?}", ret);
     match ret {
         Ok(order) => {
             let ret = gateway.new_order(order);
@@ -141,7 +139,7 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
 
     let ret = gateway.cancel_order(&symbol_rust, &order_id_rust);
     if ret.is_err() {
-        panic!("{:?}", ret.unwrap_err());
+        panic!("{}:{}:{:?}", symbol_rust, order_id_rust, ret.unwrap_err());
     }
 }
 
@@ -154,7 +152,7 @@ pub extern "C" fn cancel_orders(symbol : *const c_char) {
 
     let ret = gateway.cancel_orders(&symbol_rust);
     if ret.is_err() {
-        panic!("{:?}", ret.unwrap_err());
+        panic!("{}: {:?}", symbol_rust, ret.unwrap_err());
     }
 }
 
