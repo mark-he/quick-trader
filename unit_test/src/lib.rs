@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_bn_trade_gateway() -> Result<(), AppError> {
-        let server = BnTradeServer::new(Config {api_key: "13d233877484f4ea87afbbb8c29e52072c4e4a4a8650fcd689e076fab082bdc6".to_string(), api_secret: "671b347de4235aa3c2d3d15664db16180593ab21f65f4826e54b8f8e1ba11395".to_string(),});
+        let server = BnTradeServer::new(Config {api_key: "13d233877484f4ea87afbbb8c29e52072c4e4a4a8650fcd689e076fab082bdc6".to_string(), api_secret: "671b347de4235aa3c2d3d15664db16180593ab21f65f4826e54b8f8e1ba11395".to_string(), multi_assets_margin: "true".to_string()});
         BnTradeGatewayHolder::init(server);
 
         let trade_gateway_ref = BnTradeGatewayHolder::get_gateway();

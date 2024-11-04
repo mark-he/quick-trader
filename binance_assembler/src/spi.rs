@@ -103,7 +103,9 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
     let trade_gateway_ref = context::get_trade_gateway();
     let mut trade_gateway = trade_gateway_ref.lock().unwrap();
     let ret = trade_gateway.connect();
+
     if ret.is_err() {
+        println!("aaaasssxxxx2233");
         panic!("{:?}", ret.unwrap_err());
     }
     println!("binance initialized.");
