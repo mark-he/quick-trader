@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
     account,
-    http::Credentials, trade::{self as bn_trade, enums::{MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    http::Credentials, trade::{self as bn_trade, enums::MarginType, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 

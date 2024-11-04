@@ -14,6 +14,6 @@ pub struct OrderEvent {
     pub order_last_filled_quantity: f64,
     pub order_filled_accumulated_quantity: f64,
     pub last_filled_price: f64,
-    pub order_trade_time: u64,
+    pub order_trade_time: String,
     pub trade_id: u64,
 }

@@ -307,6 +307,45 @@ impl<'de> Deserialize<'de> for OrderType {
     }
 }
 
+
+#[derive(Debug, Copy, Clone, Display)]
+#[derive(Serialize)]
+pub enum OrderStatus {
+    #[strum(serialize = "NEW")]
+    New,
+    #[strum(serialize = "PARTIALLY_FILLED")]
+    PartiallyFilled,
+    #[strum(serialize = "FILLED")]
+    Filled,
+    #[strum(serialize = "CANCELED")]
+    Canceled,
+    #[strum(serialize = "EXPIRED")]
+    Expired,
+}
+impl FromStr for OrderStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "NEW" => Ok(OrderStatus::New),
+            "PARTIALLY_FILLED" => Ok(OrderStatus::PartiallyFilled),
+            "FILLED" => Ok(OrderStatus::Filled),
+            "CANCELED" => Ok(OrderStatus::Canceled),
+            "EXPIRED" => Ok(OrderStatus::Expired),
+            _ => Err("Invalid OrderStatus".to_string()),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for OrderStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = Deserialize::deserialize(deserializer)?;
+        Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
+    }
+}
+
 #[derive(Debug, Copy, Clone, Display)]
 #[derive(Serialize)]
 #[strum(serialize_all = "UPPERCASE")]

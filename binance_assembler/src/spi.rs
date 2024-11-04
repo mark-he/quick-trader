@@ -5,8 +5,8 @@ use std::ffi::CString;
 use std::thread;
 use binance::bn_market_server::BnMarketServer;
 use binance::bn_trade_server::{AccountEvent, BnTradeServer, Config, SymbolConfig};
-use binance::model::Order;
 use binance_future_connector::trade::new_order::NewOrderRequest;
+use chrono::DateTime;
 use common::c::*;
 use market::market_server::{KLine, MarketData};
 use crate::c_model::OrderEvent;
@@ -188,6 +188,7 @@ pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, c
             if let Ok(data) = rx.recv() {
                 match data {
                     AccountEvent::OrderTradeUpdate(order) => {
+                        let datetime = DateTime::from_timestamp((order.order_trade_time/1000) as i64, 0).unwrap();
                         let order_event = OrderEvent {
                             symbol: order.symbol.clone(),
                             client_order_id: order.client_order_id.clone(),
@@ -201,7 +202,7 @@ pub extern "C" fn register_trade(sub_id: *const c_char, symbol: *const c_char, c
                             order_last_filled_quantity: order.order_last_filled_quantity,
                             order_filled_accumulated_quantity: order.order_filled_accumulated_quantity,
                             last_filled_price: order.last_filled_price,
-                            order_trade_time: order.order_trade_time,
+                            order_trade_time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
                             trade_id: order.trade_id,
                         };
 
