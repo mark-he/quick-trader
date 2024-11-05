@@ -13,7 +13,7 @@ fn main() {
         conn.subscribe(vec![
             &KlineStream::new("BTCUSDT", KlineInterval::Minutes1).into(),
         ]);
-    }).stream(|m| {
+    }).stream(&mut |m| {
         let data = m.into_data();
         let string_data = String::from_utf8(data).expect("Found invalid UTF-8 chars");
         log::info!("{}", &string_data);

@@ -1,4 +1,4 @@
-use std::{net::TcpStream, thread, time::Duration};
+use std::{net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread, time::Duration};
 use tungstenite::{stream::MaybeTlsStream, Message};
 use crate::tungstenite::{BinanceWebSocketClient, WebSocketState};
 use std::error::Error;
@@ -8,6 +8,7 @@ pub struct WssKeepalive {
     url: String,
     prepare_block: Option<Box<dyn Fn(&mut Conn)>>,
     conn: Option<Conn>,
+    conn_ticket: Arc<AtomicUsize>,
 }
 
 impl WssKeepalive {
@@ -16,6 +17,7 @@ impl WssKeepalive {
             url: url.to_string(),
             prepare_block: None,
             conn: None,
+            conn_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -39,10 +41,19 @@ impl WssKeepalive {
         self
     }
 
-    pub fn stream<F>(&mut self, block: F, skip_error: bool) -> Result<(), Box<dyn Error>>
-        where F: Fn(Message) -> Result<bool, Box<dyn Error>> {
+    pub fn close(&mut self) {
+        self.conn_ticket.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn stream<F>(&mut self, block: &mut F, skip_error: bool) -> Result<(), Box<dyn Error>>
+        where F: FnMut(Message) -> Result<bool, Box<dyn Error>> {
+        let ticket = self.conn_ticket.fetch_add(1, Ordering::SeqCst);
         loop {
+            if ticket != self.conn_ticket.load(Ordering::SeqCst) {
+                break;
+            }
             if self.conn.is_none() {
+                println!("Connecting...");
                 self.connect();
                 if self.conn.is_some() {
                     if let Some(b) = self.prepare_block.as_ref() {
@@ -90,5 +101,6 @@ impl WssKeepalive {
                 }
             }
         }
+        Ok(())
     }
 }

@@ -1,5 +1,48 @@
-use serde::{Deserialize, Serialize};
+use binance_future_connector::{market_stream::enums::{Level, UpdateSpeed}, ureq::{Response, Error}, http::error::ClientError};
+use common::error::AppError;
+use serde::{Deserialize, Deserializer, Serialize};
 
+pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>) -> Result<String, AppError> {
+    let err;
+    match ret {
+        Ok(resp) => {
+            let ret2 = resp.into_body_str();
+            match ret2 {
+                Ok(data) => {
+                    return Ok(data);
+                },
+                Err(e) => {
+                    err = *e;
+                },
+            }
+        },
+        Err(e) => {
+            err = *e;
+        },
+    }
+
+    match err {
+        Error::Client(ClientError::Structured(http)) => {
+            if skipped_code.contains(&http.data.code) {
+                Ok("".to_string())
+            } else {
+                Err(AppError::new(-200, format!("{:?}", &http.data.message).as_str()))
+            }
+        },
+        _ => {
+            Err(AppError::new(-200, format!("{:?}", err).as_str()))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct Config {
+    pub api_key: String, 
+    pub api_secret: String,
+    pub multi_assets_margin: String,
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
+}
 
 fn string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
    where
@@ -600,4 +643,42 @@ pub struct ExchangeInfo {
     pub symbols: Vec<Symbol>,
     #[serde(rename = "timezone")]
     pub timezone: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BinanceDepthUpdate {
+    #[serde(rename = "e")]
+    pub event_type: String,
+    #[serde(rename = "E")]
+    pub event_time: u64,
+    #[serde(rename = "T")]
+    pub transaction_time: u64,
+    #[serde(rename = "s")]
+    pub symbol: String,
+    #[serde(rename = "U")]
+    pub first_update_id: u64,
+    #[serde(rename = "u")]
+    pub final_update_id: u64,
+    #[serde(rename = "pu")]
+    pub final_update_id_in_last_stream: u64,
+    #[serde(rename = "b", deserialize_with = "parse_vec_f64")]
+    pub bids: Vec<Vec<f64>>,
+    #[serde(rename = "a", deserialize_with = "parse_vec_f64")]
+    pub asks: Vec<Vec<f64>>,
+}
+
+fn parse_vec_f64<'de, D>(deserializer: D) -> Result<Vec<Vec<f64>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let strings: Vec<Vec<String>> = Deserialize::deserialize(deserializer)?;
+    let mut parsed_f64s = Vec::new();
+    for s in strings {
+        let mut parsed_f64 = Vec::new();
+        for value in s {
+            parsed_f64.push(value.parse::<f64>().map_err(serde::de::Error::custom)?);
+        }
+        parsed_f64s.push(parsed_f64);
+    }
+    Ok(parsed_f64s)
 }

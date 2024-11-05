@@ -1,17 +1,10 @@
 use crate::websocket::Stream;
-use strum::Display;
+
+use super::enums::UpdateSpeed;
 
 /// Diff. Depth Stream
 ///
 /// Order book price and quantity depth updates used to locally manage an order book.
-
-#[derive(Copy, Clone, Display)]
-pub enum UpdateSpeed {
-    #[strum(serialize = "100ms")]
-    Faster,
-    #[strum(serialize = "500ms")]
-    Slower,
-}
 
 pub struct DiffDepthStream {
     symbol: String,

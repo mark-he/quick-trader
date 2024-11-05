@@ -1,6 +1,7 @@
 use binance_future_connector::market::klines::KlineInterval;
 use binance_future_connector::market_stream::mini_ticker::MiniTickerStream;
-use binance_future_connector::ureq::{BinanceHttpClient, Error, Response};
+use binance_future_connector::market_stream::partial_depth::PartialDepthStream;
+use binance_future_connector::ureq::BinanceHttpClient;
 use binance_future_connector::wss_keepalive::WssKeepalive;
 use binance_future_connector::{config, market as bn_market, market_stream::kline::KlineStream,
 };
@@ -10,7 +11,7 @@ use serde_json::Value;
 use common::error::AppError;
 use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use common::msmc::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use chrono::DateTime;
@@ -19,33 +20,25 @@ use crate::model::BinanceKline;
 use super::model;
 
 #[derive(Debug, Clone, Default)]
-pub struct Config {
-}
-
-#[derive(Debug, Clone, Default)]
 pub struct MarketTopic {
     pub symbol: String,
     pub interval: String,
 }
 pub struct BnMarketServer {
+    pub config: model::Config,
     subscription: Arc<Mutex<Subscription<MarketData>>>,
     topics: Vec<MarketTopic>,
     handler: Option<Handler<()>>,
 }
 
 impl BnMarketServer {
-    pub fn new() -> Self {
+    pub fn new(config: model::Config) -> Self {
         BnMarketServer {
+            config: config,
             subscription: Arc::new(Mutex::new(Subscription::top())),
             topics: Vec::new(),
             handler: None,
         }
-    }
-
-    fn get_resp_result(ret: Result<Response, Box<Error>>) -> Result<String, AppError> {
-        let body = ret.map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
-        let data = body.into_body_str().map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
-        Ok(data)
     }
 
     fn convert_bn_kline(kline: BinanceKline) -> KLine {
@@ -97,7 +90,7 @@ impl MarketServer for BnMarketServer {
         let client = BinanceHttpClient::default();
         let kline_interval = KlineInterval::from_str(interval).map_err(|e| {AppError::new(-200, &e)})?;
         let request = bn_market::klines(symbol,kline_interval).limit(count);
-        let data = Self::get_resp_result(client.send(request))?;
+        let data = model::get_resp_result(client.send(request), vec![])?;
         let klines = Self::convert_json_to_k_lines(symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         Ok(klines)
     }
@@ -142,6 +135,8 @@ impl MarketServer for BnMarketServer {
     fn start(&mut self) {
         let topics: Vec<MarketTopic> = self.topics.clone();
         let subscription_ref = self.subscription.clone();
+        let depth_level = self.config.depth_level;
+        let update_speed = self.config.tick_update_speed;
 
         let closure = move |rx: Rx<String>| {
             let mut keepalive: WssKeepalive = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
@@ -149,13 +144,11 @@ impl MarketServer for BnMarketServer {
                 for topic in topics.iter() {
                     if topic.interval == "" {
                         if !tick_set.contains(topic.symbol.as_str()) {
-                            conn.subscribe(vec![
-                                &MiniTickerStream::from_symbol(&topic.symbol).into(),
-                            ]);
                             tick_set.insert(topic.symbol.to_string());
                         }
                     } 
                 }
+
                 for topic in topics.iter() {
                     if topic.interval != "" {
                         let kline_interval_ret= KlineInterval::from_str(&topic.interval);
@@ -164,12 +157,7 @@ impl MarketServer for BnMarketServer {
                                 conn.subscribe(vec![
                                     &KlineStream::new(topic.symbol.as_str(), interval).into(),
                                 ]);
-                                if !tick_set.contains(topic.symbol.as_str()) {
-                                    conn.subscribe(vec![
-                                        &MiniTickerStream::from_symbol(topic.symbol.as_str()).into(),
-                                    ]);
-                                    tick_set.insert(topic.symbol.to_string());
-                                }
+                                tick_set.insert(topic.symbol.to_string());
                             },
                             Err(s) => {
                                 println!("Invalid kline interval: {}", s);
@@ -177,10 +165,24 @@ impl MarketServer for BnMarketServer {
                         }
                     }
                 }
+
+                for symbol in tick_set.iter() {
+                    let partial_depth;
+                    if let Some(speed) = update_speed {
+                        partial_depth = PartialDepthStream::new(symbol, depth_level).update_speed(speed);
+                    } else {
+                        partial_depth = PartialDepthStream::new(symbol, depth_level);
+                    }
+                    conn.subscribe(vec![
+                        &MiniTickerStream::from_symbol(symbol).into(),
+                        &partial_depth.into(),
+                    ]);
+                }
             });
 
             let subscription = subscription_ref.lock().unwrap();
-            let _ = keepalive.stream(|message| {
+            let mut last_tick = HashMap::<String, Tick>::new();
+            let _ = keepalive.stream(&mut move |message| {
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
                     if cmd.unwrap() == "QUIT" {
@@ -194,7 +196,20 @@ impl MarketServer for BnMarketServer {
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
                 match json_value.get("e") {
                     Some(event_type) => {
-                        if event_type.as_str().unwrap() == "kline" {
+                        if event_type.as_str().unwrap() == "depthUpdate" {
+                            match serde_json::from_str::<model::BinanceDepthUpdate>(&string_data) {
+                                Ok(depth) => {
+                                    let value = last_tick.get_mut(&depth.symbol);
+                                    if let Some(tick) = value {
+                                        let mut t = tick.clone();
+                                        t.asks = depth.asks;
+                                        t.bids = depth.bids;
+                                        subscription.send(&Some(MarketData::Tick(t)));
+                                    }
+                                },
+                                _ => {},
+                            }
+                        } else if event_type.as_str().unwrap() == "kline" {
                             match serde_json::from_str::<model::BinanceKline>(&string_data) {
                                 Ok(kline) => {
                                     if kline.kline_data.is_closed {
@@ -218,10 +233,10 @@ impl MarketServer for BnMarketServer {
                                         close: tick.close_price,
                                         volume: tick.total_traded_base_asset_volume,
                                         turnover: tick.total_traded_quote_asset_volume,
-                                        open_interest: 0 as f64,
                                         ..Default::default()
                                     };
-                                    subscription.send(&Some(MarketData::Tick(t)));
+                                    last_tick.insert(t.symbol.to_string(), t);
+                                    //subscription.send(&Some(MarketData::Tick(t)));
                                 },
                                 Err(e) => {
                                     println!("{:?}", e);
@@ -230,7 +245,7 @@ impl MarketServer for BnMarketServer {
                         }
                     },
                     None => {
-                        println!("Received None {}", string_data);
+                        println!("Received {}", string_data);
                     },
                 }
                 Ok(true)

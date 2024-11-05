@@ -12,16 +12,18 @@ pub mod trade;
 pub mod mark_price;
 pub mod contract_kline;
 pub mod liquidation_order;
+pub mod enums;
 
 use crate::market::klines::KlineInterval;
 
 use agg_trade::AggTradeStream;
 use book_ticker::BookTickerStream;
 use diff_depth::DiffDepthStream;
+use enums::Level;
 use kline::KlineStream;
 use mark_price::MarkPriceStream;
 use mini_ticker::MiniTickerStream;
-use partial_depth::{Level, PartialDepthStream};
+use partial_depth::PartialDepthStream;
 use ticker::TickerStream;
 use trade::TradeStream;
 

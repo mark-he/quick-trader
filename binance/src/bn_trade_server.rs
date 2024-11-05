@@ -4,18 +4,11 @@ use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
-    account, http::{error::ClientError, Credentials}, market as bn_market, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType}, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    account, http::Credentials, market as bn_market, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
 use crate::model::{self, Account, Asset, ExchangeInfo, LeverageBracket, Position};
-
-#[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct Config {
-    pub api_key: String, 
-    pub api_secret: String,
-    pub multi_assets_margin: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct SymbolConfig {
@@ -93,29 +86,22 @@ impl WssStream {
             let mut keepalive = WssListeneKeyKeepalive::new(&binance_future_connector::config::wss_api()).new_listen_key( move || {
                 let client = BinanceHttpClient::default().credentials(credentials.clone());
                 let request = user_data_stream::new_listen_key();
-                let ret = client.send(request);
+                let string_data = model::get_resp_result(client.send(request), vec![])?;
 
-                match ret {
-                    Ok(resp) => {
-                        let data =  resp.into_body_str();
-                        if let Ok(string_data) = data {
-                            let json_value: Value = serde_json::from_str(&string_data).unwrap();
-                            if let Some(key) = json_value.get("listenKey") {
-                                return Some(key.as_str().unwrap().to_string());
-                            }
-                        }
-                    },
-                    _ => {
-                    }
+                let json_value: Value = serde_json::from_str(&string_data).unwrap();
+                if let Some(key) = json_value.get("listenKey") {
+                    Ok(key.as_str().unwrap().to_string())
+                } else {
+                    Err(Box::new(AppError::new(-200, format!("{:?}", "listenKey not found").as_str())))
                 }
-                None
             }, 24 * 3600).renew_listen_key( move |listen_key| {
                 let client = BinanceHttpClient::default().credentials(credentials2.clone());
                 let request = user_data_stream::renew_listen_key(listen_key);
-                let _ = client.send(request);
+                let _ = model::get_resp_result(client.send(request), vec![])?;
+                Ok(())
             }, 3600);
 
-            let _ = keepalive.stream(|message| {
+            let _ = keepalive.stream(&mut |message| {
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
                     if cmd.unwrap() == "QUIT" {
@@ -146,7 +132,7 @@ impl WssStream {
                         }
                     },
                     None => {
-                        println!("Received None {}", string_data);
+                        println!("Received {}", string_data);
                     },
                 }
                 Ok(true)
@@ -164,7 +150,7 @@ impl WssStream {
     }
 }
 pub struct BnTradeServer {
-    pub config: Config,
+    pub config: model::Config,
     pub credentials: Credentials,
     pub wss_stream: WssStream,
     pub positions: Arc<RwLock<Vec<model::Position>>>,
@@ -174,7 +160,7 @@ pub struct BnTradeServer {
 }
 
 impl BnTradeServer {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: model::Config) -> Self {
         BnTradeServer {
             credentials: Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone()),
             config,
@@ -255,13 +241,13 @@ impl BnTradeServer {
     fn init_account(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let margin_asset_mode = MarginAssetMode::from_str(&self.config.multi_assets_margin).map_err(|e| AppError::new(-200, &e))?;
-        let _ = Self::get_resp_result(client.send(bn_trade::multi_assets_margin(margin_asset_mode)), vec![-4171])?;
+        let _ = model::get_resp_result(client.send(bn_trade::multi_assets_margin(margin_asset_mode)), vec![-4171])?;
         Ok(())
     }
 
     fn init_exchange(&mut self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let data = Self::get_resp_result(client.send(bn_market::exchange_info()), vec![])?;
+        let data = model::get_resp_result(client.send(bn_market::exchange_info()), vec![])?;
         let exchange_info: ExchangeInfo = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         self.exchange_info = Some(exchange_info);
         Ok(())
@@ -269,45 +255,13 @@ impl BnTradeServer {
 
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let data = Self::get_resp_result(client.send(account::account()), vec![])?;
+        let data = model::get_resp_result(client.send(account::account()), vec![])?;
         let account_info: Account = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         *self.assets.write().unwrap() = account_info.assets;
         *self.positions.write().unwrap() = account_info.positions;
         Ok(())
     }
 
-    fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>) -> Result<String, AppError> {
-        let err;
-        match ret {
-            Ok(resp) => {
-                let ret2 = resp.into_body_str();
-                match ret2 {
-                    Ok(data) => {
-                        return Ok(data);
-                    },
-                    Err(e) => {
-                        err = *e;
-                    },
-                }
-            },
-            Err(e) => {
-                err = *e;
-            },
-        }
-
-        match err {
-            Error::Client(ClientError::Structured(http)) => {
-                if skipped_code.contains(&http.data.code) {
-                    Ok("".to_string())
-                } else {
-                    Err(AppError::new(-200, format!("{:?}", &http.data.message).as_str()))
-                }
-            },
-            _ => {
-                Err(AppError::new(-200, format!("{:?}", err).as_str()))
-            }
-        }
-    }
 }
 
 impl TradeServer for BnTradeServer {
@@ -334,21 +288,21 @@ impl TradeServer for BnTradeServer {
 
     fn new_order(&mut self, request : NewOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let _ = Self::get_resp_result(client.send(request), vec![])?;
+        let _ = model::get_resp_result(client.send(request), vec![])?;
         Ok(())
     }
 
     fn cancel_order(&mut self, symbol: &str, order_id: &str) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let requset = bn_trade::cancel_order(symbol).orig_client_order_id(order_id);
-        let _ = Self::get_resp_result(client.send(requset), vec![])?;
+        let _ = model::get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }
 
     fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let requset = bn_trade::cancel_open_orders(symbol);
-        let _ = Self::get_resp_result(client.send(requset), vec![])?;
+        let _ = model::get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }
 
@@ -379,13 +333,13 @@ impl TradeServer for BnTradeServer {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
 
         let request = bn_trade::margin_type(symbol, config.margin_type);
-        let _ = Self::get_resp_result(client.send(request), vec![-4046])?;
+        let _ = model::get_resp_result(client.send(request), vec![-4046])?;
 
         let request = bn_trade::leverage(symbol, config.leverage);
-        let _ = Self::get_resp_result(client.send(request), vec![])?;
+        let _ = model::get_resp_result(client.send(request), vec![])?;
 
         let request = account::leverage_bracket().symbol(symbol);
-        let data = Self::get_resp_result(client.send(request), vec![])?;
+        let data = model::get_resp_result(client.send(request), vec![])?;
 
         let leverage_brackets: Vec<LeverageBracket> = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
 

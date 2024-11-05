@@ -3,8 +3,9 @@
 use std::os::raw::*;
 use std::ffi::CString;
 use std::thread;
+use binance::model::Config;
 use binance::bn_market_server::BnMarketServer;
-use binance::bn_trade_server::{AccountEvent, BnTradeServer, Config, SymbolConfig};
+use binance::bn_trade_server::{AccountEvent, BnTradeServer, SymbolConfig};
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use chrono::DateTime;
 use common::c::*;
@@ -88,8 +89,9 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
     }
 
     binance::enable_prod(env_rust == "PROD");
-    let market_server = BnMarketServer::new();
-    let trade_server = BnTradeServer::new(ret.unwrap());
+    let config = ret.unwrap();
+    let market_server = BnMarketServer::new(config.clone());
+    let trade_server = BnTradeServer::new(config.clone());
     context::init(market_server, trade_server);
 
     let market_gateway_ref = context::get_market_gateway();

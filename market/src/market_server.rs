@@ -12,28 +12,9 @@ pub struct Tick {
     pub close: f64,
     pub volume: f64,
     pub turnover: f64,
-    pub open_interest: f64,
     pub last_price: f64,
-    pub bid_price1: f64,
-    pub bid_price2: f64,
-    pub bid_price3: f64,
-    pub bid_price4: f64,
-    pub bid_price5: f64,
-    pub bid_volume1: f64,
-    pub bid_volume2: f64,
-    pub bid_volume3: f64,
-    pub bid_volume4: f64,
-    pub bid_volume5: f64,
-    pub ask_price1: f64,
-    pub ask_price2: f64,
-    pub ask_price3: f64,
-    pub ask_price4: f64,
-    pub ask_price5: f64,
-    pub ask_volume1: f64,
-    pub ask_volume2: f64,
-    pub ask_volume3: f64,
-    pub ask_volume4: f64,
-    pub ask_volume5: f64,
+    pub bids: Vec<Vec<f64>>,
+    pub asks: Vec<Vec<f64>>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize,)]
@@ -47,6 +28,13 @@ pub struct KLine {
     pub close: f64,
     pub volume: f64,
     pub turnover: f64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize,)]
+pub struct Depth {
+    pub symbol: String,
+    pub bids: Vec<Vec<f64>>,
+    pub asks: Vec<Vec<f64>>,
 }
 
 #[derive(Debug, Clone)]

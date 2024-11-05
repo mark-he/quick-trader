@@ -1,27 +1,9 @@
 use crate::websocket::Stream;
-use strum::Display;
+use super::enums::{Level, UpdateSpeed};
 
 /// Partial Book Depth Stream
 ///
 /// Top bids and asks, Valid are 5, 10, or 20.
-#[derive(Copy, Clone, Display)]
-pub enum UpdateSpeed {
-    #[strum(serialize = "100ms")]
-    Faster,
-    #[strum(serialize = "500ms")]
-    Slower,
-}
-
-#[derive(Copy, Clone, Display)]
-pub enum Level {
-    #[strum(serialize = "5")]
-    L5,
-    #[strum(serialize = "10")]
-    L10,
-    #[strum(serialize = "20")]
-    L20,
-}
-
 pub struct PartialDepthStream {
     symbol: String,
     levels: Level,
