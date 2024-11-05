@@ -88,7 +88,6 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
     }
 
     binance::enable_prod(env_rust == "PROD");
-    println!("start to initialize binance...");
     let market_server = BnMarketServer::new();
     let trade_server = BnTradeServer::new(ret.unwrap());
     context::init(market_server, trade_server);
@@ -107,7 +106,7 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
     if ret.is_err() {
         panic!("{:?}", ret.unwrap_err());
     }
-    println!("binance initialized.");
+    println!("============= Engine initialized ============= ");
 }
 
 #[no_mangle]

@@ -119,6 +119,7 @@ impl WssListeneKeyKeepalive {
                             }
                         }
                     } else {
+                        println!("Can't read data");
                         self.conn = None;
                         break;
 

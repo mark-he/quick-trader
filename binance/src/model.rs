@@ -482,3 +482,122 @@ pub struct LeverageBracket {
     #[serde(rename = "brackets")]
     pub brackets: Vec<Bracket>,
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RateLimit {
+    #[serde(rename = "interval")]
+    pub interval: String,
+    #[serde(rename = "intervalNum")]
+    pub interval_num: usize,
+    #[serde(rename = "limit")]
+    pub limit: usize,
+    #[serde(rename = "rateLimitType")]
+    pub rate_limit_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AssetInfo {
+    #[serde(rename = "asset")]
+    pub asset: String,
+    #[serde(rename = "marginAvailable")]
+    pub margin_available: bool,
+    #[serde(rename = "autoAssetExchange")]
+    pub auto_asset_exchange: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Filter {
+    #[serde(rename = "filterType")]
+    pub filter_type: String,
+    #[serde(rename = "maxPrice")]
+    pub max_price: Option<String>,
+    #[serde(rename = "minPrice")]
+    pub min_price: Option<String>,
+    #[serde(rename = "tickSize")]
+    pub tick_size: Option<String>,
+    #[serde(rename = "maxQty")]
+    pub max_qty: Option<String>,
+    #[serde(rename = "minQty")]
+    pub min_qty: Option<String>,
+    #[serde(rename = "stepSize")]
+    pub step_size: Option<String>,
+    #[serde(rename = "limit")]
+    pub limit: Option<usize>,
+    #[serde(rename = "notional")]
+    pub notional: Option<String>,
+    #[serde(rename = "multiplierUp")]
+    pub multiplier_up: Option<String>,
+    #[serde(rename = "multiplierDown")]
+    pub multiplier_down: Option<String>,
+    #[serde(rename = "multiplierDecimal")]
+    pub multiplier_decimal: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Symbol {
+    #[serde(rename = "symbol")]
+    pub symbol: String,
+    #[serde(rename = "pair")]
+    pub pair: String,
+    #[serde(rename = "contractType")]
+    pub contract_type: String,
+    #[serde(rename = "deliveryDate")]
+    pub delivery_date: usize,
+    #[serde(rename = "onboardDate")]
+    pub onboard_date: usize,
+    #[serde(rename = "status")]
+    pub status: String,
+    #[serde(rename = "maintMarginPercent")]
+    pub maint_margin_percent: String,
+    #[serde(rename = "requiredMarginPercent")]
+    pub required_margin_percent: String,
+    #[serde(rename = "baseAsset")]
+    pub base_asset: String,
+    #[serde(rename = "quoteAsset")]
+    pub quote_asset: String,
+    #[serde(rename = "marginAsset")]
+    pub margin_asset: String,
+    #[serde(rename = "pricePrecision")]
+    pub price_precision: usize,
+    #[serde(rename = "quantityPrecision")]
+    pub quantity_precision: usize,
+    #[serde(rename = "baseAssetPrecision")]
+    pub base_asset_precision: usize,
+    #[serde(rename = "quotePrecision")]
+    pub quote_precision: usize,
+    #[serde(rename = "underlyingType")]
+    pub underlying_type: String,
+    #[serde(rename = "underlyingSubType")]
+    pub underlying_sub_type: Vec<String>,
+    //#[serde(rename = "settlePlan")]
+    //pub settle_plan: usize,
+    #[serde(rename = "triggerProtect")]
+    pub trigger_protect: String,
+    #[serde(rename = "filters")]
+    pub filters: Vec<Filter>,
+    #[serde(rename = "orderTypes")]
+    pub order_types: Vec<String>,
+    #[serde(rename = "timeInForce")]
+    pub time_in_force: Vec<String>,
+    #[serde(rename = "liquidationFee")]
+    pub liquidation_fee: String,
+    #[serde(rename = "marketTakeBound")]
+    pub market_take_bound: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExchangeInfo {
+    #[serde(rename = "exchangeFilters")]
+    pub exchange_filters: Vec<String>,
+    #[serde(rename = "rateLimits")]
+    pub rate_limits: Vec<RateLimit>,
+    #[serde(rename = "serverTime")]
+    pub server_time: usize,
+    #[serde(rename = "assets")]
+    pub assets: Vec<AssetInfo>,
+    #[serde(rename = "symbols")]
+    pub symbols: Vec<Symbol>,
+    #[serde(rename = "timezone")]
+    pub timezone: String,
+}

@@ -144,7 +144,7 @@ impl MarketServer for BnMarketServer {
         let subscription_ref = self.subscription.clone();
 
         let closure = move |rx: Rx<String>| {
-            let mut wss: WssKeepalive = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
+            let mut keepalive: WssKeepalive = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
                 let mut tick_set = HashSet::new();
                 for topic in topics.iter() {
                     if topic.interval == "" {
@@ -180,7 +180,7 @@ impl MarketServer for BnMarketServer {
             });
 
             let subscription = subscription_ref.lock().unwrap();
-            let _ = wss.stream(|message| {
+            let _ = keepalive.stream(|message| {
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
                     if cmd.unwrap() == "QUIT" {
@@ -229,7 +229,9 @@ impl MarketServer for BnMarketServer {
                             }
                         }
                     },
-                    None => {},
+                    None => {
+                        println!("Received None {}", string_data);
+                    },
                 }
                 Ok(true)
             }, true);

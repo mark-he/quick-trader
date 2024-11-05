@@ -4,12 +4,11 @@ use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
-    account,
-    http::{error::ClientError, Credentials}, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType}, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    account, http::{error::ClientError, Credentials}, market as bn_market, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType}, new_order::NewOrderRequest}, ureq::{BinanceHttpClient, Error, Response}, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
-use crate::model::{self, Account, Asset, LeverageBracket, Position};
+use crate::model::{self, Account, Asset, ExchangeInfo, LeverageBracket, Position};
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct Config {
@@ -33,11 +32,16 @@ impl SymbolConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize,)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SymbolInfo {
     pub symbol: String, 
     pub leverage: i32,
+    pub margin_type: MarginType,
     pub maint_margin_ratio: f64,
+    pub quantity_precision: usize,
+    pub price_precision: usize,
+    pub quote_precision: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -141,7 +145,9 @@ impl WssStream {
                             _ => {},
                         }
                     },
-                    None => {},
+                    None => {
+                        println!("Received None {}", string_data);
+                    },
                 }
                 Ok(true)
             }, true);
@@ -163,6 +169,7 @@ pub struct BnTradeServer {
     pub wss_stream: WssStream,
     pub positions: Arc<RwLock<Vec<model::Position>>>,
     pub assets: Arc<RwLock<Vec<model::Asset>>>,
+    pub exchange_info: Option<ExchangeInfo>,
     pub handler: Option<Handler<()>>,
 }
 
@@ -174,6 +181,7 @@ impl BnTradeServer {
             wss_stream: WssStream::new(),
             positions: Arc::new(RwLock::new(Vec::new())),
             assets: Arc::new(RwLock::new(Vec::new())),
+            exchange_info: None,
             handler: None,
         }
     }
@@ -251,6 +259,14 @@ impl BnTradeServer {
         Ok(())
     }
 
+    fn init_exchange(&mut self) -> Result<(), AppError> {
+        let client = BinanceHttpClient::default().credentials(self.credentials.clone());
+        let data = Self::get_resp_result(client.send(bn_market::exchange_info()), vec![])?;
+        let exchange_info: ExchangeInfo = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        self.exchange_info = Some(exchange_info);
+        Ok(())
+    }
+
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let data = Self::get_resp_result(client.send(account::account()), vec![])?;
@@ -303,6 +319,7 @@ impl TradeServer for BnTradeServer {
     type SymbolInfo = SymbolInfo;
 
     fn connect(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
+        self.init_exchange()?;
         self.init_account()?;
         self.init_account_positions()?;
 
@@ -369,7 +386,7 @@ impl TradeServer for BnTradeServer {
 
         let request = account::leverage_bracket().symbol(symbol);
         let data = Self::get_resp_result(client.send(request), vec![])?;
-        println!("{}", data);
+
         let leverage_brackets: Vec<LeverageBracket> = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
 
         let mut maint_margin_ratio = 0.0;
@@ -381,12 +398,27 @@ impl TradeServer for BnTradeServer {
                 }
             }
         }
-
-        Ok(SymbolInfo {
+        let mut symbol_info = SymbolInfo {
             symbol: symbol.to_string(),
             leverage: config.leverage,
+            margin_type: config.margin_type,
             maint_margin_ratio: maint_margin_ratio,
-        })
+            quantity_precision: 0,
+            price_precision: 0,
+            quote_precision: 0,
+        };
+
+        if let Some(exchange_info) = self.exchange_info.as_ref() {
+            for symbol_config in exchange_info.symbols.iter() {
+                if symbol_config.symbol == symbol {
+                    symbol_info.quantity_precision = symbol_config.quantity_precision;
+                    symbol_info.price_precision = symbol_config.price_precision;
+                    symbol_info.quote_precision = symbol_config.quote_precision;
+                    break;
+                }
+            }
+        }
+        Ok(symbol_info)
     }
 
     fn close(self) {
