@@ -47,9 +47,10 @@ impl WssKeepalive {
 
     pub fn stream<F>(&mut self, block: &mut F, skip_error: bool) -> Result<(), Box<dyn Error>>
         where F: FnMut(Message) -> Result<bool, Box<dyn Error>> {
-        let ticket = self.conn_ticket.fetch_add(1, Ordering::SeqCst);
+        let ticket = self.conn_ticket.load(Ordering::SeqCst);
         loop {
             if ticket != self.conn_ticket.load(Ordering::SeqCst) {
+                println!("Ticket exit wss_keepalive");
                 break;
             }
             if self.conn.is_none() {

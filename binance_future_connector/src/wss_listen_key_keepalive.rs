@@ -79,6 +79,7 @@ impl WssListeneKeyKeepalive {
                     loop {
                         let ticket2 = ticket_load.load(Ordering::SeqCst);
                         if ticket != ticket2 {
+                            println!("Ticket exit wss_listen_key_keepalive");
                             exit_flag = true;
                             break;
                         }
