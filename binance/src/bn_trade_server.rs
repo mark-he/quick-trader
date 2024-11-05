@@ -4,7 +4,7 @@ use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
-    account, http::Credentials, market as bn_market, trade::{self as bn_trade, enums::{MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    account, http::Credentials, market as bn_market, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
@@ -32,6 +32,7 @@ pub struct SymbolInfo {
     pub leverage: i32,
     pub margin_type: MarginType,
     pub dual_position_side: PositionMode,
+    pub multi_assets_margin: MarginAssetMode,
     pub maint_margin_ratio: f64,
     pub quantity_precision: usize,
     pub price_precision: usize,
@@ -359,6 +360,7 @@ impl TradeServer for BnTradeServer {
             leverage: config.leverage,
             margin_type: config.margin_type,
             dual_position_side: self.config.dual_position_side,
+            multi_assets_margin: self.config.multi_assets_margin,
             maint_margin_ratio: maint_margin_ratio,
             quantity_precision: 0,
             price_precision: 0,
