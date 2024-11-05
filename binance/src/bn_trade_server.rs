@@ -291,7 +291,6 @@ impl TradeServer for BnTradeServer {
     }
 
     fn new_order(&mut self, request : NewOrderRequest) -> Result<(), AppError> {
-        println!("{:?}", request);
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let _ = model::get_resp_result(client.send(request), vec![])?;
         Ok(())
