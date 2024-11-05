@@ -1,4 +1,4 @@
-use binance_future_connector::{market_stream::enums::{Level, UpdateSpeed}, ureq::{Response, Error}, http::error::ClientError};
+use binance_future_connector::{http::error::ClientError, market_stream::enums::{Level, UpdateSpeed}, trade::enums::{MarginAssetMode, PositionMode}, ureq::{Error, Response}};
 use common::error::AppError;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -20,7 +20,6 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>
             err = *e;
         },
     }
-
     match err {
         Error::Client(ClientError::Structured(http)) => {
             if skipped_code.contains(&http.data.code) {
@@ -39,7 +38,8 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>
 pub struct Config {
     pub api_key: String, 
     pub api_secret: String,
-    pub multi_assets_margin: String,
+    pub dual_position_side: PositionMode,
+    pub multi_assets_margin: MarginAssetMode,
     pub tick_update_speed: Option<UpdateSpeed>,
     pub depth_level: Level,
 }

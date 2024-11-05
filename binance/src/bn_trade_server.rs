@@ -1,10 +1,10 @@
-use std::{str::FromStr, sync::{Arc, Mutex, RwLock}};
+use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
-    account, http::Credentials, market as bn_market, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    account, http::Credentials, market as bn_market, trade::{self as bn_trade, enums::{MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
@@ -31,6 +31,7 @@ pub struct SymbolInfo {
     pub symbol: String, 
     pub leverage: i32,
     pub margin_type: MarginType,
+    pub dual_position_side: PositionMode,
     pub maint_margin_ratio: f64,
     pub quantity_precision: usize,
     pub price_precision: usize,
@@ -240,8 +241,8 @@ impl BnTradeServer {
 
     fn init_account(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let margin_asset_mode = MarginAssetMode::from_str(&self.config.multi_assets_margin).map_err(|e| AppError::new(-200, &e))?;
-        let _ = model::get_resp_result(client.send(bn_trade::multi_assets_margin(margin_asset_mode)), vec![-4171])?;
+        let _ = model::get_resp_result(client.send(bn_trade::multi_assets_margin(self.config.multi_assets_margin)), vec![-4171])?;
+        let _ = model::get_resp_result(client.send(bn_trade::position_side(self.config.dual_position_side)), vec![-4059])?;
         Ok(())
     }
 
@@ -287,6 +288,7 @@ impl TradeServer for BnTradeServer {
     }
 
     fn new_order(&mut self, request : NewOrderRequest) -> Result<(), AppError> {
+        println!("{:?}", request);
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let _ = model::get_resp_result(client.send(request), vec![])?;
         Ok(())
@@ -356,6 +358,7 @@ impl TradeServer for BnTradeServer {
             symbol: symbol.to_string(),
             leverage: config.leverage,
             margin_type: config.margin_type,
+            dual_position_side: self.config.dual_position_side,
             maint_margin_ratio: maint_margin_ratio,
             quantity_precision: 0,
             price_precision: 0,
