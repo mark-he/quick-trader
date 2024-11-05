@@ -7,6 +7,8 @@ use strum::Display;
 pub enum UpdateSpeed {
     #[strum(serialize = "100ms")]
     Faster,
+    #[strum(serialize = "250ms")]
+    Normal,
     #[strum(serialize = "500ms")]
     Slower,
 }

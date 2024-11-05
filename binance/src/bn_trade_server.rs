@@ -4,7 +4,7 @@ use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use binance_future_connector::{
-    account, http::Credentials, market as bn_market, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    account, http::Credentials, market as bn_market, market_stream::enums::{Level, UpdateSpeed}, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 
@@ -37,6 +37,8 @@ pub struct SymbolInfo {
     pub quantity_precision: usize,
     pub price_precision: usize,
     pub quote_precision: usize,
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
 }
 
 #[derive(Clone, Debug)]
@@ -365,6 +367,8 @@ impl TradeServer for BnTradeServer {
             quantity_precision: 0,
             price_precision: 0,
             quote_precision: 0,
+            depth_level: self.config.depth_level,
+            tick_update_speed: self.config.tick_update_speed,
         };
 
         if let Some(exchange_info) = self.exchange_info.as_ref() {
