@@ -28,7 +28,7 @@ impl WssKeepalive {
                 self.conn = Some(conn);
             },
             Err(e) => {
-                println!("CONNECTED FAILED!: {:?}", e);
+                println!("Connection failed. {:?}", e);
                 self.conn = None;
             },
         }
