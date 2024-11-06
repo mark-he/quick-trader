@@ -14,7 +14,6 @@ struct Subscriber {
 
 pub struct MarketGateway<S: MarketServer> {
     server: S,
-    connected: bool,
     subscription: Arc<Mutex<Subscription<MarketData>>>,
     subscribers : Vec<Subscriber>,
     pub handler: Option<Handler<()>>,
@@ -24,7 +23,6 @@ impl <S: MarketServer> MarketGateway<S> {
     pub fn new(server: S) -> Self {
         MarketGateway {
             server,
-            connected: false,
             subscription: Arc::new(Mutex::new(Subscription::top())),
             subscribers: vec![],
             handler: None,
@@ -33,12 +31,8 @@ impl <S: MarketServer> MarketGateway<S> {
 }
 
 impl<S: MarketServer> MarketGateway<S> {
-    pub fn connect(&mut self) -> Result<(), AppError> {
-        if !self.connected {
-            self.subscription = Arc::new(Mutex::new(self.server.connect()?));
-            self.connected = true;
-        }
-        Ok(())
+    pub fn init(&mut self) -> Result<(), AppError> {
+        self.server.init()
     }
 
     pub fn get_tick_sub(&mut self) -> Subscription<MarketData> {
@@ -82,15 +76,12 @@ impl<S: MarketServer> MarketGateway<S> {
         rx
     }
   
-    pub fn start(&mut self) {
-        self.server.start();
-
-        let subscription_ref = self.subscription.clone();
+    pub fn start(&mut self) -> Result<(), AppError> {
+        let subscription = self.server.start()?;
         let subscribers = self.subscribers.clone();
 
         let closure = move |rx: Rx<String>| {
             let mut continue_flag = true;
-            let subscription = subscription_ref.lock().unwrap();
             let _ = subscription.stream(&mut |event| {
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
@@ -132,12 +123,12 @@ impl<S: MarketServer> MarketGateway<S> {
             }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));
+        Ok(())
     }
 
     pub fn close(self) {
         if let Some(h) = self.handler.as_ref() {
             let _ = h.sender.send("QUIT".to_string());
         }
-        self.server.close();
     }
 }

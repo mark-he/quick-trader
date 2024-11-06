@@ -52,10 +52,10 @@ pub enum MarketData {
 impl EventTrait for MarketData {   
 }
 pub trait MarketServer {
-    fn connect(&mut self) -> Result<Subscription<MarketData>, AppError>;
+    fn init(&mut self) -> Result<(), AppError>;
+    fn start(&mut self) -> Result<Subscription<MarketData>, AppError>;
     fn subscribe_tick(&mut self, symbol: &str);
     fn subscribe_kline(&mut self, symbol: &str, interval: &str);
-    fn start(&mut self);
-    fn close(self);
     fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError>;
+    fn get_server_time(&self) -> usize;
 }

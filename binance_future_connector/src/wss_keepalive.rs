@@ -8,7 +8,7 @@ pub struct WssKeepalive {
     url: String,
     prepare_block: Option<Box<dyn Fn(&mut Conn)>>,
     conn: Option<Conn>,
-    conn_ticket: Arc<AtomicUsize>,
+    stream_ticket: Arc<AtomicUsize>,
 }
 
 impl WssKeepalive {
@@ -17,7 +17,7 @@ impl WssKeepalive {
             url: url.to_string(),
             prepare_block: None,
             conn: None,
-            conn_ticket: Arc::new(AtomicUsize::new(0)),
+            stream_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -42,14 +42,14 @@ impl WssKeepalive {
     }
 
     pub fn close(&mut self) {
-        self.conn_ticket.fetch_add(1, Ordering::SeqCst);
+        self.stream_ticket.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn stream<F>(&mut self, block: &mut F, skip_error: bool) -> Result<(), Box<dyn Error>>
         where F: FnMut(Message) -> Result<bool, Box<dyn Error>> {
-        let ticket = self.conn_ticket.load(Ordering::SeqCst);
+        let stream_ticket = self.stream_ticket.fetch_add(1, Ordering::SeqCst);
         loop {
-            if ticket != self.conn_ticket.load(Ordering::SeqCst) {
+            if stream_ticket != self.stream_ticket.load(Ordering::SeqCst) - 1 {
                 println!("Ticket exit wss_keepalive");
                 break;
             }

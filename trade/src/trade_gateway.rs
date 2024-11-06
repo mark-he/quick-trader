@@ -1,13 +1,9 @@
-use std::sync::{Arc, Mutex};
-
 use super::trade_server::*;
-use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
+use common::{error::AppError, thread::{Handler, InteractiveThread, Rx}};
 use crossbeam::channel::{self, Receiver, Sender};
 
 pub struct TradeGateway<S: TradeServer> {
     server: S,
-    connected: bool,
-    subscription: Arc<Mutex<Subscription<S::Event>>>,
     subscribers : Vec<(String, Sender<S::Event>)>,
     pub handler: Option<Handler<()>>,
 }
@@ -16,20 +12,20 @@ impl<S: TradeServer> TradeGateway<S> {
     pub fn new(server: S) -> Self {
         TradeGateway {
             server,
-            connected: false,
-            subscription: Arc::new(Mutex::new(Subscription::top())),
             subscribers: vec![],
             handler: None,
         }
     }
+    
+    pub fn init(&mut self) -> Result<(), AppError> {
+        self.server.init()
+    }
 
-    pub fn start(&mut self) {
-        let subscription_ref = self.subscription.clone();
+    pub fn start(&mut self) -> Result<(), AppError> {
+        let subscription = self.server.start()?;
         let subscribers = self.subscribers.clone();
 
-        let closure = move |rx: Rx<String>| {
-            let subscription = subscription_ref.lock().unwrap();
- 
+        let closure = move |rx: Rx<String>| { 
             let _ = subscription.stream(&mut move |event| {
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
@@ -55,6 +51,7 @@ impl<S: TradeServer> TradeGateway<S> {
             }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));
+        Ok(())
     }
 
     pub fn close(self) {
@@ -62,14 +59,6 @@ impl<S: TradeServer> TradeGateway<S> {
             let _ = h.sender.send("QUIT".to_string());
         }
         self.server.close();
-    }
-
-    pub fn connect(&mut self)  -> Result<(), AppError> {
-        if !self.connected {
-            self.subscription = Arc::new(Mutex::new(self.server.connect()?));
-            self.connected = true;
-        }
-        Ok(())
     }
 
     pub fn register_symbol(&mut self, symbol: &str) -> Receiver<S::Event> {

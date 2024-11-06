@@ -12,7 +12,7 @@ pub struct WssListeneKeyKeepalive {
     conn: Option<Conn>,
     listen_key: String,
     keepalive_ticket: Arc<AtomicUsize>,
-    conn_ticket: Arc<AtomicUsize>,
+    stream_ticket: Arc<AtomicUsize>,
 }
 
 impl WssListeneKeyKeepalive {
@@ -26,7 +26,7 @@ impl WssListeneKeyKeepalive {
             conn: None,
             listen_key: "".to_string(),
             keepalive_ticket: Arc::new(AtomicUsize::new(0)),
-            conn_ticket: Arc::new(AtomicUsize::new(0)),
+            stream_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -46,7 +46,7 @@ impl WssListeneKeyKeepalive {
     }
 
     pub fn close(&mut self) {
-        self.conn_ticket.fetch_add(1, Ordering::SeqCst);
+        self.stream_ticket.fetch_add(1, Ordering::SeqCst);
     }
 
     pub fn new_listen_key<F: 'static>(mut self, block: F, new_interval: u32) -> Self 
@@ -64,21 +64,20 @@ impl WssListeneKeyKeepalive {
     }
 
     fn keepalive(&self) {
+        let keepalive_ticket = self.keepalive_ticket.fetch_add(1, Ordering::SeqCst);
+        let keepalive_ticket_ref = self.keepalive_ticket.clone();
+        
         if let Some(renew_block_ref) = self.renew_block.as_ref() {
             let renew_block_ref = renew_block_ref.clone();
             let renew_interval = self.renew_interval as u64;
             let listen_key = self.listen_key.clone();
-            let ticket = self.keepalive_ticket.load(Ordering::SeqCst);
-            let ticket_load = self.keepalive_ticket.clone();
-
             thread::spawn(move || {
                 let block = renew_block_ref.lock().unwrap();
                 let mut exit_flag = false;
                 while exit_flag {
                     let now = Instant::now();
                     loop {
-                        let ticket2 = ticket_load.load(Ordering::SeqCst);
-                        if ticket != ticket2 {
+                        if keepalive_ticket != keepalive_ticket_ref.load(Ordering::SeqCst) - 1{
                             println!("Ticket exit wss_listen_key_keepalive");
                             exit_flag = true;
                             break;
@@ -98,14 +97,13 @@ impl WssListeneKeyKeepalive {
 
     pub fn stream<F>(&mut self, block: &mut F, skip_error: bool) -> Result<(), Box<dyn Error>> 
         where F: FnMut(Message) -> Result<bool, Box<dyn Error>> {
-        let ticket = self.conn_ticket.fetch_add(1, Ordering::SeqCst);
+        let stream_ticket = self.stream_ticket.fetch_add(1, Ordering::SeqCst);
         loop {
-            if ticket != self.conn_ticket.load(Ordering::SeqCst) {
+            if stream_ticket != self.stream_ticket.load(Ordering::SeqCst) - 1 {
                 break;
             }
             if self.conn.is_none() {
-                println!("Connecting...");
-                self.keepalive_ticket.fetch_add(1, Ordering::SeqCst);
+                println!("Connecting Listen Key...");
                 if let Some(b) = self.new_block.as_ref() {
                     let ret = b.lock().unwrap()();
                     if let Ok(key) = ret {

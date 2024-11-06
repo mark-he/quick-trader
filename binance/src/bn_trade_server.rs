@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
 use serde::{Serialize, Deserialize};
@@ -7,6 +7,7 @@ use binance_future_connector::{
     account, http::Credentials, market as bn_market, market_stream::enums::{Level, UpdateSpeed}, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
+use tungstenite::Message;
 
 use crate::model::{self, Account, Asset, ExchangeInfo, LeverageBracket, Position};
 
@@ -68,6 +69,8 @@ impl SymbolRoute for AccountEvent {
 pub struct WssStream {
     subscription: Arc<Mutex<Subscription<AccountEvent>>>,
     handler: Option<Handler<()>>,
+    connect_ticket: Arc<AtomicUsize>,
+    server_time: Arc<AtomicUsize>,
 }
 
 impl WssStream {
@@ -75,7 +78,14 @@ impl WssStream {
         WssStream {
             subscription: Arc::new(Mutex::new(Subscription::top())),
             handler : None,
+            connect_ticket: Arc::new(AtomicUsize::new(0)),
+            server_time: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    pub fn cleanup(&mut self) {
+        self.server_time = Arc::new(AtomicUsize::new(0));
+        self.handler = None;
     }
 
     pub fn subscribe(&mut self) -> Subscription<AccountEvent> {
@@ -83,7 +93,11 @@ impl WssStream {
     }
 
     pub fn connect(&mut self, credentials: Credentials) {
+        let connect_ticket = self.connect_ticket.fetch_add(1, Ordering::SeqCst);
+        let connect_ticket_ref = self.connect_ticket.clone();
+        let server_time_ref = self.server_time.clone();
         let subscription_ref = self.subscription.clone();
+
         let closure = move |rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
             let credentials2 = credentials.clone();
@@ -106,15 +120,18 @@ impl WssStream {
             }, 3600);
 
             let _ = keepalive.stream(&mut |message| {
+                if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
+                    return Ok(true);
+                }
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
                     if cmd.unwrap() == "QUIT" {
                         return Ok(false);
                     }
                 }
-                let data = message.into_data();
-                let string_data = String::from_utf8(data).map_err(|e| Box::new(e))?;
-                let json_value: Value = serde_json::from_str(&string_data).unwrap();
+                match message {
+                    Message::Text(string_data) => {
+                        let json_value: Value = serde_json::from_str(&string_data).unwrap();
 
                 match json_value.get("e") {
                     Some(event_type) => {
@@ -137,6 +154,16 @@ impl WssStream {
                     },
                     None => {
                         println!("Received {}", string_data);
+                    },
+                }
+                    },
+                    Message::Ping(data) => {
+                        let string_data = String::from_utf8(data)?;
+                        server_time_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
+                        println!("Trade server time updated.");
+                    },
+                    _ => {
+                        println!("Unexpected message");
                     },
                 }
                 Ok(true)
@@ -275,18 +302,21 @@ impl TradeServer for BnTradeServer {
     type Account = Asset;
     type SymbolConfig = SymbolConfig;
     type SymbolInfo = SymbolInfo;
-
-    fn connect(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
+    
+    fn init(&mut self) -> Result<(), AppError> {
         self.init_exchange()?;
         self.init_account()?;
         self.init_account_positions()?;
+        Ok(())
+    }
 
+    fn start(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
         let sub = self.wss_stream.subscribe();
         self.monitor_account_positions(sub);
 
-        let sub = self.wss_stream.subscribe();
         let credentials = self.credentials.clone();
         self.wss_stream.connect(credentials);
+        let sub = self.wss_stream.subscribe();
         Ok(sub)
     }
 

@@ -17,10 +17,16 @@ use crate::context;
 pub extern "C" fn start() {
     let market_gateway_ref = context::get_market_gateway();
     let mut market_gateway = market_gateway_ref.lock().unwrap();
-    let _ = market_gateway.start();
+    let ret = market_gateway.start();
+    if ret.is_err() {
+        panic!("{:?}", ret.unwrap_err());
+    }
     let trade_gateway_ref = context::get_trade_gateway();
     let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-    let _ = trade_gateway.start();
+    let ret = trade_gateway.start();
+    if ret.is_err() {
+        panic!("{:?}", ret.unwrap_err());
+    }
 }
 
 #[no_mangle]
@@ -96,14 +102,14 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) {
 
     let market_gateway_ref = context::get_market_gateway();
     let mut market_gateway = market_gateway_ref.lock().unwrap();
-    let ret = market_gateway.connect();
+    let ret = market_gateway.init();
     if ret.is_err() {
         panic!("{:?}", ret.unwrap_err());
     }
 
     let trade_gateway_ref = context::get_trade_gateway();
     let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-    let ret = trade_gateway.connect();
+    let ret = trade_gateway.init();
 
     if ret.is_err() {
         panic!("{:?}", ret.unwrap_err());
