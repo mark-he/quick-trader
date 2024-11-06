@@ -131,4 +131,8 @@ impl<S: MarketServer> MarketGateway<S> {
             let _ = h.sender.send("QUIT".to_string());
         }
     }
+
+    pub fn get_server_time(&self) -> usize {
+        self.server.get_server_time()
+    }
 }

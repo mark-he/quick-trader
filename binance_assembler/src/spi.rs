@@ -13,6 +13,21 @@ use market::market_server::{KLine, MarketData};
 use crate::c_model::{OrderEvent, ServiceResult};
 use crate::context;
 
+
+#[no_mangle]
+pub extern "C" fn get_server_ping() -> Box<CString> {
+    let mut result = ServiceResult::<usize>::new(0, "", None);
+
+    let market_gateway_ref = context::get_market_gateway();
+    let market_gateway = market_gateway_ref.lock().unwrap();
+
+    let server_time = market_gateway.get_server_time();
+    if server_time > 0 {
+        result.data = Some(server_time);
+    }
+    result.to_c_json()
+}
+
 #[no_mangle]
 pub extern "C" fn start() -> Box<CString> {
     let mut result = ServiceResult::<String>::new(0, "", None);

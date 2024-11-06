@@ -50,6 +50,7 @@ impl WssStream {
     }
 
     pub fn cleanup(&mut self) {
+        self.subscription = Arc::new(Mutex::new(Subscription::top()));
         self.server_time = Arc::new(AtomicUsize::new(0));
         self.handler = None;
     }
@@ -303,6 +304,7 @@ impl MarketServer for BnMarketServer {
     }
 
     fn init(&mut self) -> Result<(), AppError> {
+        self.wss_stream.cleanup();
         Ok(())
     }
 

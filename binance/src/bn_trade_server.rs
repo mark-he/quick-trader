@@ -84,6 +84,7 @@ impl WssStream {
     }
 
     pub fn cleanup(&mut self) {
+        self.subscription = Arc::new(Mutex::new(Subscription::top()));
         self.server_time = Arc::new(AtomicUsize::new(0));
         self.handler = None;
     }
@@ -304,6 +305,7 @@ impl TradeServer for BnTradeServer {
     type SymbolInfo = SymbolInfo;
     
     fn init(&mut self) -> Result<(), AppError> {
+        self.wss_stream.cleanup();
         self.init_exchange()?;
         self.init_account()?;
         self.init_account_positions()?;
