@@ -70,7 +70,7 @@ pub struct WssStream {
     subscription: Arc<Mutex<Subscription<AccountEvent>>>,
     handler: Option<Handler<()>>,
     connect_ticket: Arc<AtomicUsize>,
-    server_time: Arc<AtomicUsize>,
+    server_ping: Arc<AtomicUsize>,
 }
 
 impl WssStream {
@@ -79,13 +79,13 @@ impl WssStream {
             subscription: Arc::new(Mutex::new(Subscription::top())),
             handler : None,
             connect_ticket: Arc::new(AtomicUsize::new(0)),
-            server_time: Arc::new(AtomicUsize::new(0)),
+            server_ping: Arc::new(AtomicUsize::new(0)),
         }
     }
 
     pub fn cleanup(&mut self) {
         self.subscription = Arc::new(Mutex::new(Subscription::top()));
-        self.server_time = Arc::new(AtomicUsize::new(0));
+        self.server_ping = Arc::new(AtomicUsize::new(0));
         self.handler = None;
     }
 
@@ -96,7 +96,7 @@ impl WssStream {
     pub fn connect(&mut self, credentials: Credentials) {
         let connect_ticket = self.connect_ticket.fetch_add(1, Ordering::SeqCst);
         let connect_ticket_ref = self.connect_ticket.clone();
-        let server_time_ref = self.server_time.clone();
+        let server_ping_ref = self.server_ping.clone();
         let subscription_ref = self.subscription.clone();
 
         let closure = move |rx: Rx<String>| {
@@ -160,7 +160,7 @@ impl WssStream {
                     },
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
-                        server_time_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
+                        server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
                         println!("Trade server time updated.");
                     },
                     _ => {

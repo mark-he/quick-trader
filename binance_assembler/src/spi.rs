@@ -21,9 +21,9 @@ pub extern "C" fn get_server_ping() -> Box<CString> {
     let market_gateway_ref = context::get_market_gateway();
     let market_gateway = market_gateway_ref.lock().unwrap();
 
-    let server_time = market_gateway.get_server_time();
-    if server_time > 0 {
-        result.data = Some(server_time);
+    let server_ping = market_gateway.get_server_ping();
+    if server_ping > 0 {
+        result.data = Some(server_ping);
     }
     result.to_c_json()
 }

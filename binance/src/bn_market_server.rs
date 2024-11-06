@@ -32,7 +32,7 @@ pub struct WssStream {
     subscription: Arc<Mutex<Subscription<MarketData>>>,
     handler: Option<Handler<()>>,
     connect_ticket: Arc<AtomicUsize>,
-    server_time: Arc<AtomicUsize>,
+    server_ping: Arc<AtomicUsize>,
     depth_level: Level,
     update_speed: Option<UpdateSpeed>,
 }
@@ -43,7 +43,7 @@ impl WssStream {
             subscription: Arc::new(Mutex::new(Subscription::top())),
             handler : None,
             connect_ticket: Arc::new(AtomicUsize::new(0)),
-            server_time: Arc::new(AtomicUsize::new(0)),
+            server_ping: Arc::new(AtomicUsize::new(0)),
             depth_level,
             update_speed,
         }
@@ -51,7 +51,7 @@ impl WssStream {
 
     pub fn cleanup(&mut self) {
         self.subscription = Arc::new(Mutex::new(Subscription::top()));
-        self.server_time = Arc::new(AtomicUsize::new(0));
+        self.server_ping = Arc::new(AtomicUsize::new(0));
         self.handler = None;
     }
 
@@ -61,7 +61,7 @@ impl WssStream {
 
     pub fn connect(&mut self, topics: Vec<MarketTopic>) {
         let connect_ticket = self.connect_ticket.fetch_add(1, Ordering::SeqCst);
-        let server_time_ref = self.server_time.clone();
+        let server_ping_ref = self.server_ping.clone();
         let connect_ticket_ref = self.connect_ticket.clone();
         let subscription_ref = self.subscription.clone();
         let depth_level = self.depth_level.clone();
@@ -181,7 +181,7 @@ impl WssStream {
                     },
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
-                        server_time_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
+                        server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
                         println!("Market server time updated.");
                     },
                     _ => {
@@ -299,8 +299,8 @@ impl MarketServer for BnMarketServer {
         }
     }
 
-    fn get_server_time(&self) -> usize {
-        self.wss_stream.server_time.load(Ordering::SeqCst)
+    fn get_server_ping(&self) -> usize {
+        self.wss_stream.server_ping.load(Ordering::SeqCst)
     }
 
     fn init(&mut self) -> Result<(), AppError> {

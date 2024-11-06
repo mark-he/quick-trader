@@ -132,7 +132,7 @@ impl<S: MarketServer> MarketGateway<S> {
         }
     }
 
-    pub fn get_server_time(&self) -> usize {
-        self.server.get_server_time()
+    pub fn get_server_ping(&self) -> usize {
+        self.server.get_server_ping()
     }
 }
