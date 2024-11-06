@@ -2,7 +2,7 @@ use crate::market_server::KLine;
 
 use super::market_server::{MarketData, MarketServer};
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
-use std::{sync::{Arc, Mutex}, vec};
+use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, vec};
 use crossbeam::channel::{self, Receiver, Sender};
 
 #[derive(Clone, Debug)]
@@ -17,6 +17,7 @@ pub struct MarketGateway<S: MarketServer> {
     subscription: Arc<Mutex<Subscription<MarketData>>>,
     subscribers : Vec<Subscriber>,
     pub handler: Option<Handler<()>>,
+    start_ticket: Arc<AtomicUsize>,
 }
 
 impl <S: MarketServer> MarketGateway<S> {
@@ -26,6 +27,7 @@ impl <S: MarketServer> MarketGateway<S> {
             subscription: Arc::new(Mutex::new(Subscription::top())),
             subscribers: vec![],
             handler: None,
+            start_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
@@ -77,12 +79,17 @@ impl<S: MarketServer> MarketGateway<S> {
     }
   
     pub fn start(&mut self) -> Result<(), AppError> {
+        let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
+        let start_ticket_ref = self.start_ticket.clone();
         let subscription = self.server.start()?;
         let subscribers = self.subscribers.clone();
 
         let closure = move |rx: Rx<String>| {
             let mut continue_flag = true;
             let _ = subscription.stream(&mut |event| {
+                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                    return Ok(true);
+                }
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
                     if cmd.unwrap() == "QUIT" {

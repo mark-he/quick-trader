@@ -1,3 +1,5 @@
+use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+
 use super::trade_server::*;
 use common::{error::AppError, thread::{Handler, InteractiveThread, Rx}};
 use crossbeam::channel::{self, Receiver, Sender};
@@ -6,6 +8,7 @@ pub struct TradeGateway<S: TradeServer> {
     server: S,
     subscribers : Vec<(String, Sender<S::Event>)>,
     pub handler: Option<Handler<()>>,
+    start_ticket: Arc<AtomicUsize>,
 }
 
 impl<S: TradeServer> TradeGateway<S> {
@@ -14,6 +17,7 @@ impl<S: TradeServer> TradeGateway<S> {
             server,
             subscribers: vec![],
             handler: None,
+            start_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
     
@@ -22,11 +26,16 @@ impl<S: TradeServer> TradeGateway<S> {
     }
 
     pub fn start(&mut self) -> Result<(), AppError> {
+        let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
+        let start_ticket_ref = self.start_ticket.clone();
         let subscription = self.server.start()?;
         let subscribers = self.subscribers.clone();
 
         let closure = move |rx: Rx<String>| { 
             let _ = subscription.stream(&mut move |event| {
+                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                    return Ok(true);
+                }
                 let cmd = rx.try_recv();
                 if cmd.is_ok() {
                     if cmd.unwrap() == "QUIT" {
