@@ -58,4 +58,5 @@ pub trait MarketServer {
     fn subscribe_kline(&mut self, symbol: &str, interval: &str);
     fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError>;
     fn get_server_ping(&self) -> usize;
+    fn close(self);
 }

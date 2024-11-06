@@ -134,9 +134,8 @@ impl<S: MarketServer> MarketGateway<S> {
     }
 
     pub fn close(self) {
-        if let Some(h) = self.handler.as_ref() {
-            let _ = h.sender.send("QUIT".to_string());
-        }
+        self.start_ticket.fetch_add(1, Ordering::SeqCst);
+        self.server.close();
     }
 
     pub fn get_server_ping(&self) -> usize {

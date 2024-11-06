@@ -176,9 +176,7 @@ impl WssStream {
     }
 
     fn close(self) {
-        if let Some(h) = self.handler {
-            let _ = h.sender.send("QUIT".to_string());
-        }
+        self.connect_ticket.fetch_add(1, Ordering::SeqCst);
     }
 }
 pub struct BnTradeServer {
@@ -416,9 +414,6 @@ impl TradeServer for BnTradeServer {
     }
 
     fn close(self) {
-        if let Some(h) = self.handler {
-            let _ = h.sender.send("QUIT".to_string());
-        }
         self.wss_stream.close();
     }
 }

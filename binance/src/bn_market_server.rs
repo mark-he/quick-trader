@@ -210,6 +210,10 @@ impl WssStream {
         };
         k
     }
+
+    fn close(self) {
+        self.connect_ticket.fetch_add(1, Ordering::SeqCst);
+    }
 }
 
 pub struct BnMarketServer {
@@ -314,4 +318,7 @@ impl MarketServer for BnMarketServer {
         Ok(sub)
     }
 
+    fn close(self) {
+        self.wss_stream.close();
+    }
 }

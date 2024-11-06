@@ -64,9 +64,7 @@ impl<S: TradeServer> TradeGateway<S> {
     }
 
     pub fn close(self) {
-        if let Some(h) = self.handler {
-            let _ = h.sender.send("QUIT".to_string());
-        }
+        self.start_ticket.fetch_add(1, Ordering::SeqCst);
         self.server.close();
     }
 
