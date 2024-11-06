@@ -133,29 +133,29 @@ impl WssStream {
                     Message::Text(string_data) => {
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
 
-                match json_value.get("e") {
-                    Some(event_type) => {
-                        let event = event_type.as_str().unwrap();
-                        match event {
-                            "ACCOUNT_UPDATE" => {
-                                let account_update_event: model::AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                                subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
+                        match json_value.get("e") {
+                            Some(event_type) => {
+                                let event = event_type.as_str().unwrap();
+                                match event {
+                                    "ACCOUNT_UPDATE" => {
+                                        let account_update_event: model::AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
+                                        subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
+                                    },
+                                    "ORDER_TRADE_UPDATE" => {
+                                        let order_trade_update_event= serde_json::from_str::<model::OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
+                                        subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
+                                    },
+                                    "TRADE_LITE" => {
+                                        let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
+                                        subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
+                                    },
+                                    _ => {},
+                                }
                             },
-                            "ORDER_TRADE_UPDATE" => {
-                                let order_trade_update_event= serde_json::from_str::<model::OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
-                                subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
+                            None => {
+                                println!("Received {}", string_data);
                             },
-                            "TRADE_LITE" => {
-                                let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                                subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
-                            },
-                            _ => {},
                         }
-                    },
-                    None => {
-                        println!("Received {}", string_data);
-                    },
-                }
                     },
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
@@ -163,7 +163,7 @@ impl WssStream {
                         println!("Trade server time updated.");
                     },
                     _ => {
-                        println!("Unexpected message");
+                        println!("Unexpected message {:?}", message);
                     },
                 }
                 Ok(true)

@@ -184,7 +184,7 @@ impl WssStream {
                         println!("Market server time updated.");
                     },
                     _ => {
-                        println!("Unexpected message");
+                        println!("Unexpected message {:?}", message);
                     },
                 }
                 Ok(true)

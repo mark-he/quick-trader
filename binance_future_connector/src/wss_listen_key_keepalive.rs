@@ -66,7 +66,7 @@ impl WssListeneKeyKeepalive {
     fn keepalive(&self) {
         let keepalive_ticket = self.keepalive_ticket.fetch_add(1, Ordering::SeqCst);
         let keepalive_ticket_ref = self.keepalive_ticket.clone();
-        
+
         if let Some(renew_block_ref) = self.renew_block.as_ref() {
             let renew_block_ref = renew_block_ref.clone();
             let renew_interval = self.renew_interval as u64;
@@ -142,7 +142,7 @@ impl WssListeneKeyKeepalive {
                             }
                         }
                     } else {
-                        println!("Can't read data");
+                        println!("Connection disconnected.");
                         self.conn = None;
                         break;
 

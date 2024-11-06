@@ -95,7 +95,7 @@ impl WssKeepalive {
                             }
                         }
                     } else {
-                        println!("Can't read data");
+                        println!("Connection disconnected.");
                         self.conn = None;
                         break;
                     }
