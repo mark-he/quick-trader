@@ -36,6 +36,7 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct Config {
+    pub log_level: String,
     pub api_key: String, 
     pub api_secret: String,
     pub dual_position_side: PositionMode,

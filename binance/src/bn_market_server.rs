@@ -19,7 +19,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use chrono::DateTime;
 use crate::model::BinanceKline;
-
+use log::*;
 use super::model;
 
 #[derive(Debug, Clone, Default)]
@@ -90,7 +90,7 @@ impl WssStream {
                                 tick_set.insert(topic.symbol.to_string());
                             },
                             Err(s) => {
-                                println!("Invalid kline interval: {}", s);
+                                error!("{}", &s);
                             },
                         }
                     }
@@ -162,23 +162,23 @@ impl WssStream {
                                             last_tick.insert(t.symbol.to_string(), t);
                                         },
                                         Err(e) => {
-                                            println!("{:?}", e);
+                                            error!("{:?}", e);
                                         },
                                     }
                                 }
                             },
                             None => {
-                                println!("Received {}", string_data);
+                                warn!("Received unknown event: {}", string_data);
                             },
                         }
                     },
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        println!("Market server time updated.");
+                        info!("Market server ping.");
                     },
                     _ => {
-                        println!("Unexpected message {:?}", message);
+                        warn!("Unexpected message: {:?}", message);
                     },
                 }
                 Ok(true)

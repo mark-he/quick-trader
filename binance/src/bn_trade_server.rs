@@ -8,8 +8,8 @@ use binance_future_connector::{
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 use tungstenite::Message;
-
 use crate::model::{self, Account, Asset, ExchangeInfo, LeverageBracket, Position};
+use log::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct SymbolConfig {
@@ -148,17 +148,17 @@ impl WssStream {
                                 }
                             },
                             None => {
-                                println!("Received {}", string_data);
+                                warn!("Received unknown event: {}", string_data);
                             },
                         }
                     },
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        println!("Trade server time updated.");
+                        info!("Trade server ping.");
                     },
                     _ => {
-                        println!("Unexpected message {:?}", message);
+                        warn!("Unexpected message: {:?}", message);
                     },
                 }
                 Ok(true)

@@ -72,6 +72,7 @@ pub mod c {
 }
 
 pub mod msmc {
+    use log::*;
     use std::{error::Error, fmt::Debug, marker::PhantomData, thread, time::Duration};
     use crossbeam::{channel::{unbounded, Receiver, Sender}, select};
 
@@ -176,7 +177,7 @@ pub mod msmc {
                         }
                     },
                     Err(e) => {
-                        println!("Error: {:?}", e);
+                        error!("{:?}", e);
                         if !skip_error {
                             return Err(e);
                         }

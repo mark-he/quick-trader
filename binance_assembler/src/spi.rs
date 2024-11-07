@@ -2,6 +2,7 @@
 
 use std::os::raw::*;
 use std::ffi::CString;
+use std::str::FromStr;
 use std::thread;
 use binance::model::{Asset, Config, Position};
 use binance::bn_market_server::BnMarketServer;
@@ -12,10 +13,10 @@ use common::c::*;
 use market::market_server::{KLine, MarketData};
 use crate::c_model::{OrderEvent, ServiceResult};
 use crate::context;
-
+use log::*;
 
 #[no_mangle]
-pub extern "C" fn shutdown() -> Box<CString> {
+pub extern "C" fn close() -> Box<CString> {
     let result = ServiceResult::<usize>::new(0, "", None);
     let market_gateway_ref = context::get_market_gateway();
     let market_gateway = market_gateway_ref.lock().unwrap();
@@ -24,7 +25,7 @@ pub extern "C" fn shutdown() -> Box<CString> {
     let trade_gateway_ref = context::get_trade_gateway();
     let trade_gateway = trade_gateway_ref.lock().unwrap();
     let _ = trade_gateway.close();
-
+    debug!("Engine closed!");
     result.to_c_json()
 }
 
@@ -139,6 +140,7 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) -> Box<CString
     let ret = serde_json::from_str::<Config>(&config_rust);
     match ret {
         Ok(config) => {
+            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap());
             binance::enable_prod(env_rust == "PROD");
             let market_server = BnMarketServer::new(config.clone());
             let trade_server = BnTradeServer::new(config.clone());

@@ -7,4 +7,5 @@ edition = "2021"
 crossbeam = "0.8.4"
 libc = "0.2.159"
 encoding_rs = "0.8"
+log = { path = "../log"}
 
