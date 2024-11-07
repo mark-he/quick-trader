@@ -15,6 +15,20 @@ use crate::context;
 
 
 #[no_mangle]
+pub extern "C" fn shutdown() -> Box<CString> {
+    let result = ServiceResult::<usize>::new(0, "", None);
+    let market_gateway_ref = context::get_market_gateway();
+    let market_gateway = market_gateway_ref.lock().unwrap();
+    let _ = market_gateway.close();
+
+    let trade_gateway_ref = context::get_trade_gateway();
+    let trade_gateway = trade_gateway_ref.lock().unwrap();
+    let _ = trade_gateway.close();
+
+    result.to_c_json()
+}
+
+#[no_mangle]
 pub extern "C" fn get_server_ping() -> Box<CString> {
     let mut result = ServiceResult::<usize>::new(0, "", None);
 

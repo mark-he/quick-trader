@@ -67,7 +67,7 @@ impl WssStream {
         let depth_level = self.depth_level.clone();
         let update_speed = self.update_speed.clone();
 
-        let closure = move |rx: Rx<String>| {
+        let closure = move |_rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
             let mut keepalive: WssKeepalive = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
                 let mut tick_set = HashSet::new();
@@ -115,13 +115,6 @@ impl WssStream {
                 if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
                     return Ok(true);
                 }
-                let cmd = rx.try_recv();
-                if cmd.is_ok() {
-                    if cmd.unwrap() == "QUIT" {
-                        return Ok(true);
-                    }
-                }
-
                 match message {
                     Message::Text(string_data) => {
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
@@ -211,7 +204,7 @@ impl WssStream {
         k
     }
 
-    fn close(self) {
+    fn close(&self) {
         self.connect_ticket.fetch_add(1, Ordering::SeqCst);
     }
 }
@@ -318,7 +311,7 @@ impl MarketServer for BnMarketServer {
         Ok(sub)
     }
 
-    fn close(self) {
+    fn close(&self) {
         self.wss_stream.close();
     }
 }

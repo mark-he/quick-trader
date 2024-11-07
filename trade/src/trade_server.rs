@@ -20,6 +20,6 @@ pub trait TradeServer {
     fn get_positions(&self, symbol: &str) -> Vec<Self::Position>;
     fn get_account(&self, account_id: &str) -> Option<Self::Account>;
     fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig)-> Result<Self::SymbolInfo, AppError>;
-    fn close(self);
+    fn close(&self);
 }
 

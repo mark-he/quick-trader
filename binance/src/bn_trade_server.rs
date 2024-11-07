@@ -99,7 +99,7 @@ impl WssStream {
         let server_ping_ref = self.server_ping.clone();
         let subscription_ref = self.subscription.clone();
 
-        let closure = move |rx: Rx<String>| {
+        let closure = move |_rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
             let credentials2 = credentials.clone();
             let mut keepalive = WssListeneKeyKeepalive::new(&binance_future_connector::config::wss_api()).new_listen_key( move || {
@@ -123,12 +123,6 @@ impl WssStream {
             let _ = keepalive.stream(&mut |message| {
                 if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
                     return Ok(true);
-                }
-                let cmd = rx.try_recv();
-                if cmd.is_ok() {
-                    if cmd.unwrap() == "QUIT" {
-                        return Ok(false);
-                    }
                 }
                 match message {
                     Message::Text(string_data) => {
@@ -175,7 +169,7 @@ impl WssStream {
         self.handler = Some(handler);
     }
 
-    fn close(self) {
+    fn close(&self) {
         self.connect_ticket.fetch_add(1, Ordering::SeqCst);
     }
 }
@@ -413,7 +407,7 @@ impl TradeServer for BnTradeServer {
         Ok(symbol_info)
     }
 
-    fn close(self) {
+    fn close(&self) {
         self.wss_stream.close();
     }
 }

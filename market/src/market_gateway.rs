@@ -84,17 +84,11 @@ impl<S: MarketServer> MarketGateway<S> {
         let subscription = self.server.start()?;
         let subscribers = self.subscribers.clone();
 
-        let closure = move |rx: Rx<String>| {
+        let closure = move |_rx: Rx<String>| {
             let mut continue_flag = true;
             let _ = subscription.stream(&mut |event| {
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
                     return Ok(true);
-                }
-                let cmd = rx.try_recv();
-                if cmd.is_ok() {
-                    if cmd.unwrap() == "QUIT" {
-                        return Ok(false);
-                    }
                 }
                 match event {
                     Some(data) => {
@@ -133,7 +127,7 @@ impl<S: MarketServer> MarketGateway<S> {
         Ok(())
     }
 
-    pub fn close(self) {
+    pub fn close(&self) {
         self.start_ticket.fetch_add(1, Ordering::SeqCst);
         self.server.close();
     }
