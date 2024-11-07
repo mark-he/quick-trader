@@ -120,51 +120,58 @@ impl WssStream {
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
                         match json_value.get("e") {
                             Some(event_type) => {
-                                if event_type.as_str().unwrap() == "depthUpdate" {
-                                    match serde_json::from_str::<model::BinanceDepthUpdate>(&string_data) {
-                                        Ok(depth) => {
-                                            let value = last_tick.get_mut(&depth.symbol);
-                                            if let Some(tick) = value {
-                                                let mut t = tick.clone();
-                                                t.asks = depth.asks;
-                                                t.bids = depth.bids;
-                                                subscription.send(&Some(MarketData::Tick(t)));
-                                            }
-                                        },
-                                        _ => {},
-                                    }
-                                } else if event_type.as_str().unwrap() == "kline" {
-                                    match serde_json::from_str::<model::BinanceKline>(&string_data) {
-                                        Ok(kline) => {
-                                            if kline.kline_data.is_closed {
-                                                let k = Self::convert_bn_kline(kline);
-                                                subscription.send(&Some(MarketData::Kline(k)));
-                                            }
-                                        },
-                                        _ => {},
-                                    }
-                                } else if event_type.as_str().unwrap() == "24hrMiniTicker" {
-                                    match serde_json::from_str::<model::BinanceTick>(&string_data) {
-                                        Ok(tick) => {
-                                            let datetime = DateTime::from_timestamp((tick.event_time/1000) as i64, 0).unwrap();
-                                            let t = Tick {
-                                                symbol: tick.symbol.clone(),
-                                                datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                                trading_day: datetime.format("%Y-%m-%d").to_string(),
-                                                open: tick.open_price,
-                                                high: tick.high_price,
-                                                low: tick.low_price,
-                                                close: tick.close_price,
-                                                volume: tick.total_traded_base_asset_volume,
-                                                turnover: tick.total_traded_quote_asset_volume,
-                                                ..Default::default()
-                                            };
-                                            last_tick.insert(t.symbol.to_string(), t);
-                                        },
-                                        Err(e) => {
-                                            error!("{:?}", e);
-                                        },
-                                    }
+                                debug!("Received event: {}", string_data);
+                                let event = event_type.as_str().unwrap();
+                                match event {
+                                    "depthUpdate" => {
+                                        match serde_json::from_str::<model::BinanceDepthUpdate>(&string_data) {
+                                            Ok(depth) => {
+                                                let value = last_tick.get_mut(&depth.symbol);
+                                                if let Some(tick) = value {
+                                                    let mut t = tick.clone();
+                                                    t.asks = depth.asks;
+                                                    t.bids = depth.bids;
+                                                    subscription.send(&Some(MarketData::Tick(t)));
+                                                }
+                                            },
+                                            _ => {},
+                                        }
+                                    },
+                                    "kline" => {
+                                        match serde_json::from_str::<model::BinanceKline>(&string_data) {
+                                            Ok(kline) => {
+                                                if kline.kline_data.is_closed {
+                                                    let k = Self::convert_bn_kline(kline);
+                                                    subscription.send(&Some(MarketData::Kline(k)));
+                                                }
+                                            },
+                                            _ => {},
+                                        }
+                                    },
+                                    "24hrMiniTicker" => {
+                                        match serde_json::from_str::<model::BinanceTick>(&string_data) {
+                                            Ok(tick) => {
+                                                let datetime = DateTime::from_timestamp((tick.event_time/1000) as i64, 0).unwrap();
+                                                let t = Tick {
+                                                    symbol: tick.symbol.clone(),
+                                                    datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                                    trading_day: datetime.format("%Y-%m-%d").to_string(),
+                                                    open: tick.open_price,
+                                                    high: tick.high_price,
+                                                    low: tick.low_price,
+                                                    close: tick.close_price,
+                                                    volume: tick.total_traded_base_asset_volume,
+                                                    turnover: tick.total_traded_quote_asset_volume,
+                                                    ..Default::default()
+                                                };
+                                                last_tick.insert(t.symbol.to_string(), t);
+                                            },
+                                            Err(e) => {
+                                                error!("{:?}", e);
+                                            },
+                                        }
+                                    },
+                                    _ => {},
                                 }
                             },
                             None => {
@@ -175,7 +182,7 @@ impl WssStream {
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        info!("Market server ping.");
+                        info!("Trade server ping: {}", string_data);
                     },
                     _ => {
                         warn!("Unexpected message: {:?}", message);

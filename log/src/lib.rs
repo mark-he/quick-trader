@@ -1,5 +1,5 @@
 use std::{fmt, str::FromStr};
-use chrono::{Local, DateTime};
+use chrono::{Local, Utc};
 use backtrace;
 
 #[macro_export]
@@ -52,18 +52,12 @@ macro_rules! error {
     }};
 }
 
-static mut LOGGER: Logger = Logger {level: Level::Warn};
-pub fn init(level: Level) {
+static mut LOGGER: Logger = Logger {level: Level::Warn, utc: true};
+pub fn init(level: Level, utc: bool) {
     unsafe {
-        LOGGER.set_level(level);
+        LOGGER.utc = utc;
+        LOGGER.level = level;
     }
-}
-
-pub fn format(message: &str, level: &Level) -> String {
-    let now: DateTime<Local> = Local::now();
-    let time_str = now.format("%Y-%m-%d %H:%M:%S%.3f").to_string();
-
-    format!("{} {}: {}", level, time_str, message)
 }
 
 pub fn print(message: &str, level: Level) {
@@ -110,16 +104,23 @@ impl FromStr for Level {
 }
 
 struct Logger {
-    level: Level,
+    pub utc: bool,
+    pub level: Level,
 }
 
 impl Logger {
-    pub fn set_level(&mut self, level: Level) {
-        self.level = level;
+    pub fn format(&self, message: &str, level: &Level) -> String {
+        let time_str;
+        if self.utc {
+            time_str = Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+        } else {
+            time_str = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+        }
+        format!("{} {}: {}", level, time_str, message)
     }
 
     pub fn print(&self, message: &str, level: Level) {
-        if self.level.clone() as u32 >= level.clone() as u32 {
+        if self.level.clone() as u32 <= level.clone() as u32 {
             let mut output = String::new();
             output.push_str(&format!("{}\n", message));
             match level {
@@ -131,7 +132,7 @@ impl Logger {
                 },
                 _ => {},
             }
-            print!("{}", format(&output, &level));
+            print!("{}", self.format(&output, &level));
         }
     }
 }

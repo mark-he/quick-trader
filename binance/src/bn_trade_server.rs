@@ -130,6 +130,7 @@ impl WssStream {
 
                         match json_value.get("e") {
                             Some(event_type) => {
+                                debug!("Received account event: {}", string_data);
                                 let event = event_type.as_str().unwrap();
                                 match event {
                                     "ACCOUNT_UPDATE" => {
@@ -155,7 +156,7 @@ impl WssStream {
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        info!("Trade server ping.");
+                        info!("Trade server ping: {}", string_data);
                     },
                     _ => {
                         warn!("Unexpected message: {:?}", message);

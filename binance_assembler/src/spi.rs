@@ -140,7 +140,7 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) -> Box<CString
     let ret = serde_json::from_str::<Config>(&config_rust);
     match ret {
         Ok(config) => {
-            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap());
+            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
             binance::enable_prod(env_rust == "PROD");
             let market_server = BnMarketServer::new(config.clone());
             let trade_server = BnTradeServer::new(config.clone());
