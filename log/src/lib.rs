@@ -121,7 +121,7 @@ impl Logger {
     pub fn print(&self, message: &str, level: Level) {
         if self.level.clone() as u32 >= level.clone() as u32 {
             let mut output = String::new();
-            output.push_str(&format!("{:?}\n", message));
+            output.push_str(&format!("{}\n", message));
             match level {
                 Level::Error => {
                     let backtrace = backtrace::Backtrace::new();
