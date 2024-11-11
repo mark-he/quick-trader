@@ -8,7 +8,7 @@ use binance_future_connector::{
 };
 use trade::trade_server::{SymbolRoute, TradeServer};
 use tungstenite::Message;
-use crate::model::{self, Account, Asset, ExchangeInfo, LeverageBracket, Position};
+use crate::model::{self, Account, Asset, CancelOrderRequest, ExchangeInfo, LeverageBracket, Position};
 use log::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
@@ -292,6 +292,7 @@ impl BnTradeServer {
 impl TradeServer for BnTradeServer {
     type Event = AccountEvent;
     type OrderRequest = NewOrderRequest;
+    type CancelOrderRequest = CancelOrderRequest;
     type Position = Position;
     type Account = Asset;
     type SymbolConfig = SymbolConfig;
@@ -321,9 +322,9 @@ impl TradeServer for BnTradeServer {
         Ok(())
     }
 
-    fn cancel_order(&mut self, symbol: &str, order_id: &str) -> Result<(), AppError> {
+    fn cancel_order(&mut self, request: CancelOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let requset = bn_trade::cancel_order(symbol).orig_client_order_id(order_id);
+        let requset = bn_trade::cancel_order(&request.symbol).orig_client_order_id(&request.order_id);
         let _ = model::get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }

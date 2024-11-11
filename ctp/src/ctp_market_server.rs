@@ -4,16 +4,20 @@
 use common::error::AppError;
 use common::thread::{Handler, InteractiveThread};
 use market::kline::KLineCombiner;
-use super::ctp_market_spi::Spi;
+use crate::model::Config;
+
+use super::ctp_market_cpi::Spi;
 use market::market_server::{KLine, MarketData, MarketServer};
 use libctp_sys::*;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use common::msmc::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use common::thread::Rx;
-
+use log::*;
 
 struct SafePointer<T>(*mut T);
 
@@ -21,7 +25,7 @@ unsafe impl<T> Send for SafePointer<T> {}
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Config {
+pub struct ApiConfig {
     flow_path: String,
     is_udp: bool,
     is_multicast: bool,
@@ -31,7 +35,7 @@ pub struct Config {
 pub struct MDApi {
     api: Rust_CThostFtdcMdApi,
     spi: Option<SafePointer<Rust_CThostFtdcMdSpi>>,
-    config: Config,
+    config: ApiConfig,
 }
 
 
@@ -41,7 +45,7 @@ impl MDApi {
         cs.to_string_lossy().into()
     }
 
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: ApiConfig) -> Self {
         let cs = std::ffi::CString::new(config.flow_path.as_bytes()).unwrap();
         let api = unsafe {
             Rust_CThostFtdcMdApi::new(CThostFtdcMdApi::CreateFtdcMdApi(
@@ -241,35 +245,114 @@ pub struct MarketTopic {
     pub symbol: String,
     pub interval: String,
 }
+
 pub struct CtpMarketServer {
     mapi: Option<MDApi>,
     topics: Vec<MarketTopic>,
-    subscription: Subscription<MarketData>,
+    config: Config,
+    handler: Option<Handler<()>>,
+    start_ticket: Arc<AtomicUsize>,
 }
 
 impl CtpMarketServer {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         CtpMarketServer {
             mapi: None,
+            config,
             topics: Vec::new(),
-            subscription: Subscription::top(),
+            handler: None,
+            start_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
 
 impl MarketServer for CtpMarketServer {
-    fn connect(&mut self, _prop : &HashMap<String, String>) -> Result<Subscription<MarketData>, AppError> {
-        let mut mdapi = MDApi::new(&Config {
+    fn init(&mut self) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    fn start(&mut self) -> Result<Subscription<MarketData>, AppError> {
+        let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
+        let start_ticket_ref = self.start_ticket.clone();
+        let mut mapi = MDApi::new(ApiConfig {
             flow_path: "".into(),
-            front_addr: vec![_prop.get("front_addr").unwrap_or(&"".to_string()).clone()],
+            front_addr: vec![self.config.front_addr.clone()],
             ..Default::default()
         });
-        let mut subscription = mdapi.start().unwrap();
+        let mut subscription = mapi.start().unwrap();
         let outer_subscription = subscription.subscribe();
-        self.subscription = subscription;
 
-        self.mapi = Some(mdapi);
+        let mut tick_set = HashSet::new();
+        for topic in self.topics.iter() {
+            if topic.interval == "" {
+                if !tick_set.contains(topic.symbol.as_str()) {
+                    mapi.subscribe_market_data(&[topic.symbol.as_str()], false).unwrap();
+                    tick_set.insert(topic.symbol.to_string());
+                }
+            } 
+        }
+        self.mapi = Some(mapi);
+
+        let topics = self.topics.clone();
+        let closure = move |_rx: Rx<String>| {
+            let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
+            let mut continue_flag = true;
+            let _ = subscription.stream(&mut |event| {
+                debug!("{:?}", event);
+                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                    return Ok(true);
+                }
+                match event {
+                    Some(data) => {
+                        match data {
+                            MarketData::Tick(t) => {
+                                subscription.send(&Some(MarketData::Tick(t.clone())));
+                                for topic in topics.iter() {
+                                    if topic.symbol == t.symbol {
+                                        let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
+                                        let kline = KLine {
+                                            symbol: t.symbol.clone(),
+                                            datetime: t.datetime.clone(),
+                                            interval: topic.interval.clone(),
+                                            open: t.open,
+                                            high: t.high,
+                                            low: t.low,
+                                            close: t.close,
+                                            volume: t.volume as f64,
+                                            turnover: t.turnover,
+                                        };
+                                        let mut new_kline = combiner.combine_tick(&kline, true);
+                                        if let Some(kline) = new_kline.take() {
+                                            let _ = subscription.send(&Some(MarketData::Kline(kline)));
+                                        }
+                                    }
+                                }
+                            },
+                            _ => {
+                            },
+                        }
+                    },
+                    None => {
+                        continue_flag = false;
+                    }
+                }
+                Ok(continue_flag)
+            }, true);
+        };
+        self.handler = Some(InteractiveThread::spawn(closure));
         Ok(outer_subscription)
+    }
+    
+    fn load_kline(&mut self, _symbol: &str, _interval: &str, _count: u32) -> Result<Vec<KLine>, AppError> {
+        Ok(vec![])
+    }
+
+    fn get_server_ping(&self) -> usize {
+        0
+    }
+
+    fn close(&self) {
+        self.start_ticket.fetch_add(1, Ordering::SeqCst);
     }
 
     fn subscribe_tick(&mut self, symbol: &str) {
@@ -307,65 +390,4 @@ impl MarketServer for CtpMarketServer {
         }
     }
 
-    fn start(mut self) -> Handler<()> {
-        let closure = move |rx: Rx<String>| {
-            let mut tick_set = HashSet::new();
-            let mapi = self.mapi.as_mut().unwrap();
-            for topic in self.topics.iter() {
-                if topic.interval == "" {
-                    if !tick_set.contains(topic.symbol.as_str()) {
-                        mapi.subscribe_market_data(&[topic.symbol.as_str()], false).unwrap();
-                        tick_set.insert(topic.symbol.to_string());
-                    }
-                } 
-            }
-
-            let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
-            self.subscription.stream(&mut |event| {
-                let command = rx.try_recv();
-                if let Ok(cmd) = command {
-                    if cmd == "QUIT" {
-                        return false;
-                    }
-                }
-
-                if let Some(data) = event {
-                    match data {
-                        MarketData::Tick(t) => {
-                            self.subscription.send(Some(MarketData::Tick(t.clone())));
-                            for topic in self.topics.iter() {
-                                if topic.symbol == t.symbol {
-                                    let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
-                                    let kline = KLine {
-                                        symbol: t.symbol.clone(),
-                                        datetime: t.datetime.clone(),
-                                        interval: topic.interval.clone(),
-                                        open: t.open,
-                                        high: t.high,
-                                        low: t.low,
-                                        close: t.close,
-                                        volume: t.volume as i32,
-                                        turnover: t.turnover,
-                                    };
-                                    let mut new_kline = combiner.combine_tick(&kline, true);
-                                    if let Some(kline) = new_kline.take() {
-                                        let _ = self.subscription.send(Some(MarketData::Kline(kline)));
-                                    }
-                                }
-                            }
-                        },
-                        _ => {
-                        },
-                    }
-                    true
-                } else {
-                    false
-                }
-            });
-        };
-        let handler = InteractiveThread::spawn(closure);
-        handler
-    }
-
-    fn close(&mut self) {}
 }

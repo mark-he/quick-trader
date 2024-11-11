@@ -669,6 +669,12 @@ pub struct BinanceDepthUpdate {
     pub asks: Vec<Vec<f64>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CancelOrderRequest {
+    pub symbol: String,
+    pub order_id: String,
+}
+
 fn parse_vec_f64<'de, D>(deserializer: D) -> Result<Vec<Vec<f64>>, D::Error>
 where
     D: Deserializer<'de>,

@@ -1,20 +1,25 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
-use std::{thread, vec};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread::sleep;
+use std::time::Duration;
+use std::vec;
 use serde::{Deserialize, Serialize};
-use std::sync::{Mutex, RwLock, Arc};
+use std::sync::{Arc, Mutex, RwLock};
 use trade::trade_server::*;
 use common::{c::*, msmc::Subscription, error::AppError};
+use crate::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, TradeData};
+
 use super::ctp_code::*;
-use super::ctp_trade_spi::Spi;
-use tokio::time::{interval, Duration as TokioDuration};
-use tokio::runtime::Runtime;
+use super::ctp_trade_cpi::Spi;
 use std::cmp::min;
+use log::*;
 
 struct SafePointer<T>(*mut T);
 
@@ -27,33 +32,12 @@ pub enum Resume {
     Quick = THOST_TE_RESUME_TYPE_THOST_TERT_QUICK as _,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Config {
-    flow_path: String,
-    front_addr: String,
-    nm_addr: String,
-    user_info: String,
-    product_info: String,
-    auth_code: String,
-    app_id: String,
-    public_resume: Resume,
-    private_resume: Resume,
-
-    broker_id: String,
-    user_id: String,
-    password: String,
-}
-
 pub struct TDApi {
     api: Rust_CThostFtdcTraderApi,
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
-    pub(crate) config: Config,
-    pub subscription: Arc<RwLock<Subscription<(i32, TradeData)>>>,
-    pub session: Option<TradeSession>,
-    pub positions : Option<Vec<Position>>,
-    pub account: Option<Account>,
+    pub config: Config,
+    pub subscription: Subscription<TradeData>,
 }
-#[allow(unused)]
 impl TDApi {
     fn send_request<F>(f: &mut F) -> Result<(), String> 
         where F: FnMut() -> i32 {
@@ -70,7 +54,7 @@ impl TDApi {
                 "Quota per second exceeds"
             )),
             _ => Err(format!(
-                "Unknown result from trade api{}", ret
+                "Unknown result from trade api {}", ret
             )),
         }
     }
@@ -89,10 +73,7 @@ impl TDApi {
             api,
             spi: None,
             config: config.clone(),
-            session: None,
-            subscription: Arc::new(RwLock::new(Subscription::top())),
-            positions: None,
-            account: None,
+            subscription: Subscription::top(),
         }
     }
 
@@ -136,7 +117,7 @@ impl TDApi {
         })
     }
 
-    fn req_order_insert(&mut self, order: &OrderInsert, unit_id: &str, request_id: i32) -> Result<(), String> {
+    fn req_order_insert(&mut self, order: NewOrderRequest, unit_id: &str, request_id: i32) -> Result<(), String> {
         let order_type = OrderType::from_string(ORDER_TYPE.as_ref().get(&order.order_type).unwrap());
 
         let mut request = CThostFtdcInputOrderField {
@@ -182,23 +163,22 @@ impl TDApi {
         })
     }
     
-    fn req_order_action(&mut self, action: &OrderAction, request_id: i32) -> Result<(), String> {
+    fn req_order_action(&mut self, request: CancelOrderRequest, request_id: i32) -> Result<(), String> {
         let mut request = CThostFtdcInputOrderActionField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
 
             UserID: string_to_c_char::<16>(request_id.to_string()),
-            InstrumentID: string_to_c_char::<81>(action.symbol.to_string()),
-            ExchangeID: string_to_c_char::<9>(action.exchange_id.to_string()),
-            OrderSysID: string_to_c_char::<21>(action.sys_id.to_string()),
-            OrderActionRef: action.action_ref as c_int,
+            InstrumentID: string_to_c_char::<81>(request.symbol.clone()),
+            ExchangeID: string_to_c_char::<9>(request.exchange.clone()),
+            OrderSysID: string_to_c_char::<21>(request.order_id.to_string()),
+            OrderRef: string_to_c_char::<13>("".to_string()),
+            OrderActionRef: 0 as c_int,
             RequestID: request_id as c_int,
 
             ActionFlag: THOST_FTDC_AF_Delete as i8,
-            OrderRef: string_to_c_char::<13>("".to_string()),
             FrontID: 0 as c_int,
             SessionID: 0 as c_int,
-
             InvestUnitID: string_to_c_char::<17>("".to_string()),
             LimitPrice: 0.0 as f64,
             VolumeChange: 0 as c_int,
@@ -240,7 +220,7 @@ impl TDApi {
             self.api.ReqQryTradingAccount(&mut request, request_id)
         })
     }
-
+    /*
     fn req_qry_order(&mut self, request_id: i32) -> Result<(), String> {
         let mut request = CThostFtdcQryOrderField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
@@ -275,8 +255,7 @@ impl TDApi {
             self.api.ReqQryTrade(&mut request, request_id)
         })
     }
-
-    /// destory `self.spi`, which created by `TDApi`
+ */
     fn drop_spi(spi: SafePointer<Rust_CThostFtdcTraderSpi>) {
         let mut spi: Box<Rust_CThostFtdcTraderSpi> = unsafe { Box::from_raw(spi.0) };
         unsafe {
@@ -301,19 +280,17 @@ impl TDApi {
         self.spi = Some(SafePointer(spi));
     }
 
-    pub fn req_init(&mut self) -> Result<Subscription<(i32, TradeData)>, String> {
-        let mut top = Subscription::top();
-        let outter_subscription = top.subscribe_with_filter(|event|{
+    pub fn req_init(&mut self) -> Result<Subscription<TradeData>, String> {
+        let mut spi = Spi::new();
+        let subscription = spi.subscription.subscribe_with_filter(|event|{
             match event {
-                (_, TradeData::OnOrder(_)) | (_, TradeData::OnTrade(_)) => {
+                TradeData::OnOrder(_) | TradeData::OnTrade(_) => {
                     true
                 },
                 _ => false
             }
         });
-
-        top.publish_to_under(self.subscription.write().as_mut().unwrap());
-        self.register(Spi::new(top));
+        self.register(spi);
 
         let cs = CString::new(self.config.front_addr.as_bytes()).unwrap();
         unsafe {
@@ -330,18 +307,16 @@ impl TDApi {
         unsafe {
             self.api.Init();
         }
-        Ok(outter_subscription)
+        Ok(subscription)
     }
     
-    
-    fn check_connected(&mut self) -> Result<(), String> {
+    fn check_connected(&mut self, subscription: &Subscription<TradeData>) -> Result<(), String> {
         let mut should_break = false;
-        let subscription = self.subscription.write().unwrap();
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
                     Some(data) => {
-                        match &data.1 {
+                        match data {
                             TradeData::Connected => {
                                 should_break = true;
                             },
@@ -367,16 +342,14 @@ impl TDApi {
         Ok(())
     }
 
-    fn check_logined(&mut self) -> Result<(), String> {
+    fn check_logined(&mut self, subscription: &Subscription<TradeData>) -> Result<(), String> {
         let mut should_break = false;
-        let subscription = self.subscription.write().unwrap();
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
                     Some(data) => {
-                        match &data.1 {
-                            TradeData::UserLogin(s) => {
-                                self.session = Some(s.clone());
+                        match data {
+                            TradeData::UserLogin() => {
                                 should_break = true;
                             },
                             _ => {},
@@ -401,70 +374,22 @@ impl TDApi {
         Ok(())
     }
 
-    pub fn start(&mut self) -> Result<Subscription<(i32, TradeData)>, String> {
-        let outter_subscription = self.req_init()?;
-        let ret = self.check_connected();
+    pub fn start(&mut self) -> Result<Subscription<TradeData>, String> {
+        let subscription = self.req_init()?;
+        let ret = self.check_connected(&subscription);
         if ret.is_err() {
             return Err(ret.unwrap_err());
         }
 
         self.req_user_login(0)?;
-        let ret = self.check_logined();
+        let ret = self.check_logined(&subscription);
         if ret.is_err() {
             return Err(ret.unwrap_err());
         }
 
         self.req_settlement_info_confirm(0, 0)?;
-        
-        self.standby();
-        Ok(outter_subscription)
-    }
 
-    fn standby(&self) {
-        let mut runtime = Runtime::new().unwrap();
-        runtime.spawn(async {
-            let mut interval = interval(TokioDuration::from_secs(1));  // 每隔 1 秒
-            loop {
-                interval.tick().await;
-                unsafe {
-                    let tdapi = TDAPI.as_ref().unwrap().clone();
-                    let _ = tdapi.lock().unwrap().req_qry_investor_position(0);
-                    let _ = tdapi.lock().unwrap().req_qry_trading_account(0);
-                }
-            }
-        });
-
-        let subscription_ref = self.subscription.clone();
-        //stand by
-        thread::spawn(move|| {
-            let mut should_break = false; 
-            let subscription = subscription_ref.read().unwrap();
-            loop {
-                subscription.recv(&mut |event|{
-                    match event {
-                        Some((_, TradeData::PositionQuery(v))) => {
-                            unsafe {
-                                let tdapi = TDAPI.as_ref().unwrap().clone();
-                                tdapi.lock().unwrap().positions = Some(v.clone());
-                            }
-                        },
-                        Some((_, TradeData::AccountQuery(v))) => {
-                            unsafe {
-                                let tdapi = TDAPI.as_ref().unwrap().clone();
-                                tdapi.lock().unwrap().account = Some(v.clone());
-                            }
-                        },
-                        _ => {},
-                        None => {
-                            should_break = true
-                        }
-                    }
-                });
-                if should_break {
-                    break;;
-                }
-            }
-        });
+        Ok(subscription)
     }
 }
 
@@ -486,22 +411,43 @@ impl Drop for TDApi {
 }
 
 pub struct CtpTradeServer {
+    tapi: Option<Arc<Mutex<TDApi>>>,
+    config: Config,
+    handler: Option<Handler<()>>,
+    pub positions: Arc<RwLock<Vec<Position>>>,
+    pub account: Arc<RwLock<Account>>,
+    start_ticket: Arc<AtomicUsize>,
 }
 
-#[allow(unused)]
 impl CtpTradeServer {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         CtpTradeServer {
+            tapi: None,
+            config,
+            handler: None,
+            positions: Arc::new(RwLock::new(vec![])),
+            account: Arc::new(RwLock::new(Account {..Default::default()})),
+            start_ticket: Arc::new(AtomicUsize::new(0)),
         }
     }
-    
 }
 
-static mut TDAPI: Option<Arc<Mutex<TDApi>>> = None;
-
 impl TradeServer for CtpTradeServer {
-    fn connect(&mut self, config: &TradeConfig) -> Result<Subscription<(i32, TradeData)>, AppError> {
-        eprintln!("api version: {}", TDApi::get_version());
+    type Event = TradeData;
+    type OrderRequest = NewOrderRequest;
+    type CancelOrderRequest = CancelOrderRequest;
+    type Position = Position;
+    type Account = Account;
+    type SymbolConfig = ();
+    type SymbolInfo = ();
+    
+    fn init(&mut self) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
+        let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
+        let start_ticket_ref = self.start_ticket.clone();
         let mut tdapi = TDApi::new(&Config {
             flow_path: "".into(),
             nm_addr: "".into(),
@@ -510,101 +456,121 @@ impl TradeServer for CtpTradeServer {
             public_resume: Resume::Quick,
             private_resume: Resume::Quick,
             
-            front_addr: config.front_addr.clone(),
-            broker_id: config.broker_id.clone(),
-            auth_code: config.auth_code.clone(),
-            app_id: config.app_id.clone(),
-            user_id: config.user_id.clone(),
-            password: config.password.clone(),
+            front_addr: self.config.front_addr.clone(),
+            broker_id: self.config.broker_id.clone(),
+            auth_code: self.config.auth_code.clone(),
+            app_id: self.config.app_id.clone(),
+            user_id: self.config.user_id.clone(),
+            password: self.config.password.clone(),
             ..Default::default()
         });
-        let subscription = tdapi.start().unwrap();
-        unsafe {
-            TDAPI = Some(Arc::new(Mutex::new(tdapi)));
-        }
-        Ok(subscription)
+        let mut subscription = tdapi.start().map_err(|e| AppError::new(-200, &e))?;
+        self.tapi = Some(Arc::new(Mutex::new(tdapi)));
+
+        let tapi_ref = self.tapi.as_ref().unwrap().clone();
+        let _ = InteractiveThread::spawn(move |_rx| {
+            loop {
+                let mut tapi = tapi_ref.lock().unwrap();
+                let _ = tapi.req_qry_investor_position(0);
+                let _ = tapi.req_qry_trading_account(0);
+                sleep(Duration::from_secs(3));
+            }
+        });
+
+        let positions_ref = self.positions.clone();
+        let account_ref = self.account.clone();
+
+        let outer_subscription = subscription.subscribe();
+        let mut continue_flag = true;
+        let closure = move |_rx: Rx<String>| {
+            let _ = subscription.stream(&mut move |event| {
+                debug!("{:?}", event);
+                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                    return Ok(true);
+                }
+                match event {
+                    Some(TradeData::PositionQuery(v)) => {
+                        *positions_ref.write().unwrap() = v.clone();
+                    },
+                    Some(TradeData::AccountQuery(v)) => {
+                        *account_ref.write().unwrap() = v.clone();
+                    },
+                    Some(_) => {},
+                    None => {
+                        continue_flag = false;
+                    }
+                }
+                Ok(continue_flag)
+            }, true);
+        };
+        self.handler = Some(InteractiveThread::spawn(closure));
+        Ok(outer_subscription)
     }
 
-    fn send_order(&mut self, order : &OrderInsert, unit_id: &str, request_id : i32) {
-        if order.offset == OFFSET_CLOSE.code && order.exchange_id == "SHFE" {
-            let v = self.get_positions(unit_id, &order.symbol);
+    fn new_order(&mut self, request: Self::OrderRequest) -> Result<(), AppError> {
+        let mut tapi = self.tapi.as_ref().unwrap().lock().unwrap();
+        if request.offset == OFFSET_CLOSE.code && request.exchange_id == "SHFE" {
+            let v = self.get_positions(&request.symbol);
             let mut last_day = 0;
 
             for p in v.iter() {
-                if p.direction != order.direction {
+                if p.direction != request.direction {
                     last_day += p.position - p.today_position;
                 }
             }
 
-            let mut remain= order.volume_total;
+            let mut remain= request.volume_total;
             if last_day > 0 {
-                let mut last_day_order = order.clone();
+                let mut last_day_order = request.clone();
                 last_day_order.offset = OFFSET_CLOSEYESTERDAY.code.to_string();
-                last_day_order.volume_total = min(last_day, order.volume_total);
+                last_day_order.volume_total = min(last_day, request.volume_total);
                 remain -= last_day_order.volume_total;
-
-                unsafe {
-                    let tdapi = TDAPI.as_ref().unwrap().clone();
-                    let _ = tdapi.lock().unwrap().req_order_insert(&last_day_order, unit_id, request_id);
-                }
+                let _ = tapi.req_order_insert(last_day_order, "", 0);
             }
             if remain > 0 {
-                let mut today_day_order = order.clone();
+                let mut today_day_order = request.clone();
                 today_day_order.volume_total = remain;
-                unsafe {
-                    let tdapi = TDAPI.as_ref().unwrap().clone();
-                    let _ = tdapi.lock().unwrap().req_order_insert(&today_day_order, unit_id, request_id);
-                }
+                let _ = tapi.req_order_insert(today_day_order, "", 0);
             }
         } else {
-            unsafe {
-                let tdapi = TDAPI.as_ref().unwrap().clone();
-                let _ = tdapi.lock().unwrap().req_order_insert(&order, unit_id, request_id);
+            let _ = tapi.req_order_insert(request.clone(), "", 0);
+        }
+
+        let _ = tapi.req_order_insert(request.clone(), "", 0);
+        Ok(())
+    }
+
+    fn cancel_order(&mut self, request: CancelOrderRequest) -> Result<(), AppError> {
+        let mut tapi = self.tapi.as_ref().unwrap().lock().unwrap();
+        let _ = tapi.req_order_action(request, 0);
+        Ok(())
+    }
+
+    fn cancel_orders(&mut self, _symbol: &str) -> Result<(), AppError> {
+        Ok(())
+    }
+
+    fn get_positions(&self, symbol: &str) -> Vec<Self::Position> {
+        let positions = self.positions.as_ref().read().unwrap();
+        let mut ret = vec![];
+        for p in positions.iter() {
+            if p.symbol == symbol {
+                ret.push(p.clone());
             }
         }
-
-        unsafe {
-            let tdapi = TDAPI.as_ref().unwrap().clone();
-            let _ = tdapi.lock().unwrap().req_order_insert(order, unit_id, request_id);
-        }
-    }
-    
-    fn cancel_order(&mut self, action: &OrderAction, request_id : i32) {
-        unsafe {
-            let tdapi = TDAPI.as_ref().unwrap().clone();
-            let _ = tdapi.lock().unwrap().req_order_action(action, request_id);
-        }
+        ret
     }
 
-    fn get_positions(&self, unit_id: &str, symbol: &str) -> Vec<Position> {
-        unsafe {
-            let tdapi = TDAPI.as_ref().unwrap().clone();
-            let tdapi_instance = tdapi.lock().unwrap();
-            let v = tdapi_instance.positions.as_ref().unwrap();
-
-            let mut ret = vec![];
-            for p in v.iter() {
-                if p.invest_unit_id == unit_id && p.symbol == symbol {
-                    ret.push(p.clone());
-                }
-            }
-            ret
-        }
+    fn get_account(&self, _account_id: &str) -> Option<Self::Account> {
+        let account = self.account.as_ref().read().unwrap();
+        Some(account.clone())
     }
 
-    fn get_account(&self, _unit_id: &str) -> Account {
-        unsafe {
-            let tdapi = TDAPI.as_ref().unwrap().clone();
-            let account = tdapi.lock().unwrap().account.as_ref().unwrap().clone();
-            account
-        }
+    fn init_symbol(&self, _symbol: &str, _config: Self::SymbolConfig)-> Result<Self::SymbolInfo, AppError> {
+        Ok(())
     }
 
-    fn session(&self) -> Option<TradeSession> {
-        unsafe {
-            let tdapi = TDAPI.as_ref().unwrap().clone();
-            let session = tdapi.lock().unwrap().session.clone();
-            session
-        }
+    fn close(&self) {
+        self.start_ticket.fetch_add(1, Ordering::SeqCst);
     }
 }

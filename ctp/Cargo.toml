@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
 libctp-sys = "0.1.4"
+log = { path = "../log" }
 common = { path = "../common" }
 trade = { path = "../trade" }
 market = { path = "../market" }

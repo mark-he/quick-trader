@@ -4,7 +4,7 @@ use std::os::raw::*;
 use std::ffi::CString;
 use std::str::FromStr;
 use std::thread;
-use binance::model::{Asset, Config, Position};
+use binance::model::{Asset, CancelOrderRequest, Config, Position};
 use binance::bn_market_server::BnMarketServer;
 use binance::bn_trade_server::{AccountEvent, BnTradeServer, SymbolConfig, SymbolInfo};
 use binance_future_connector::trade::new_order::NewOrderRequest;
@@ -205,7 +205,7 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let ret = gateway.cancel_order(&symbol_rust, &order_id_rust);
+    let ret = gateway.cancel_order(CancelOrderRequest{symbol: symbol_rust, order_id: order_id_rust});
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());

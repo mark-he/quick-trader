@@ -1,8 +1,37 @@
+use common::msmc::EventTrait;
+use serde::{Deserialize, Serialize};
+use trade::trade_server::SymbolRoute;
+use crate::ctp_trade_server::Resume;
+
+impl EventTrait for TradeData {}
+
+impl SymbolRoute for TradeData {
+    fn get_symbol(&self) -> String {
+        match self {
+            TradeData::OnOrder(event) => {
+                event.symbol.to_string()
+            },
+            TradeData::OnTrade(event) => {
+                event.symbol.to_string()
+            },
+            _ => {
+                "".to_string()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CancelOrderRequest {
+    pub symbol: String, 
+    pub exchange: String,
+    pub order_id: u32,
+}
 
 #[derive(Debug, Clone)]
 pub enum TradeData {
     Connected,
-    UserLogin(TradeSession),
+    UserLogin(),
     UserLogout,
     SettlementConfirmed,
     OnOrder(Order),
@@ -16,25 +45,26 @@ pub enum TradeData {
     Error(i32, String),
 }
 
-#[derive(Debug, Clone)]
-pub struct TradeSession {
-    pub trading_day: String,
-    pub login_time: String,
-    pub session_id: i32,
-}
 
-#[derive(Debug, Clone, Default)]
-pub struct TradeConfig {
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Config {
+    pub flow_path: String,
     pub front_addr: String,
-    pub broker_id: String,
+    pub nm_addr: String,
+    pub user_info: String,
+    pub product_info: String,
     pub auth_code: String,
     pub app_id: String,
+    pub public_resume: Resume,
+    pub private_resume: Resume, 
+    pub broker_id: String,
     pub user_id: String,
     pub password: String,
 }
 
+
 #[derive(Debug, Clone)]
-pub struct OrderInsert {
+pub struct NewOrderRequest {
     pub symbol: String,
     pub order_ref: String,
     pub offset: String,

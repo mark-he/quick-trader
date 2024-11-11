@@ -71,12 +71,12 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.init_symbol(symbol, config)
     }
 
-    pub fn new_order(&mut self, order : S::OrderRequest) -> Result<(), AppError> {
-        self.server.new_order(order)
+    pub fn new_order(&mut self, request : S::OrderRequest) -> Result<(), AppError> {
+        self.server.new_order(request)
     }
 
-    pub fn cancel_order(&mut self, symbol: &str, order_id: &str) -> Result<(), AppError> {
-        self.server.cancel_order(symbol, order_id)
+    pub fn cancel_order(&mut self, request: S::CancelOrderRequest) -> Result<(), AppError> {
+        self.server.cancel_order(request)
     }
 
     pub fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
