@@ -6,27 +6,27 @@ use libctp_sys::*;
 use std::collections::HashMap;
 use std::os::raw::*;
 use common::{c::*, msmc::Subscription};
-use crate::model::{Account, Order, Position, Trade, TradeData};
+use crate::model::{Account, Order, Position, Trade, TradeEvent};
 
 use super::ctp_code::*;
 
 pub struct Spi {
-    pub subscription: Subscription<TradeData>,
+    pub subscription: Subscription<TradeEvent>,
     pub order_queue : HashMap<i32, Vec<Order>>,
     pub position_queue : HashMap<i32, Vec<Position>>,
 }
 
 impl Spi {
     pub fn new() -> Self {
-        Spi { subscription: Subscription::<TradeData>::top(), order_queue: HashMap::new(), position_queue: HashMap::new() }
+        Spi { subscription: Subscription::<TradeEvent>::top(), order_queue: HashMap::new(), position_queue: HashMap::new() }
     }
 
-    fn handle_result<F>(subscription: &Subscription<TradeData>, request_id: i32, pRspInfo: *mut CThostFtdcRspInfoField, f: &mut F)
+    fn handle_result<F>(subscription: &Subscription<TradeEvent>, request_id: i32, pRspInfo: *mut CThostFtdcRspInfoField, f: &mut F)
         where F: FnMut() {      
         if !pRspInfo.is_null() {
             let pRspInfo = unsafe { &mut *pRspInfo };
             if pRspInfo.ErrorID != 0 as c_int {
-                subscription.send(&Some(TradeData::Error(request_id,  c_char_to_gbk_string(pRspInfo.ErrorMsg.as_ptr()))));
+                subscription.send(&Some(TradeEvent::Error(request_id,  c_char_to_gbk_string(pRspInfo.ErrorMsg.as_ptr()))));
                 return
             }
         }
@@ -145,23 +145,23 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         });
     }
     fn on_front_connected(&mut self) {
-        self.subscription.send(&Some(TradeData::Connected));
+        self.subscription.send(&Some(TradeEvent::Connected));
     }
     fn on_front_disconnected(&mut self, nReason: ::std::os::raw::c_int) {
-        self.subscription.send(&Some(TradeData::Disconnected(nReason))); 
+        self.subscription.send(&Some(TradeEvent::Disconnected(nReason))); 
     }
     fn on_heart_beat_warning(&mut self, nTimeLapse: ::std::os::raw::c_int) {
-        self.subscription.send(&Some(TradeData::HeartBeatWarning(nTimeLapse))); 
+        self.subscription.send(&Some(TradeEvent::HeartBeatWarning(nTimeLapse))); 
      }
     fn on_rsp_user_login(&mut self, _pRspUserLogin: *mut CThostFtdcRspUserLoginField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         //let pRspUserLogin = unsafe { &mut *pRspUserLogin };
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&Some(TradeData::UserLogin()));
+            self.subscription.send(&Some(TradeEvent::UserLogin()));
         });
     }
     fn on_rsp_user_logout(&mut self, _pUserLogout: *mut CThostFtdcUserLogoutField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&Some(TradeData::UserLogout));
+            self.subscription.send(&Some(TradeEvent::UserLogout));
         });
     }
     fn on_rsp_order_insert(&mut self, _pInputOrder: *mut CThostFtdcInputOrderField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
@@ -174,20 +174,20 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
     }
     fn on_rsp_settlement_info_confirm(&mut self, _pSettlementInfoConfirm: *mut CThostFtdcSettlementInfoConfirmField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&Some(TradeData::SettlementConfirmed));
+            self.subscription.send(&Some(TradeEvent::SettlementConfirmed));
         });
     }
     fn on_rtn_order(&mut self, pOrder: *mut CThostFtdcOrderField) { 
         // let temp = unsafe { &mut *pOrder };
         let ret = Self::convert_order(pOrder);
-        let _ = self.subscription.send(&Some(TradeData::OnOrder(ret)));
+        let _ = self.subscription.send(&Some(TradeEvent::OnOrder(ret)));
     }
     fn on_rtn_trade(&mut self, pTrade: *mut CThostFtdcTradeField) { 
         // let temp = unsafe { &mut *pTrade };
         // let user_id = c_char_to_string(temp.UserID.as_ptr());
         // let request_id = user_id.parse::<i32>().unwrap();
         let ret = Self::convert_trade(pTrade);
-        let _ = self.subscription.send(&Some(TradeData::OnTrade(ret)));
+        let _ = self.subscription.send(&Some(TradeEvent::OnTrade(ret)));
     }
     fn on_rsp_qry_order(&mut self, pOrder: *mut CThostFtdcOrderField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, bIsLast: bool) { 
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
@@ -197,7 +197,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
             if bIsLast {
                 let mut ret = self.order_queue.remove(&request_id);
                 if let Some(order_vec) = ret.take() {
-                    let _ = self.subscription.send(&Some(TradeData::OrderQuery(order_vec)));
+                    let _ = self.subscription.send(&Some(TradeEvent::OrderQuery(order_vec)));
                 }
             }
         });
@@ -209,7 +209,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
             if bIsLast {
                 let mut ret = self.position_queue.remove(&nRequestID);
                 if let Some(position_vec) = ret.take() {
-                    self.subscription.send(&Some(TradeData::PositionQuery(position_vec)));
+                    self.subscription.send(&Some(TradeEvent::PositionQuery(position_vec)));
                 }
             }
         });
@@ -217,7 +217,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
     fn on_rsp_qry_trading_account(&mut self, pTradingAccount: *mut CThostFtdcTradingAccountField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
             let account = Self::convert_account(pTradingAccount);
-            self.subscription.send(&Some(TradeData::AccountQuery(account)));
+            self.subscription.send(&Some(TradeEvent::AccountQuery(account)));
         });
     }
 }

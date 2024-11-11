@@ -389,5 +389,4 @@ impl MarketServer for CtpMarketServer {
             self.topics.push(topic);
         }
     }
-
 }

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, RwLock};
 use trade::trade_server::*;
 use common::{c::*, msmc::Subscription, error::AppError};
-use crate::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, TradeData};
+use crate::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, TradeEvent};
 
 use super::ctp_code::*;
 use super::ctp_trade_cpi::Spi;
@@ -36,7 +36,7 @@ pub struct TDApi {
     api: Rust_CThostFtdcTraderApi,
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
     pub config: Config,
-    pub subscription: Subscription<TradeData>,
+    pub subscription: Subscription<TradeEvent>,
 }
 impl TDApi {
     fn send_request<F>(f: &mut F) -> Result<(), String> 
@@ -280,11 +280,11 @@ impl TDApi {
         self.spi = Some(SafePointer(spi));
     }
 
-    pub fn req_init(&mut self) -> Result<Subscription<TradeData>, String> {
+    pub fn req_init(&mut self) -> Result<Subscription<TradeEvent>, String> {
         let mut spi = Spi::new();
         let subscription = spi.subscription.subscribe_with_filter(|event|{
             match event {
-                TradeData::OnOrder(_) | TradeData::OnTrade(_) => {
+                TradeEvent::OnOrder(_) | TradeEvent::OnTrade(_) => {
                     true
                 },
                 _ => false
@@ -299,9 +299,9 @@ impl TDApi {
 
         unsafe {
             self.api
-                .SubscribePrivateTopic(self.config.private_resume as _);
+                .SubscribePrivateTopic(Resume::Quick as _);
             self.api
-                .SubscribePublicTopic(self.config.public_resume as _);
+                .SubscribePublicTopic(Resume::Quick as _);
         }
 
         unsafe {
@@ -310,14 +310,14 @@ impl TDApi {
         Ok(subscription)
     }
     
-    fn check_connected(&mut self, subscription: &Subscription<TradeData>) -> Result<(), String> {
+    fn check_connected(&mut self, subscription: &Subscription<TradeEvent>) -> Result<(), String> {
         let mut should_break = false;
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
                     Some(data) => {
                         match data {
-                            TradeData::Connected => {
+                            TradeEvent::Connected => {
                                 should_break = true;
                             },
                             _ => {},
@@ -342,14 +342,14 @@ impl TDApi {
         Ok(())
     }
 
-    fn check_logined(&mut self, subscription: &Subscription<TradeData>) -> Result<(), String> {
+    fn check_logined(&mut self, subscription: &Subscription<TradeEvent>) -> Result<(), String> {
         let mut should_break = false;
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
                     Some(data) => {
                         match data {
-                            TradeData::UserLogin() => {
+                            TradeEvent::UserLogin() => {
                                 should_break = true;
                             },
                             _ => {},
@@ -374,7 +374,7 @@ impl TDApi {
         Ok(())
     }
 
-    pub fn start(&mut self) -> Result<Subscription<TradeData>, String> {
+    pub fn start(&mut self) -> Result<Subscription<TradeEvent>, String> {
         let subscription = self.req_init()?;
         let ret = self.check_connected(&subscription);
         if ret.is_err() {
@@ -433,7 +433,7 @@ impl CtpTradeServer {
 }
 
 impl TradeServer for CtpTradeServer {
-    type Event = TradeData;
+    type Event = TradeEvent;
     type OrderRequest = NewOrderRequest;
     type CancelOrderRequest = CancelOrderRequest;
     type Position = Position;
@@ -453,9 +453,6 @@ impl TradeServer for CtpTradeServer {
             nm_addr: "".into(),
             user_info: "".into(),
             product_info: "".into(),
-            public_resume: Resume::Quick,
-            private_resume: Resume::Quick,
-            
             front_addr: self.config.front_addr.clone(),
             broker_id: self.config.broker_id.clone(),
             auth_code: self.config.auth_code.clone(),
@@ -489,10 +486,10 @@ impl TradeServer for CtpTradeServer {
                     return Ok(true);
                 }
                 match event {
-                    Some(TradeData::PositionQuery(v)) => {
+                    Some(TradeEvent::PositionQuery(v)) => {
                         *positions_ref.write().unwrap() = v.clone();
                     },
-                    Some(TradeData::AccountQuery(v)) => {
+                    Some(TradeEvent::AccountQuery(v)) => {
                         *account_ref.write().unwrap() = v.clone();
                     },
                     Some(_) => {},

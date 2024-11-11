@@ -3,15 +3,15 @@ use serde::{Deserialize, Serialize};
 use trade::trade_server::SymbolRoute;
 use crate::ctp_trade_server::Resume;
 
-impl EventTrait for TradeData {}
+impl EventTrait for TradeEvent {}
 
-impl SymbolRoute for TradeData {
+impl SymbolRoute for TradeEvent {
     fn get_symbol(&self) -> String {
         match self {
-            TradeData::OnOrder(event) => {
+            TradeEvent::OnOrder(event) => {
                 event.symbol.to_string()
             },
-            TradeData::OnTrade(event) => {
+            TradeEvent::OnTrade(event) => {
                 event.symbol.to_string()
             },
             _ => {
@@ -21,15 +21,15 @@ impl SymbolRoute for TradeData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CancelOrderRequest {
     pub symbol: String, 
     pub exchange: String,
-    pub order_id: u32,
+    pub order_id: String,
 }
 
 #[derive(Debug, Clone)]
-pub enum TradeData {
+pub enum TradeEvent {
     Connected,
     UserLogin(),
     UserLogout,
@@ -48,6 +48,7 @@ pub enum TradeData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
+    pub log_level: String,
     pub flow_path: String,
     pub front_addr: String,
     pub nm_addr: String,
@@ -55,15 +56,13 @@ pub struct Config {
     pub product_info: String,
     pub auth_code: String,
     pub app_id: String,
-    pub public_resume: Resume,
-    pub private_resume: Resume, 
     pub broker_id: String,
     pub user_id: String,
     pub password: String,
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NewOrderRequest {
     pub symbol: String,
     pub order_ref: String,
@@ -84,7 +83,7 @@ pub struct OrderAction {
     pub sys_id: String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Order {
     pub order_ref: String,
     pub direction: String,
@@ -116,7 +115,7 @@ pub struct Trade {
     pub symbol: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Position {
     pub symbol : String,
     pub position: u32,
@@ -128,7 +127,7 @@ pub struct Position {
     pub invest_unit_id : String,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Account {
     pub account_id : String,
     pub interest: f64,
