@@ -1,7 +1,6 @@
 use common::msmc::EventTrait;
 use serde::{Deserialize, Serialize};
 use trade::trade_server::SymbolRoute;
-use crate::ctp_trade_server::Resume;
 
 impl EventTrait for TradeEvent {}
 

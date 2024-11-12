@@ -64,7 +64,8 @@ impl TDApi {
         cs.to_string_lossy().into()
     }
 
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: Config) -> Self {
+        debug!("Ctp Trade Server config: {:?}", config);
         let cs = std::ffi::CString::new(config.flow_path.as_bytes()).unwrap();
         let api = unsafe {
             Rust_CThostFtdcTraderApi::new(CThostFtdcTraderApi_CreateFtdcTraderApi(cs.as_ptr()))
@@ -442,13 +443,16 @@ impl TradeServer for CtpTradeServer {
     type SymbolInfo = ();
     
     fn init(&mut self) -> Result<(), AppError> {
+        debug!("CTP Trade Server init 00");
         Ok(())
     }
 
     fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
+        debug!("CTP Trade Server start 00");
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
-        let mut tdapi = TDApi::new(&Config {
+        debug!("CTP Trade Server start 11");
+        let mut tdapi = TDApi::new(Config {
             flow_path: "".into(),
             nm_addr: "".into(),
             user_info: "".into(),
@@ -461,6 +465,7 @@ impl TradeServer for CtpTradeServer {
             password: self.config.password.clone(),
             ..Default::default()
         });
+        debug!("CTP Trade Server start 2");
         let mut subscription = tdapi.start().map_err(|e| AppError::new(-200, &e))?;
         self.tapi = Some(Arc::new(Mutex::new(tdapi)));
 

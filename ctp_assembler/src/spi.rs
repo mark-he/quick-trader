@@ -41,24 +41,32 @@ pub extern "C" fn get_server_ping() -> Box<CString> {
 
 #[no_mangle]
 pub extern "C" fn start() -> Box<CString> {
+    debug!("RUST ===RRR= START 0 ");
     let mut result = ServiceResult::<String>::new(0, "", None);
-
+    debug!("RUST ===RRR= START 0.1 ");
     let market_gateway_ref = context::get_market_gateway();
+    debug!("RUST ===RRR= START 0.2 ");
     let mut market_gateway = market_gateway_ref.lock().unwrap();
+    debug!("RUST ===RRR= START 0.3 ");
     let ret = market_gateway.start();
+    debug!("RUST ==== START 1 ");
     if ret.is_err() {
+        debug!("RUST ==== START 2 ");
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
     } 
     if result.error_code == 0 {
+        debug!("RUST ==== START 3 ");
         let trade_gateway_ref = context::get_trade_gateway();
         let mut trade_gateway = trade_gateway_ref.lock().unwrap();
         let ret = trade_gateway.start();
         if ret.is_err() {
+            debug!("RUST ==== START 4 ");
             result.error_code = -1;
             result.message = format!("{:?}", ret.unwrap_err());
         }
     }
+    debug!("RUST ==== START 9 ");
     result.to_c_json()
 }
 
@@ -245,7 +253,7 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
 }
 
 #[no_mangle]
-pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
+pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, _config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
     let mut result = ServiceResult::<()>::new(0, "", None);
 
     let gateway_ref = context::get_trade_gateway();
