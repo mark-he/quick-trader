@@ -116,7 +116,7 @@ impl Logger {
         } else {
             time_str = Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
         }
-        format!("{} {}: {}", level, time_str, message)
+        format!("{} {}: {}", time_str, level, message)
     }
 
     pub fn print(&self, message: &str, level: Level) {

@@ -20,6 +20,7 @@ ENV GIT_PATH /usr/bin/git
 
 CMD ["sh", "-c", "if [ -d /root/binance/quick-trader/.git ]; then cd /root/binance/quick-trader && git pull && cargo build; else git clone git@github.com:mark-he/quick-trader.git /root/binance/quick-trader; fi && if [ -d /root/binance/rust-conn/.git ]; then cd /root/binance/rust-conn && git pull; else git clone git@github.com:mark-he/rust-conn.git /root/binance/rust-conn; fi && /bin/bash"]
 
+python bn_run.py > run.log 2>&1 &
 
 docker build -f rust.dockerfile -t rust .
 docker run --name rust -it -v /root/.ssh/id_rsa:/root/.ssh/id_rsa rust
