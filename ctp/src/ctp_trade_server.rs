@@ -65,7 +65,6 @@ impl TDApi {
     }
 
     pub fn new(config: Config) -> Self {
-        debug!("Ctp Trade Server config: {:?}", config);
         let cs = std::ffi::CString::new(config.flow_path.as_bytes()).unwrap();
         let api = unsafe {
             Rust_CThostFtdcTraderApi::new(CThostFtdcTraderApi_CreateFtdcTraderApi(cs.as_ptr()))
@@ -317,6 +316,7 @@ impl TDApi {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
                     Some(data) => {
+                        info!("Received from trade server {:?}", data);
                         match data {
                             TradeEvent::Connected => {
                                 should_break = true;
@@ -330,7 +330,7 @@ impl TDApi {
                 }
             });
             if ret.is_err() {
-                return Err("Error happened when connecting to trade server".to_string());
+                return Err(format!("Error happened when connecting to trade server: {:?}", ret.unwrap_err()));
             } else {
                 if ret.unwrap().is_none() {
                     return Err("Closed connection of trade server".to_string());
@@ -443,21 +443,18 @@ impl TradeServer for CtpTradeServer {
     type SymbolInfo = ();
     
     fn init(&mut self) -> Result<(), AppError> {
-        debug!("CTP Trade Server init 00");
         Ok(())
     }
 
     fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
-        debug!("CTP Trade Server start 00");
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
-        debug!("CTP Trade Server start 11");
         let mut tdapi = TDApi::new(Config {
             flow_path: "".into(),
             nm_addr: "".into(),
             user_info: "".into(),
             product_info: "".into(),
-            front_addr: self.config.front_addr.clone(),
+            front_addr: format!("tcp://{}", self.config.front_addr.clone()),
             broker_id: self.config.broker_id.clone(),
             auth_code: self.config.auth_code.clone(),
             app_id: self.config.app_id.clone(),

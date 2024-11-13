@@ -272,12 +272,11 @@ impl MarketServer for CtpMarketServer {
     }
 
     fn start(&mut self) -> Result<Subscription<MarketData>, AppError> {
-        debug!("CTP Market Server start 00");
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
         let mut mapi = MDApi::new(ApiConfig {
             flow_path: "".into(),
-            front_addr: vec![self.config.nm_addr.clone()],
+            front_addr: vec![format!("tcp://{}", self.config.nm_addr.clone())],
             ..Default::default()
         });
         let mut subscription = mapi.start().unwrap();

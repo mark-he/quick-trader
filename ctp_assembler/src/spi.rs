@@ -39,34 +39,67 @@ pub extern "C" fn get_server_ping() -> Box<CString> {
     result.to_c_json()
 }
 
+
 #[no_mangle]
-pub extern "C" fn start() -> Box<CString> {
-    debug!("RUST ===RRR= START 0 ");
+pub extern "C" fn init(_env: *const c_char, config: *const c_char) -> Box<CString> {
     let mut result = ServiceResult::<String>::new(0, "", None);
-    debug!("RUST ===RRR= START 0.1 ");
-    let market_gateway_ref = context::get_market_gateway();
-    debug!("RUST ===RRR= START 0.2 ");
-    let mut market_gateway = market_gateway_ref.lock().unwrap();
-    debug!("RUST ===RRR= START 0.3 ");
-    let ret = market_gateway.start();
-    debug!("RUST ==== START 1 ");
-    if ret.is_err() {
-        debug!("RUST ==== START 2 ");
-        result.error_code = -1;
-        result.message = format!("{:?}", ret.unwrap_err());
-    } 
+    //let env_rust = c_char_to_string(env);
+    let config_rust = c_char_to_string(config);
+    let ret = serde_json::from_str::<Config>(&config_rust);
+    match ret {
+        Ok(config) => {
+            info!("RUST ------{:?}", config);
+            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
+            let market_server = CtpMarketServer::new(config.clone());
+            let trade_server = CtpTradeServer::new(config.clone());
+            context::init(market_server, trade_server);
+        },
+        Err(e) => {
+            result.error_code = -1;
+            result.message = format!("{:?}", e);
+        },
+    }
     if result.error_code == 0 {
-        debug!("RUST ==== START 3 ");
+        let market_gateway_ref = context::get_market_gateway();
+        let mut market_gateway = market_gateway_ref.lock().unwrap();
+        let ret = market_gateway.init();
+        if ret.is_err() {
+            result.error_code = -1;
+            result.message = format!("{:?}", &ret.unwrap_err());
+        }
+    }
+    if result.error_code == 0 {
         let trade_gateway_ref = context::get_trade_gateway();
         let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-        let ret = trade_gateway.start();
+        let ret = trade_gateway.init();
+
         if ret.is_err() {
-            debug!("RUST ==== START 4 ");
             result.error_code = -1;
             result.message = format!("{:?}", ret.unwrap_err());
         }
     }
-    debug!("RUST ==== START 9 ");
+    result.to_c_json()
+}
+
+#[no_mangle]
+pub extern "C" fn start() -> Box<CString> {
+    let mut result = ServiceResult::<String>::new(0, "", None);
+    let market_gateway_ref = context::get_market_gateway();
+    let mut market_gateway = market_gateway_ref.lock().unwrap();
+    let ret = market_gateway.start();
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    } 
+    if result.error_code == 0 {
+        let trade_gateway_ref = context::get_trade_gateway();
+        let mut trade_gateway = trade_gateway_ref.lock().unwrap();
+        let ret = trade_gateway.start();
+        if ret.is_err() {
+            result.error_code = -1;
+            result.message = format!("{:?}", ret.unwrap_err());
+        }
+    }
     result.to_c_json()
 }
 
@@ -132,46 +165,6 @@ pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char,
             }
         }
     });
-    result.to_c_json()
-}
-
-#[no_mangle]
-pub extern "C" fn init(_env: *const c_char, config: *const c_char) -> Box<CString> {
-    let mut result = ServiceResult::<String>::new(0, "", None);
-    //let env_rust = c_char_to_string(env);
-    let config_rust = c_char_to_string(config);
-    let ret = serde_json::from_str::<Config>(&config_rust);
-    match ret {
-        Ok(config) => {
-            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
-            let market_server = CtpMarketServer::new(config.clone());
-            let trade_server = CtpTradeServer::new(config.clone());
-            context::init(market_server, trade_server);
-        },
-        Err(e) => {
-            result.error_code = -1;
-            result.message = format!("{:?}", e);
-        },
-    }
-    if result.error_code == 0 {
-        let market_gateway_ref = context::get_market_gateway();
-        let mut market_gateway = market_gateway_ref.lock().unwrap();
-        let ret = market_gateway.init();
-        if ret.is_err() {
-            result.error_code = -1;
-            result.message = format!("{:?}", &ret.unwrap_err());
-        }
-    }
-    if result.error_code == 0 {
-        let trade_gateway_ref = context::get_trade_gateway();
-        let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-        let ret = trade_gateway.init();
-
-        if ret.is_err() {
-            result.error_code = -1;
-            result.message = format!("{:?}", ret.unwrap_err());
-        }
-    }
     result.to_c_json()
 }
 
