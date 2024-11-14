@@ -303,6 +303,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                 last_filled_price: order.last_filled_price,
                                 order_trade_time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
                                 trade_id: order.trade_id,
+                                is_reduce_only: order.is_reduce_only,
                             };
     
                             let json = serde_json::to_string(&order_event).unwrap();

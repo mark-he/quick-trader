@@ -20,6 +20,7 @@ pub struct OrderEvent {
     pub order_trade_time: String,
     pub execution_type: String,
     pub trade_id: u64,
+    pub is_reduce_only: bool,
 }
 
 
