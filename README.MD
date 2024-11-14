@@ -39,3 +39,9 @@ docker cp rust:/root/binance/rust-conn/application.log .
 sftp -i C:\Users\mingh\.ssh\PC01.pem root@43.156.20.92
 get application.log .
 
+http://43.156.20.92:5000/mx/trade/status
+http://43.156.20.92:5000/mx/trade/stop
+http://43.156.20.92:5000/mx/trade/start
+http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/open/BUY
+http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/open/SELL
+http://43.156.20.92:5000/mx/shutdown

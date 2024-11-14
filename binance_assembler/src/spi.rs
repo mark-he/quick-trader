@@ -284,6 +284,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
         thread::spawn(move || {
             loop {
                 if let Ok(data) = rx.recv() {
+                    info!("ASSEMBLER ACCOUNT UPDATE: {:?}", data);
                     match data {
                         AccountEvent::OrderTradeUpdate(order) => {
                             if symbol_rust == order.symbol {
