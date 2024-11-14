@@ -286,30 +286,32 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                 if let Ok(data) = rx.recv() {
                     match data {
                         AccountEvent::OrderTradeUpdate(order) => {
-                            let datetime = DateTime::from_timestamp((order.order_trade_time/1000) as i64, 0).unwrap();
-                            let order_event = OrderEvent {
-                                symbol: order.symbol.clone(),
-                                client_order_id: order.client_order_id.clone(),
-                                side: order.side.clone(),
-                                order_type: order.order_type.clone(),
-                                original_quantity: order.original_quantity,
-                                original_price: order.original_price,
-                                average_price: order.average_price,
-                                stop_price: order.stop_price,
-                                execution_type: order.execution_type.clone(),
-                                order_status: order.order_status.clone(),
-                                order_last_filled_quantity: order.order_last_filled_quantity,
-                                order_filled_accumulated_quantity: order.order_filled_accumulated_quantity,
-                                last_filled_price: order.last_filled_price,
-                                order_trade_time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                trade_id: order.trade_id,
-                                is_reduce_only: order.is_reduce_only,
-                            };
-    
-                            let json = serde_json::to_string(&order_event).unwrap();
-                            let json_rust = CString::new(json).expect("CString failed");
-                            let _type = CString::new("ORDER".to_string()).expect("CString failed");
-                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            if symbol_rust == order.symbol {
+                                let datetime = DateTime::from_timestamp((order.order_trade_time/1000) as i64, 0).unwrap();
+                                let order_event = OrderEvent {
+                                    symbol: order.symbol.clone(),
+                                    client_order_id: order.client_order_id.clone(),
+                                    side: order.side.clone(),
+                                    order_type: order.order_type.clone(),
+                                    original_quantity: order.original_quantity,
+                                    original_price: order.original_price,
+                                    average_price: order.average_price,
+                                    stop_price: order.stop_price,
+                                    execution_type: order.execution_type.clone(),
+                                    order_status: order.order_status.clone(),
+                                    order_last_filled_quantity: order.order_last_filled_quantity,
+                                    order_filled_accumulated_quantity: order.order_filled_accumulated_quantity,
+                                    last_filled_price: order.last_filled_price,
+                                    order_trade_time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                    trade_id: order.trade_id,
+                                    is_reduce_only: order.is_reduce_only,
+                                };
+        
+                                let json = serde_json::to_string(&order_event).unwrap();
+                                let json_rust = CString::new(json).expect("CString failed");
+                                let _type = CString::new("ORDER".to_string()).expect("CString failed");
+                                callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            }
                         },
                         AccountEvent::AccountUpdate(ad) => {
                             for p in ad.positions.iter() {

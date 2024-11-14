@@ -25,7 +25,7 @@ curl http://127.0.0.1:5000/mx/SNAKE_DOGEUSDT/open/BUY
 curl http://127.0.0.1:5000/mx/SNAKE_DOGEUSDT/CLOSE
 
 docker build -f rust.dockerfile -t rust .
-docker run --name rust -it -v /root/.ssh/id_rsa:/root/.ssh/id_rsa rust
+docker run --name rust -it -v /root/.ssh/id_rsa:/root/.ssh/id_rsa -p 80:5000 rust
 
 # Connect
 docker start python
@@ -33,3 +33,9 @@ docker exec -it python bash
 # Clean
 docker rm $(docker ps -aq)
 docker rmi $(docker images -q)
+
+
+sftp -i C:\Users\mingh\.ssh\PC01.pem root@43.156.20.92
+
+docker cp rust:/root/binance/rust-conn/application.log .
+
