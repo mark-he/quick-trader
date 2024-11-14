@@ -141,7 +141,6 @@ impl WssStream {
                                         match serde_json::from_str::<model::BinanceKline>(&string_data) {
                                             Ok(kline) => {
                                                 if kline.kline_data.is_closed {
-                                                    info!("KLINE {}", string_data);
                                                     let k = Self::convert_bn_kline(kline);
                                                     subscription.send(&Some(MarketData::Kline(k)));
                                                 }
