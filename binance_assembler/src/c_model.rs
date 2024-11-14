@@ -23,6 +23,19 @@ pub struct OrderEvent {
     pub is_reduce_only: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PositionEvent {
+    pub symbol: String,
+    pub position_amount: f64,
+    pub entry_price: f64,
+    pub breakeven_price: f64,
+    pub accumulated_realized: f64,
+    pub unrealized_pnl: f64,
+    pub margin_type: String,
+    pub isolated_wallet: f64,
+    pub position_side: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]

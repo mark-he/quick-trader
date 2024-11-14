@@ -72,7 +72,7 @@ impl TDApi {
         Self {
             api,
             spi: None,
-            config: config.clone(),
+            config,
             subscription: Subscription::top(),
         }
     }
@@ -282,14 +282,7 @@ impl TDApi {
 
     pub fn req_init(&mut self) -> Result<Subscription<TradeEvent>, String> {
         let mut spi = Spi::new();
-        let subscription = spi.subscription.subscribe_with_filter(|event|{
-            match event {
-                TradeEvent::OnOrder(_) | TradeEvent::OnTrade(_) => {
-                    true
-                },
-                _ => false
-            }
-        });
+        let subscription = spi.subscription.subscribe();
         self.register(spi);
 
         let cs = CString::new(self.config.front_addr.as_bytes()).unwrap();
@@ -462,7 +455,6 @@ impl TradeServer for CtpTradeServer {
             password: self.config.password.clone(),
             ..Default::default()
         });
-        debug!("CTP Trade Server start 2");
         let mut subscription = tdapi.start().map_err(|e| AppError::new(-200, &e))?;
         self.tapi = Some(Arc::new(Mutex::new(tdapi)));
 

@@ -13,6 +13,10 @@ pub const ORDER_STATUS_UNKNOWN : CtpCode = CtpCode {code: "UNKNOWN", ctp_code : 
 pub const DIRECTION_LONG : CtpCode = CtpCode {code : "LONG", ctp_code : "0"}; //多
 pub const DIRECTION_SHORT : CtpCode = CtpCode {code : "SHORT", ctp_code : "1"}; //空
 
+pub const POSITION_DIRECTION_NET : CtpCode = CtpCode {code : "NET", ctp_code : "1"}; //净
+pub const POSITION_DIRECTION_LONG : CtpCode = CtpCode {code : "LONG", ctp_code : "2"}; //多
+pub const POSITION_DIRECTION_SHORT : CtpCode = CtpCode {code : "SHORT", ctp_code : "3"}; //空
+
 pub const ORDER_TYPE_LIMIT : CtpCode = CtpCode {code : "LIMIT", ctp_code : "2,3,1"}; //限价
 pub const ORDER_TYPE_MARKET : CtpCode = CtpCode {code : "MARKET", ctp_code : "1,3,1"}; //市价
 pub const ORDER_TYPE_FAK : CtpCode = CtpCode {code : "FAK", ctp_code : "2,1,1"}; //立即成交任意，然后撤销
@@ -63,6 +67,15 @@ pub static ORDER_STATUS: LazyLock<Arc<HashMap<String, String>>> = LazyLock::new(
     Arc::new(map)
 });
 
+pub static POSITION_DIRECTION: LazyLock<Arc<HashMap<String, String>>> = LazyLock::new(|| {
+    let map : HashMap<String, String> = ctp_code_array_to_hashmap(&[
+        &POSITION_DIRECTION_NET,
+        &POSITION_DIRECTION_LONG,
+        &POSITION_DIRECTION_SHORT,
+    ]);
+    Arc::new(map)
+});
+
 pub static DIRECTION: LazyLock<Arc<HashMap<String, String>>> = LazyLock::new(|| {
     let map : HashMap<String, String> = ctp_code_array_to_hashmap(&[
         &DIRECTION_LONG,
@@ -103,6 +116,11 @@ pub static ORDER_STATUS_REV:  LazyLock<Arc<HashMap<String, String>>> = LazyLock:
 
 pub static DIRECTION_REV: LazyLock<Arc<HashMap<String, String>>> = LazyLock::new(|| {
     let map : HashMap<String, String> = reverse_hashmap(&DIRECTION);
+    Arc::new(map)
+});
+
+pub static POSITION_DIRECTION_REV: LazyLock<Arc<HashMap<String, String>>> = LazyLock::new(|| {
+    let map : HashMap<String, String> = reverse_hashmap(&POSITION_DIRECTION);
     Arc::new(map)
 });
 

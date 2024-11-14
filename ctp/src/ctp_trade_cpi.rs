@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use libctp_sys::*;
+use log::info;
 
 use std::collections::HashMap;
 use std::os::raw::*;
@@ -96,7 +97,7 @@ impl Spi {
             symbol : c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
             position: pRspInfo.Position as u32,
             today_position: pRspInfo.TodayPosition as u32,
-            direction: DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
+            direction: POSITION_DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
             cost: pRspInfo.PositionCost,
             cost_offset: pRspInfo.PositionCostOffset,
             trading_day: c_char_to_string(pRspInfo.TradingDay.as_ptr()),

@@ -11,7 +11,7 @@ use binance_future_connector::trade::new_order::NewOrderRequest;
 use chrono::DateTime;
 use common::c::*;
 use market::market_server::{KLine, MarketData};
-use crate::c_model::{OrderEvent, ServiceResult};
+use crate::c_model::{OrderEvent, PositionEvent, ServiceResult};
 use crate::context;
 use log::*;
 
@@ -250,7 +250,7 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
 }
 
 #[no_mangle]
-pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
+pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char, *const c_char)) -> Box<CString> {
     let mut result = ServiceResult::<SymbolInfo>::new(0, "", None);
 
     let gateway_ref = context::get_trade_gateway();
@@ -308,8 +308,30 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
     
                             let json = serde_json::to_string(&order_event).unwrap();
                             let json_rust = CString::new(json).expect("CString failed");
-                            callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
+                            let _type = CString::new("ORDER".to_string()).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                         },
+                        AccountEvent::AccountUpdate(ad) => {
+                            for p in ad.positions.iter() {
+                                if p.symbol == symbol_rust {
+                                    let position_event = PositionEvent {
+                                        symbol: p.symbol.clone(),
+                                        position_amount: p.position_amount,
+                                        entry_price: p.entry_price,
+                                        breakeven_price: p.breakeven_price,
+                                        accumulated_realized: p.accumulated_realized,
+                                        unrealized_pnl: p.unrealized_pnl,
+                                        margin_type: p.margin_type.clone(),
+                                        isolated_wallet: p.isolated_wallet,
+                                        position_side: p.position_side.clone(),
+                                    };
+                                    let json = serde_json::to_string(&position_event).unwrap();
+                                    let json_rust = CString::new(json).expect("CString failed");
+                                    let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                                    callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                }
+                            }
+                        }
                         _ => {},
                     }
                 }
