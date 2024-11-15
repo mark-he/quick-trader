@@ -48,7 +48,6 @@ pub extern "C" fn init(_env: *const c_char, config: *const c_char) -> Box<CStrin
     let ret = serde_json::from_str::<Config>(&config_rust);
     match ret {
         Ok(config) => {
-            info!("RUST ------{:?}", config);
             log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
             let market_server = CtpMarketServer::new(config.clone());
             let trade_server = CtpTradeServer::new(config.clone());
