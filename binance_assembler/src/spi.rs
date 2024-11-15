@@ -331,10 +331,12 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                     positions.push(position_event);
                                 }
                             }
-                            let json = serde_json::to_string(&positions).unwrap();
-                            let json_rust = CString::new(json).expect("CString failed");
-                            let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            if positions.len() > 0 {
+                                let json = serde_json::to_string(&positions).unwrap();
+                                let json_rust = CString::new(json).expect("CString failed");
+                                let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                                callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            }
                         }
                         _ => {},
                     }
