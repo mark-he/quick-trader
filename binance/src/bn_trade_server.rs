@@ -130,7 +130,6 @@ impl WssStream {
 
                         match json_value.get("e") {
                             Some(event_type) => {
-                                debug!("Received account event: {}", string_data);
                                 let event = event_type.as_str().unwrap();
                                 match event {
                                     "ACCOUNT_UPDATE" => {
@@ -145,7 +144,9 @@ impl WssStream {
                                         let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
                                         subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
                                     },
-                                    _ => {},
+                                    _ => {
+                                        debug!("Received other event: {}", string_data);
+                                    },
                                 }
                             },
                             None => {
