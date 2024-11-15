@@ -132,7 +132,27 @@ impl WssListeneKeyKeepalive {
                         let ret = conn.as_mut().read();
                         match ret {
                             Ok(message) => {
-                                let block_ret = block(message.clone());
+                                match &message {
+                                    Message::Ping(_) => {
+                                        if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
+                                            self.conn = None;
+                                            break;
+                                        }
+                                    },
+                                    Message::Text(string_data) => {
+                                        let json_value: Value = serde_json::from_str(string_data).unwrap();
+                                        let e =  json_value.get("e");
+                                        if let Some(v) = e {
+                                            if v.as_str().unwrap() == "listenKeyExpired" {
+                                                self.conn = None;
+                                                break;
+                                            }
+                                        }
+                                    },
+                                    _ => {}
+                                }
+
+                                let block_ret = block(message);
                                 match block_ret {
                                     Ok(continue_flag) => {
                                         if !continue_flag {
@@ -145,26 +165,6 @@ impl WssListeneKeyKeepalive {
                                             return Err(e);
                                         }
                                     },
-                                }
-
-                                match message {
-                                    Message::Ping(_) => {
-                                        if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
-                                            self.conn = None;
-                                            break;
-                                        }
-                                    },
-                                    Message::Text(string_data) => {
-                                        let json_value: Value = serde_json::from_str(&string_data).unwrap();
-                                        let e =  json_value.get("e");
-                                        if let Some(v) = e {
-                                            if v == "listenKeyExpired" {
-                                                self.conn = None;
-                                                break;
-                                            }
-                                        }
-                                    },
-                                    _ => {}
                                 }
                             },
                             Err(e) => {

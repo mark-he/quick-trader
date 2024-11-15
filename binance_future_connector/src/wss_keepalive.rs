@@ -1,4 +1,5 @@
 use std::{net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread, time::Duration};
+use serde_json::Value;
 use tungstenite::{stream::MaybeTlsStream, Message};
 use crate::tungstenite::{BinanceWebSocketClient, WebSocketState};
 use std::error::Error;
@@ -70,6 +71,20 @@ impl WssKeepalive {
                         let ret = conn.as_mut().read();
                         match ret {
                             Ok(message) => {
+                                match &message {
+                                    Message::Text(string_data) => {
+                                        let json_value: Value = serde_json::from_str(string_data).unwrap();
+                                        let e =  json_value.get("e");
+                                        if let Some(v) = e {
+                                            if v.as_str().unwrap() == "listenKeyExpired" {
+                                                self.conn = None;
+                                                break;
+                                            }
+                                        }
+                                    },
+                                    _ => {}
+                                }
+
                                 match message {
                                     _ => {
                                         let block_ret = block(message);
