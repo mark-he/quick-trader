@@ -86,6 +86,7 @@ impl WssListeneKeyKeepalive {
                         if now.elapsed() > Duration::from_secs(renew_interval as u64 * 0.9 as u64) {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
+                                println!("Renew >>>> {:?}", ret.unwrap());
                                 break;
                             } else {
                                 println!("Error >>>> {:?}", ret.unwrap_err());
@@ -114,6 +115,7 @@ impl WssListeneKeyKeepalive {
                             self.keepalive();
                             continue;
                         }
+                        println!("Renconnect >>>> {:?}", key);
                     } else {
                         println!("Error >>>> {:?}", ret.unwrap_err());
                     }
