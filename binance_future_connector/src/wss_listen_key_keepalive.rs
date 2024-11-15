@@ -76,13 +76,13 @@ impl WssListeneKeyKeepalive {
             let listen_key = self.listen_key.clone();
             thread::spawn(move || {
                 let block = renew_block_ref.lock().unwrap();
-                let mut exit_flag = true;
+                let mut loop_flag = true;
                 let mut renew = Instant::now();
-                while exit_flag {
+                while loop_flag {
                     loop {
                         if keepalive_ticket != keepalive_ticket_ref.load(Ordering::SeqCst) - 1{
                             println!("Ticket exit wss_listen_key_keepalive");
-                            exit_flag = true;
+                            loop_flag = false;
                             break;
                         }
                         sleep(Duration::from_secs(1));
@@ -155,7 +155,6 @@ impl WssListeneKeyKeepalive {
                                     }
                                 }
                             },
-                            
                             Err(e) => {
                                 println!("Error: {:?}", e);
                             }
