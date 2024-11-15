@@ -204,7 +204,6 @@ impl BnTradeServer {
         let closure = move |_: Rx<String>| {
             let _ = sub.stream(&mut |event| {
                 if let Some(e) = event {
-                    info!("TRADE SERVER ACCOUNT UPDATE: {:?}", e);
                     match e {
                         AccountEvent::AccountUpdate(a) => {
                             let mut positions = positions_ref.write().unwrap();
