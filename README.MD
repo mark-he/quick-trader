@@ -44,4 +44,7 @@ http://43.156.20.92:5000/mx/trade/stop
 http://43.156.20.92:5000/mx/trade/start
 http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/open/BUY
 http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/open/SELL
+http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/close
+http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/position
+http://43.156.20.92:5000/mx/SNAKE_DOGEUSDT/order
 http://43.156.20.92:5000/mx/shutdown

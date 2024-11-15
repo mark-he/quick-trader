@@ -110,7 +110,9 @@ impl WssStream {
                 }
             });
             
-            let mut last_tick = HashMap::<String, Tick>::new();
+            let mut last_ticks = HashMap::<String, Tick>::new();
+            let mut last_klines = HashMap::<String, KLine>::new();
+
             let _ = keepalive.stream(&mut move |message| {
                 if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
                     return Ok(true);
@@ -126,7 +128,7 @@ impl WssStream {
                                     "depthUpdate" => {
                                         match serde_json::from_str::<model::BinanceDepthUpdate>(&string_data) {
                                             Ok(depth) => {
-                                                let value = last_tick.get_mut(&depth.symbol);
+                                                let value = last_ticks.get_mut(&depth.symbol);
                                                 if let Some(tick) = value {
                                                     let mut t = tick.clone();
                                                     t.asks = depth.asks;
@@ -142,6 +144,16 @@ impl WssStream {
                                             Ok(kline) => {
                                                 if kline.kline_data.is_closed {
                                                     let k = Self::convert_bn_kline(kline);
+
+                                                    let key = format!("{}_{}", k.symbol, k.interval);
+                                                    let prev_kline = last_klines.get(&key);
+                                                    if let Some(prev) = prev_kline {
+                                                        if k.timestamp > prev.timestamp {
+                                                            last_klines.insert(key, k.clone());
+                                                        }
+                                                    } else {
+                                                        last_klines.insert(key, k.clone());
+                                                    }
                                                     subscription.send(&Some(MarketData::Kline(k)));
                                                 }
                                             },
@@ -162,9 +174,18 @@ impl WssStream {
                                                     close: tick.close_price,
                                                     volume: tick.total_traded_base_asset_volume,
                                                     turnover: tick.total_traded_quote_asset_volume,
+                                                    timestamp: tick.event_time,
                                                     ..Default::default()
                                                 };
-                                                last_tick.insert(t.symbol.to_string(), t);
+
+                                                let prev_tick = last_ticks.get(&t.symbol);
+                                                if let Some(prev) = prev_tick {
+                                                    if t.timestamp > prev.timestamp {
+                                                        last_ticks.insert(t.symbol.to_string(), t);
+                                                    }
+                                                } else {
+                                                    last_ticks.insert(t.symbol.to_string(), t);
+                                                }
                                             },
                                             Err(e) => {
                                                 error!("{:?}", e);
@@ -207,6 +228,7 @@ impl WssStream {
             close: kline.kline_data.close_price,
             volume: kline.kline_data.number_of_trades as f64,
             turnover: kline.kline_data.quote_asset_volume,
+            timestamp: kline.kline_data.start_time,
         };
         k
     }
@@ -249,6 +271,7 @@ impl BnMarketServer {
                 close: line[4].as_str().unwrap().parse::<f64>()?,
                 volume: line[5].as_str().unwrap().parse::<f64>()?,
                 turnover: line[7].as_str().unwrap().parse::<f64>()?,
+                timestamp: line[0].as_u64().unwrap(),
             };
             k_lines.push(k_line);
         }

@@ -82,9 +82,10 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
         vec![market_data.AskPrice5, market_data.AskVolume5 as f64],
         ];
 
+    let datetime = format!("{} {}", c_char_to_string(market_data.ActionDay.as_ptr()), c_char_to_string(market_data.UpdateTime.as_ptr()));
     let tick = Tick {
         symbol: c_char_to_string(market_data.InstrumentID.as_ptr()),
-        datetime: format!("{} {}", c_char_to_string(market_data.ActionDay.as_ptr()), c_char_to_string(market_data.UpdateTime.as_ptr())),
+        datetime: datetime,
         trading_day: c_char_to_string(market_data.TradingDay.as_ptr()),
         open: market_data.OpenPrice,
         high: market_data.HighestPrice,
@@ -92,7 +93,7 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
         close: market_data.ClosePrice,
         volume: market_data.Volume as f64,
         turnover: market_data.Turnover,
-        last_price: market_data.LastPrice,
+        timestamp: 0,
         bids: bids,
         asks: asks,
     };

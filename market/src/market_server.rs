@@ -12,9 +12,9 @@ pub struct Tick {
     pub close: f64,
     pub volume: f64,
     pub turnover: f64,
-    pub last_price: f64,
     pub bids: Vec<Vec<f64>>,
     pub asks: Vec<Vec<f64>>,
+    pub timestamp: u64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize,)]
@@ -28,6 +28,7 @@ pub struct KLine {
     pub close: f64,
     pub volume: f64,
     pub turnover: f64,
+    pub timestamp: u64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize,)]

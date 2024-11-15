@@ -320,6 +320,7 @@ impl MarketServer for CtpMarketServer {
                                             close: t.close,
                                             volume: t.volume as f64,
                                             turnover: t.turnover,
+                                            timestamp: 0,
                                         };
                                         let mut new_kline = combiner.combine_tick(&kline, true);
                                         if let Some(kline) = new_kline.take() {
