@@ -203,7 +203,7 @@ impl WssStream {
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        info!("Trade server ping: {}", string_data);
+                        info!("Market server ping: {}", string_data);
                     },
                     _ => {
                         warn!("Unexpected message: {:?}", message);
