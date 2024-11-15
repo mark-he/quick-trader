@@ -339,6 +339,7 @@ impl TradeServer for BnTradeServer {
 
     fn get_positions(&self, symbol: &str) -> Vec<Position> {
         let positions = self.positions.read().unwrap();
+        info!("========={:?}", positions);
         let mut ret = vec![];
         for position in positions.iter() {
             if position.symbol == symbol && position.position_amt != 0.0 {
