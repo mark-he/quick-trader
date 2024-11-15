@@ -83,8 +83,8 @@ impl WssListeneKeyKeepalive {
                             break;
                         }
                         sleep(Duration::from_secs(10));
-                        println!("keepalive at listen_key >>>> {:?}, {:?}/{:?}", listen_key, now.elapsed().as_secs(), renew_interval as u64 * 0.9 as u64);
-                        if now.elapsed().as_secs() > renew_interval as u64 * 0.9 as u64 {
+                        println!("keepalive at listen_key >>>> {:?}, {:?}/{:?}", listen_key, now.elapsed().as_secs(), (renew_interval as f64 * 0.9) as u64);
+                        if now.elapsed().as_secs() as f64 > (renew_interval as f64 * 0.9) {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
                                 println!("Renew >>>> {:?}", ret.unwrap());
