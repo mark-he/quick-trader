@@ -87,6 +87,8 @@ impl WssListeneKeyKeepalive {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
                                 break;
+                            } else {
+                                println!("Error >>>> {:?}", ret.unwrap_err());
                             }
                         }
                     }
@@ -112,6 +114,8 @@ impl WssListeneKeyKeepalive {
                             self.keepalive();
                             continue;
                         }
+                    } else {
+                        println!("Error >>>> {:?}", ret.unwrap_err());
                     }
                 } 
                 thread::sleep(Duration::from_secs(1));
