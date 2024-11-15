@@ -226,6 +226,7 @@ impl NewOrderRequest {
         if let Some(recv_window) = self.recv_window {
             params.push(("recvWindow".to_owned(), recv_window.to_string()));
         }
+        println!("=============ORDER   {:?}", params);
         params
     }
 }
