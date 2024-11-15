@@ -284,7 +284,6 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
         thread::spawn(move || {
             loop {
                 if let Ok(data) = rx.recv() {
-                    info!("ASSEMBLER ACCOUNT UPDATE: {:?}", data);
                     match data {
                         AccountEvent::OrderTradeUpdate(order) => {
                             if symbol_rust == order.symbol {
@@ -315,6 +314,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                             }
                         },
                         AccountEvent::AccountUpdate(ad) => {
+                            let mut positions = vec![];
                             for p in ad.positions.iter() {
                                 if p.symbol == symbol_rust {
                                     let position_event = PositionEvent {
@@ -328,12 +328,14 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                         isolated_wallet: p.isolated_wallet,
                                         position_side: p.position_side.clone(),
                                     };
-                                    let json = serde_json::to_string(&position_event).unwrap();
-                                    let json_rust = CString::new(json).expect("CString failed");
-                                    let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                                    callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                    positions.push(position_event);
                                 }
                             }
+                            let json = serde_json::to_string(&positions).unwrap();
+                            info!("ASSEMBLER ACCOUNT UPDATE: {:?}", json);
+                            let json_rust = CString::new(json).expect("CString failed");
+                            let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                         }
                         _ => {},
                     }
