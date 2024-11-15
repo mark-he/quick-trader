@@ -192,7 +192,9 @@ impl WssStream {
                                             },
                                         }
                                     },
-                                    _ => {},
+                                    _ => {
+                                        debug!("Received other event: {}", string_data);
+                                    },
                                 }
                             },
                             None => {
