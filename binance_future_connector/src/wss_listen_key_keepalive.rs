@@ -73,7 +73,7 @@ impl WssListeneKeyKeepalive {
             let listen_key = self.listen_key.clone();
             thread::spawn(move || {
                 let block = renew_block_ref.lock().unwrap();
-                let mut exit_flag = false;
+                let mut exit_flag = true;
                 while exit_flag {
                     let now = Instant::now();
                     loop {
@@ -82,7 +82,7 @@ impl WssListeneKeyKeepalive {
                             exit_flag = true;
                             break;
                         }
-                        sleep(Duration::from_secs(1));
+                        sleep(Duration::from_secs(10));
                         if now.elapsed() > Duration::from_secs(renew_interval as u64 * 0.9 as u64) {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
