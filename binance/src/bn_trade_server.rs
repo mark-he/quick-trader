@@ -341,11 +341,9 @@ impl TradeServer for BnTradeServer {
         let mut ret = vec![];
         for position in positions.iter() {
             if position.symbol == symbol && position.position_amt != 0.0 {
-                info!("POSITION RUST MATCH {:?}", position);
                 ret.push(position.clone());
             }
         }
-        info!("POSITION RUST {:?}", ret);
         ret
     }
 

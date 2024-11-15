@@ -40,7 +40,7 @@ impl<S: TradeServer> TradeGateway<S> {
                     Some(data) => {
                         let symbol = data.get_symbol();
                         for subscriber in subscribers.iter() {
-                            if subscriber.0 == symbol {
+                            if subscriber.0 == symbol || symbol == "" {
                                 let _ = subscriber.1.send(data.clone());
                             }
                         }
