@@ -163,6 +163,10 @@ impl NewOrderRequest {
         params.push(("side".to_owned(), self.side.to_string()));
         params.push(("type".to_owned(), self.type_.to_string()));
 
+        if let Some(reduce_only) = self.reduce_only.as_ref() {
+            params.push(("reduceOnly".to_owned(), reduce_only.to_string()));
+        }
+
         if let Some(time_in_force) = self.time_in_force {
             params.push(("timeInForce".to_owned(), time_in_force.to_string()));
         }
@@ -226,7 +230,6 @@ impl NewOrderRequest {
         if let Some(recv_window) = self.recv_window {
             params.push(("recvWindow".to_owned(), recv_window.to_string()));
         }
-        println!("=============ORDER   {:?}", params);
         params
     }
 }
