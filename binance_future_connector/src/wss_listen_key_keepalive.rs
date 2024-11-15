@@ -126,7 +126,7 @@ impl WssListeneKeyKeepalive {
                 } 
                 thread::sleep(Duration::from_secs(1));
             } else {
-                println!("keepalive at connection: {:?}, {:?}", self.conn_instant.elapsed().as_secs(), self.new_interval as f64 * 0.9);
+                println!("Keepalive at connection: {:?}, {:?}", self.conn_instant.elapsed().as_secs(), self.new_interval as f64 * 0.9);
                 if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
                     self.conn = None;
                     break;
