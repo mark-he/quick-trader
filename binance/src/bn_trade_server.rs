@@ -113,7 +113,7 @@ impl WssStream {
                 } else {
                     Err(Box::new(AppError::new(-200, format!("{:?}", "listenKey not found").as_str())))
                 }
-            }, 1 * 100).renew_listen_key( move |listen_key| {
+            }, 24 * 3600).renew_listen_key( move |listen_key| {
                 let client = BinanceHttpClient::default().credentials(credentials2.clone());
                 let request = user_data_stream::renew_listen_key(listen_key);
                 let _ = model::get_resp_result(client.send(request), vec![])?;

@@ -54,7 +54,6 @@ impl WssKeepalive {
                 break;
             }
             if self.conn.is_none() {
-                println!("Connecting...");
                 self.connect();
                 if self.conn.is_some() {
                     if let Some(b) = self.prepare_block.as_ref() {

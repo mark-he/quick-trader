@@ -81,7 +81,7 @@ impl WssListeneKeyKeepalive {
                 while loop_flag {
                     loop {
                         if keepalive_ticket != keepalive_ticket_ref.load(Ordering::SeqCst) - 1{
-                            println!("Ticket exit wss_listen_key_keepalive");
+                            println!("Stop listening at {:?}", listen_key);
                             loop_flag = false;
                             break;
                         }
@@ -110,7 +110,6 @@ impl WssListeneKeyKeepalive {
                 break;
             }
             if self.conn.is_none() {
-                println!("Connecting Listen Key...");
                 if let Some(b) = self.new_block.as_ref() {
                     let ret = b.lock().unwrap()();
                     if let Ok(key) = ret {
@@ -148,7 +147,6 @@ impl WssListeneKeyKeepalive {
                                 }
 
                                 if let Message::Ping(_) = message {                    
-                                    println!("Keepalive at connection: {:?}, {:?}", self.conn_instant.elapsed().as_secs(), self.new_interval as f64 * 0.9);
                                     if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
                                         self.conn = None;
                                         break;
