@@ -182,7 +182,6 @@ pub extern "C" fn new_order(order_request: *const c_char) -> Box<CString> {
     let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
     match ret {
         Ok(order) => {
-            println!("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx{:?}", order);
             let ret = gateway.new_order(order);
             if ret.is_err() {
                 result.error_code = -1;
