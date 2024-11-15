@@ -13,6 +13,7 @@ pub struct WssListeneKeyKeepalive {
     listen_key: String,
     keepalive_ticket: Arc<AtomicUsize>,
     stream_ticket: Arc<AtomicUsize>,
+    conn_instant: Instant,
 }
 
 impl WssListeneKeyKeepalive {
@@ -24,6 +25,7 @@ impl WssListeneKeyKeepalive {
             new_block: None,
             renew_block: None,
             conn: None,
+            conn_instant: Instant::now(),
             listen_key: "".to_string(),
             keepalive_ticket: Arc::new(AtomicUsize::new(0)),
             stream_ticket: Arc::new(AtomicUsize::new(0)),
@@ -36,6 +38,7 @@ impl WssListeneKeyKeepalive {
         match ret {
             Ok(conn) => {
                 self.conn = Some(conn);
+                self.conn_instant = Instant::now();
             },
             Err(e) => {
                 println!("CONNECTED FAILED!: {:?}", e);
@@ -74,19 +77,19 @@ impl WssListeneKeyKeepalive {
             thread::spawn(move || {
                 let block = renew_block_ref.lock().unwrap();
                 let mut exit_flag = true;
+                let mut renew = Instant::now();
                 while exit_flag {
-                    let now = Instant::now();
                     loop {
                         if keepalive_ticket != keepalive_ticket_ref.load(Ordering::SeqCst) - 1{
                             println!("Ticket exit wss_listen_key_keepalive");
                             exit_flag = true;
                             break;
                         }
-                        sleep(Duration::from_secs(10));
-                        println!("keepalive at listen_key >>>> {:?}, {:?}/{:?}", listen_key, now.elapsed().as_secs(), (renew_interval as f64 * 0.9) as u64);
-                        if now.elapsed().as_secs() as f64 > (renew_interval as f64 * 0.9) {
+                        sleep(Duration::from_secs(1));
+                        if renew.elapsed().as_secs() as f64 >= (renew_interval as f64 * 0.9) {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
+                                renew = Instant::now();
                                 println!("Renew >>>> {:?}", ret.unwrap());
                                 break;
                             } else {
@@ -123,6 +126,10 @@ impl WssListeneKeyKeepalive {
                 } 
                 thread::sleep(Duration::from_secs(1));
             } else {
+                if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
+                    self.conn = None;
+                    break;
+                }
                 let conn = self.conn.as_mut().unwrap();
                 loop {
                     if conn.as_mut().can_read() {
@@ -152,7 +159,6 @@ impl WssListeneKeyKeepalive {
                         println!("Connection disconnected.");
                         self.conn = None;
                         break;
-
                     }
                 }
             }
