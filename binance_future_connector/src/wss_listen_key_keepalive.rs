@@ -126,18 +126,13 @@ impl WssListeneKeyKeepalive {
                 } 
                 thread::sleep(Duration::from_secs(1));
             } else {
-                println!("Keepalive at connection: {:?}, {:?}", self.conn_instant.elapsed().as_secs(), self.new_interval as f64 * 0.9);
-                if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
-                    self.conn = None;
-                    break;
-                }
                 let conn = self.conn.as_mut().unwrap();
                 loop {
                     if conn.as_mut().can_read() {
                         let ret = conn.as_mut().read();
                         match ret {
                             Ok(message) => {
-                                let block_ret = block(message);
+                                let block_ret = block(message.clone());
                                 match block_ret {
                                     Ok(continue_flag) => {
                                         if !continue_flag {
@@ -151,7 +146,16 @@ impl WssListeneKeyKeepalive {
                                         }
                                     },
                                 }
+
+                                if let Message::Ping(_) = message {                    
+                                    println!("Keepalive at connection: {:?}, {:?}", self.conn_instant.elapsed().as_secs(), self.new_interval as f64 * 0.9);
+                                    if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
+                                        self.conn = None;
+                                        break;
+                                    }
+                                }
                             },
+                            
                             Err(e) => {
                                 println!("Error: {:?}", e);
                             }
