@@ -112,6 +112,7 @@ impl WssListeneKeyKeepalive {
             }
             if self.conn.is_none() {
                 if let Some(b) = self.new_block.as_ref() {
+                    println!("Applying new listeneKey >>>> ");
                     let ret = b.lock().unwrap()();
                     if let Ok(key) = ret {
                         println!("Connecting >>>> {:?}", key);
@@ -145,6 +146,7 @@ impl WssListeneKeyKeepalive {
                                         let e =  json_value.get("e");
                                         if let Some(v) = e {
                                             if v.as_str().unwrap() == "listenKeyExpired" {
+                                                println!("ListenKey expired >>>> {:?}", self.listen_key);
                                                 self.conn = None;
                                                 break;
                                             }
@@ -173,7 +175,7 @@ impl WssListeneKeyKeepalive {
                             }
                         }
                     } else {
-                        println!("Connection disconnected.");
+                        println!("Keepalive disconnected.");
                         self.conn = None;
                         break;
                     }
