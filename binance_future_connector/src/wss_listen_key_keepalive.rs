@@ -91,7 +91,7 @@ impl WssListeneKeyKeepalive {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
                                 renew = Instant::now();
-                                println!("Renew >>>> {:?}", ret.unwrap());
+                                println!("Renew >>>> {:?}", listen_key);
                                 break;
                             } else {
                                 println!("Error >>>> {:?}", ret.unwrap_err());
