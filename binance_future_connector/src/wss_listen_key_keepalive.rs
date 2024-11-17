@@ -114,12 +114,13 @@ impl WssListeneKeyKeepalive {
                 if let Some(b) = self.new_block.as_ref() {
                     let ret = b.lock().unwrap()();
                     if let Ok(key) = ret {
+                        println!("Connecting >>>> {:?}", key);
                         self.connect(key.as_str());
                         if self.conn.is_some() {
+                            println!("Connected >>>> {:?}", key);
                             self.keepalive();
                             continue;
                         }
-                        println!("Renconnect >>>> {:?}", key);
                     } else {
                         println!("Error >>>> {:?}", ret.unwrap_err());
                     }
