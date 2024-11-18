@@ -135,12 +135,6 @@ impl WssListeneKeyKeepalive {
                         match ret {
                             Ok(message) => {
                                 match &message {
-                                    Message::Ping(_) => {
-                                        if self.conn_instant.elapsed().as_secs() as f64 >= (self.new_interval as f64 * 0.9) {
-                                            self.conn = None;
-                                            break;
-                                        }
-                                    },
                                     Message::Text(string_data) => {
                                         let json_value: Value = serde_json::from_str(string_data).unwrap();
                                         let e =  json_value.get("e");
