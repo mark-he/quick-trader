@@ -40,7 +40,7 @@ impl WssListeneKeyKeepalive {
                 self.conn_instant = Instant::now();
             },
             Err(e) => {
-                println!("CONNECTED FAILED!: {:?}", e);
+                println!("Connect failed!: {:?}", e);
                 self.conn = None;
             },
         }
@@ -166,7 +166,7 @@ impl WssListeneKeyKeepalive {
                             }
                         }
                     } else {
-                        println!("Keepalive disconnected.");
+                        println!("Keepalive disconnected");
                         self.conn = None;
                         break;
                     }
