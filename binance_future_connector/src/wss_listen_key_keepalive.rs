@@ -6,7 +6,6 @@ use std::error::Error;
 type Conn = WebSocketState<MaybeTlsStream<TcpStream>>;
 pub struct WssListeneKeyKeepalive {
     renew_interval: u32,
-    new_interval: u32,
     url: String,
     new_block: Option<Arc<Mutex<Box<dyn Fn() -> Result<String, Box<dyn Error>>>>>>,
     renew_block: Option<Arc<Mutex<Box<dyn Fn(&str) -> Result<(), Box<dyn Error>> + Send + 'static>>>>,
@@ -22,7 +21,6 @@ impl WssListeneKeyKeepalive {
         Self {
             url: url.to_string(),
             renew_interval: 0,
-            new_interval: 0,
             new_block: None,
             renew_block: None,
             conn: None,
@@ -53,10 +51,9 @@ impl WssListeneKeyKeepalive {
         self.stream_ticket.fetch_add(1, Ordering::SeqCst);
     }
 
-    pub fn new_listen_key<F: 'static>(mut self, block: F, new_interval: u32) -> Self 
+    pub fn new_listen_key<F: 'static>(mut self, block: F) -> Self 
         where F: Fn() -> Result<String, Box<dyn Error>> {
         self.new_block = Some(Arc::new(Mutex::new(Box::new(block))));
-        self.new_interval = new_interval;
         self
     }
 
@@ -87,7 +84,7 @@ impl WssListeneKeyKeepalive {
                             break;
                         }
                         sleep(Duration::from_secs(1));
-                        if renew.elapsed().as_secs() as f64 >= (renew_interval as f64 * 0.9) {
+                        if renew.elapsed().as_secs() as f64 >= (renew_interval as f64) {
                             let ret = block(&listen_key);
                             if ret.is_ok() {
                                 renew = Instant::now();
