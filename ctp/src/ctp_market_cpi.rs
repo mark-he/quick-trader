@@ -5,7 +5,7 @@ use market::market_server::{MarketData, Tick};
 use libctp_sys::*;
 use common::{c::*, msmc::Subscription};
 use log::*;
-use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use chrono::NaiveDateTime;
 
 pub struct Spi {
     subscription: Subscription<MarketData>,

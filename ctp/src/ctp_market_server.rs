@@ -17,7 +17,6 @@ use common::msmc::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use common::thread::Rx;
-use log::*;
 
 struct SafePointer<T>(*mut T);
 

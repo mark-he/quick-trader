@@ -5,11 +5,7 @@ pub mod c_model;
 #[cfg(test)]
 mod tests {
     use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::{Config, TradeEvent}};
-    use std::os::raw::*;
-    use std::ffi::CString;
-    use std::str::FromStr;
-    use common::c::*;
-    use market::market_server::{KLine, MarketData};
+    use market::market_server::MarketData;
     use std::thread;
     use crate::context;
     use log::*;
