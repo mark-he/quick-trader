@@ -2,6 +2,7 @@ use crate::market_server::KLine;
 
 use super::market_server::{MarketData, MarketServer};
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
+use log::info;
 use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, vec};
 use crossbeam::channel::{self, Receiver, Sender};
 
@@ -79,6 +80,7 @@ impl<S: MarketServer> MarketGateway<S> {
     }
   
     pub fn start(&mut self) -> Result<(), AppError> {
+        info!("gateway started");
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
         let subscription = self.server.start()?;
@@ -88,7 +90,7 @@ impl<S: MarketServer> MarketGateway<S> {
             let mut continue_flag = true;
             let _ = subscription.stream(&mut |event| {
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Ok(true);
+                    return Ok(false);
                 }
                 match event {
                     Some(data) => {
@@ -122,6 +124,7 @@ impl<S: MarketServer> MarketGateway<S> {
                 }
                 Ok(continue_flag)
             }, true);
+
         };
         self.handler = Some(InteractiveThread::spawn(closure));
         Ok(())

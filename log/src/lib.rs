@@ -5,54 +5,54 @@ use backtrace;
 #[macro_export]
 macro_rules! trace {
     () => {
-        $crate::print("\n", $crate::Level::Trace)
+        $crate::__println("\n", $crate::Level::Trace)
     };
-    ($($arg:tt)*) => {{
-        $crate::print(&format!($($arg)*), $crate::Level::Trace);
-    }};
+    ($($arg:tt)*) => {
+        $crate::__println(&format!($($arg)*), $crate::Level::Trace);
+    };
 }
 
 #[macro_export]
 macro_rules! debug {
     () => {
-        $crate::print("\n", $crate::Level::Debug)
+        $crate::__println("\n", $crate::Level::Debug)
     };
-    ($($arg:tt)*) => {{
-        $crate::print(&format!($($arg)*), $crate::Level::Debug);
-    }};
+    ($($arg:tt)*) => {
+        $crate::__println(&format!($($arg)*), $crate::Level::Debug);
+    };
 }
 
 #[macro_export]
 macro_rules! info {
     () => {
-        $crate::print("\n", $crate::Level::Info)
+        $crate::__println("\n", $crate::Level::Info)
     };
-    ($($arg:tt)*) => {{
-        $crate::print(&format!($($arg)*), $crate::Level::Info);
-    }};
+    ($($arg:tt)*) => {
+        $crate::__println(&format!($($arg)*), $crate::Level::Info);
+    };
 }
 
 #[macro_export]
 macro_rules! warn {
     () => {
-        $crate::print("\n", $crate::Level::Warn)
+        $crate::__println("\n", $crate::Level::Warn)
     };
-    ($($arg:tt)*) => {{
-        $crate::print(&format!($($arg)*), $crate::Level::Warn);
-    }};
+    ($($arg:tt)*) => {
+        $crate::__println(&format!($($arg)*), $crate::Level::Warn);
+    };
 }
 
 #[macro_export]
 macro_rules! error {
     () => {
-        $crate::print("\n", $crate::Level::Error)
+        $crate::__println("\n", $crate::Level::Error)
     };
-    ($($arg:tt)*) => {{
-        $crate::print(&format!($($arg)*), $crate::Level::Error);
-    }};
+    ($($arg:tt)*) => {
+        $crate::__println(&format!($($arg)*), $crate::Level::Error);
+    };
 }
 
-static mut LOGGER: Logger = Logger {level: Level::Warn, utc: true};
+static mut LOGGER: Logger = Logger {level: Level::Info, utc: true};
 pub fn init(level: Level, utc: bool) {
     unsafe {
         LOGGER.utc = utc;
@@ -60,9 +60,9 @@ pub fn init(level: Level, utc: bool) {
     }
 }
 
-pub fn print(message: &str, level: Level) {
+pub fn __println(message: &str, level: Level) {
     unsafe {
-        LOGGER.print(message, level);
+        LOGGER.println(message, level);
     }
 }
 
@@ -119,7 +119,7 @@ impl Logger {
         format!("{} {}: {}", time_str, level, message)
     }
 
-    pub fn print(&self, message: &str, level: Level) {
+    pub fn println(&self, message: &str, level: Level) {
         if self.level.clone() as u32 <= level.clone() as u32 {
             let mut output = String::new();
             output.push_str(&format!("{}\n", message));
@@ -132,7 +132,7 @@ impl Logger {
                 },
                 _ => {},
             }
-            print!("{}", self.format(&output, &level));
+            println!("{}", self.format(&output, &level));
         }
     }
 }

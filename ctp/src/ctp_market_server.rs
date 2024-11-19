@@ -240,7 +240,7 @@ impl Drop for MDApi {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MarketTopic {
     pub symbol: String,
     pub interval: String,
@@ -284,39 +284,39 @@ impl MarketServer for CtpMarketServer {
 
         let mut tick_set = HashSet::new();
         for topic in self.topics.iter() {
-            if topic.interval == "" {
-                if !tick_set.contains(topic.symbol.as_str()) {
-                    mapi.subscribe_market_data(&[topic.symbol.as_str()], false).unwrap();
-                    tick_set.insert(topic.symbol.to_string());
-                }
-            } 
+            if !tick_set.contains(topic.symbol.as_str()) {
+                mapi.subscribe_market_data(&[topic.symbol.as_str()], false).unwrap();
+                tick_set.insert(topic.symbol.to_string());
+            }
         }
         self.mapi = Some(mapi);
 
         let topics = self.topics.clone();
+        let mut last_ticks = HashMap::<String, KLine>::new();
+
         let closure = move |_rx: Rx<String>| {
             let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
-            let mut continue_flag = true;
+            let continue_flag = true;
             let _ = subscription.stream(&mut |event| {
-                debug!("{:?}", event);
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Ok(true);
+                    return Ok(false);
                 }
                 match event {
                     Some(data) => {
                         match data {
                             MarketData::Tick(t) => {
                                 subscription.send(&Some(MarketData::Tick(t.clone())));
+                                
                                 for topic in topics.iter() {
-                                    if topic.symbol == t.symbol {
+                                    if topic.symbol == t.symbol && topic.interval != "" {
                                         let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
                                         let kline = KLine {
                                             symbol: t.symbol.clone(),
                                             datetime: t.datetime.clone(),
                                             interval: topic.interval.clone(),
-                                            open: t.open,
-                                            high: t.high,
-                                            low: t.low,
+                                            open: t.close,
+                                            high: t.close,
+                                            low: t.close,
                                             close: t.close,
                                             volume: t.volume as f64,
                                             turnover: t.turnover,
@@ -334,7 +334,6 @@ impl MarketServer for CtpMarketServer {
                         }
                     },
                     None => {
-                        continue_flag = false;
                     }
                 }
                 Ok(continue_flag)

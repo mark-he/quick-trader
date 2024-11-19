@@ -81,16 +81,15 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
         vec![market_data.AskPrice4, market_data.AskVolume4 as f64],
         vec![market_data.AskPrice5, market_data.AskVolume5 as f64],
         ];
-
-    let datetime = format!("{} {}", c_char_to_string(market_data.ActionDay.as_ptr()), c_char_to_string(market_data.UpdateTime.as_ptr()));
+    let datetime = format!("{} {}", _format_date(&c_char_to_string(market_data.ActionDay.as_ptr())), c_char_to_string(market_data.UpdateTime.as_ptr()));
     let tick = Tick {
         symbol: c_char_to_string(market_data.InstrumentID.as_ptr()),
         datetime: datetime,
-        trading_day: c_char_to_string(market_data.TradingDay.as_ptr()),
+        trading_day: _format_date(&c_char_to_string(market_data.TradingDay.as_ptr())),
         open: market_data.OpenPrice,
         high: market_data.HighestPrice,
         low: market_data.LowestPrice,
-        close: market_data.ClosePrice,
+        close: market_data.LastPrice,
         volume: market_data.Volume as f64,
         turnover: market_data.Turnover,
         timestamp: 0,
@@ -98,4 +97,11 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
         asks: asks,
     };
     tick
+}
+
+fn _format_date(date_str: &str) -> String {
+    let year = &date_str[0..4];
+    let month = &date_str[4..6];
+    let day = &date_str[6..8];
+    format!("{}-{}-{}", year, month, day)
 }

@@ -1,6 +1,7 @@
 
 use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
 use chrono::prelude::*;
+use log::info;
 use std::collections::VecDeque;
 use crate::market_server::KLine;
 
