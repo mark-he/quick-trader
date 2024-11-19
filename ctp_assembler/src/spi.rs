@@ -245,7 +245,7 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
 }
 
 #[no_mangle]
-pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, _config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
+pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, _config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char, *const c_char)) -> Box<CString> {
     let mut result = ServiceResult::<()>::new(0, "", None);
 
     let gateway_ref = context::get_trade_gateway();
@@ -265,14 +265,28 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
     if result.error_code == 0 {
         let rx = gateway.register_symbol(&symbol_rust);
         let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
+        
+        let gateway_ref = context::get_trade_gateway();
         thread::spawn(move || {
+            let mut last_position = vec![];
             loop {
                 if let Ok(data) = rx.recv() {
                     match data {
                         TradeEvent::OnOrder(order_event) => {
                             let json = serde_json::to_string(&order_event).unwrap();
                             let json_rust = CString::new(json).expect("CString failed");
-                            callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
+                            let _type = CString::new("ORDER".to_string()).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                        },
+                        TradeEvent::PositionQuery(_) => {
+                            let positions = gateway_ref.lock().unwrap().get_positions(&symbol_rust);
+                            if positions.len() > 0 || last_position.len() > 0{
+                                let json = serde_json::to_string(&positions).unwrap();
+                                let json_rust = CString::new(json).expect("CString failed");
+                                let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                                callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            } 
+                            last_position = positions;
                         },
                         _ => {},
                     }

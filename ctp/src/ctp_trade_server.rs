@@ -4,6 +4,7 @@
 use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
 
+use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -472,12 +473,11 @@ impl TradeServer for CtpTradeServer {
         let account_ref = self.account.clone();
 
         let outer_subscription = subscription.subscribe();
-        let mut continue_flag = true;
+        let continue_flag = true;
         let closure = move |_rx: Rx<String>| {
             let _ = subscription.stream(&mut move |event| {
-                debug!("{:?}", event);
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Ok(true);
+                    return Ok(false);
                 }
                 match event {
                     Some(TradeEvent::PositionQuery(v)) => {
@@ -486,10 +486,7 @@ impl TradeServer for CtpTradeServer {
                     Some(TradeEvent::AccountQuery(v)) => {
                         *account_ref.write().unwrap() = v.clone();
                     },
-                    Some(_) => {},
-                    None => {
-                        continue_flag = false;
-                    }
+                    _ => {},
                 }
                 Ok(continue_flag)
             }, true);
@@ -543,13 +540,19 @@ impl TradeServer for CtpTradeServer {
 
     fn get_positions(&self, symbol: &str) -> Vec<Self::Position> {
         let positions = self.positions.as_ref().read().unwrap();
-        let mut ret = vec![];
+        let mut position_map = HashMap::<String, Position>::new();
+
         for p in positions.iter() {
             if p.symbol == symbol {
-                ret.push(p.clone());
+                let mut op = position_map.get_mut(&p.direction);
+                if let Some(p1) = op.as_mut() {
+                    p1.position = p1.position + p.position;
+                } else {
+                    position_map.insert(p.direction.clone(), p.clone());
+                }
             }
         }
-        ret
+        position_map.values().cloned().collect()
     }
 
     fn get_account(&self, _account_id: &str) -> Option<Self::Account> {

@@ -4,7 +4,7 @@ pub mod c_model;
 
 #[cfg(test)]
 mod tests {
-    use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::Config};
+    use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::{Config, TradeEvent}};
     use std::os::raw::*;
     use std::ffi::CString;
     use std::str::FromStr;
@@ -84,6 +84,40 @@ mod tests {
                         MarketData::Tick(tick) => {
                             let json = serde_json::to_string(&tick).unwrap();
                             info!("test {}", json);
+                        },
+                        _ => {
+                            info!("ssss");
+                        },
+                    }
+                }
+            }
+        });
+        handler.join().unwrap();
+    }
+
+    #[test]
+    fn test_trade_tick() {
+        init_gateweay();
+
+        let gateway_ref = context::get_trade_gateway();
+        let mut gateway = gateway_ref.lock().unwrap();
+    
+        let rx  = gateway.register_symbol("m2501");
+        let ret = gateway.start();
+        if ret.is_err() {
+            error!("{:?}", ret.unwrap_err());
+        }
+        let handler = thread::spawn(move || {
+            loop {
+                if let Ok(data) = rx.recv() {
+                    match data {
+                        TradeEvent::AccountQuery(account) => {
+                            let json = serde_json::to_string(&account).unwrap();
+                            info!("account {}", json);
+                        },
+                        TradeEvent::PositionQuery(positions) => {
+                            let json = serde_json::to_string(&positions).unwrap();
+                            info!("position {}", json);
                         },
                         _ => {
                             info!("ssss");
