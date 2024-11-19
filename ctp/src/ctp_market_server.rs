@@ -7,7 +7,7 @@ use market::kline::KLineCombiner;
 use crate::model::Config;
 
 use super::ctp_market_cpi::Spi;
-use market::market_server::{KLine, MarketData, MarketServer};
+use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use libctp_sys::*;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
@@ -292,7 +292,7 @@ impl MarketServer for CtpMarketServer {
         self.mapi = Some(mapi);
 
         let topics = self.topics.clone();
-        let mut last_ticks = HashMap::<String, KLine>::new();
+        let mut last_ticks = HashMap::<String, Tick>::new();
 
         let closure = move |_rx: Rx<String>| {
             let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
@@ -307,6 +307,15 @@ impl MarketServer for CtpMarketServer {
                             MarketData::Tick(t) => {
                                 subscription.send(&Some(MarketData::Tick(t.clone())));
                                 
+                                let mut volumn = 0 as f64;
+                                let mut turnover = 0 as f64;
+                                let prev_tick = last_ticks.get(&t.symbol);
+                                if let Some(prev) = prev_tick {
+                                    volumn = t.volume - prev.volume;
+                                    turnover = t.turnover - prev.turnover;
+                                }
+                                last_ticks.insert(t.symbol.to_string(), t.clone());
+
                                 for topic in topics.iter() {
                                     if topic.symbol == t.symbol && topic.interval != "" {
                                         let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
@@ -318,9 +327,9 @@ impl MarketServer for CtpMarketServer {
                                             high: t.close,
                                             low: t.close,
                                             close: t.close,
-                                            volume: t.volume as f64,
-                                            turnover: t.turnover,
-                                            timestamp: 0,
+                                            volume: volumn,
+                                            turnover: turnover,
+                                            timestamp: t.timestamp,
                                         };
                                         let mut new_kline = combiner.combine_tick(&kline, true);
                                         if let Some(kline) = new_kline.take() {

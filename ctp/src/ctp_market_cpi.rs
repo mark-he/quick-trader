@@ -5,6 +5,7 @@ use market::market_server::{MarketData, Tick};
 use libctp_sys::*;
 use common::{c::*, msmc::Subscription};
 use log::*;
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 
 pub struct Spi {
     subscription: Subscription<MarketData>,
@@ -82,6 +83,8 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
         vec![market_data.AskPrice5, market_data.AskVolume5 as f64],
         ];
     let datetime = format!("{} {}", _format_date(&c_char_to_string(market_data.ActionDay.as_ptr())), c_char_to_string(market_data.UpdateTime.as_ptr()));
+    let timestamp = NaiveDateTime::parse_from_str(&datetime, "%Y-%m-%d %H:%M:%S").unwrap().and_utc().timestamp() as u64 * 1000;
+
     let tick = Tick {
         symbol: c_char_to_string(market_data.InstrumentID.as_ptr()),
         datetime: datetime,
@@ -92,7 +95,7 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
         close: market_data.LastPrice,
         volume: market_data.Volume as f64,
         turnover: market_data.Turnover,
-        timestamp: 0,
+        timestamp: timestamp,
         bids: bids,
         asks: asks,
     };

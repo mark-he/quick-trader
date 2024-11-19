@@ -51,7 +51,11 @@ mod tests {
                     match data {
                         MarketData::Kline(k) => {
                             let json = serde_json::to_string(&k).unwrap();
-                            info!("{}", json);
+                            info!("kline {}", json);
+                        },
+                        MarketData::Tick(tick) => {
+                            let json = serde_json::to_string(&tick).unwrap();
+                            info!("test {}", json);
                         },
                         _ => {},
                     }
