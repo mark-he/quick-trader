@@ -184,7 +184,6 @@ pub mod msmc {
                 let ret = self.receiver.as_ref().unwrap().try_recv();
                 match ret {
                     Ok(opt) => {
-                        debug!("STREAM {}: {:?}", self.name, opt);
                         block_ret = f(&Some(opt.clone()));
                         if let Ok(continue_flag) = block_ret {
                             if continue_flag {

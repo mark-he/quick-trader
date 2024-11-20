@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use libctp_sys::*;
+use log::info;
 
 use std::collections::HashMap;
 use std::os::raw::*;
@@ -244,6 +245,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
     }
 
     fn on_rsp_qry_trading_account(&mut self, pTradingAccount: *mut CThostFtdcTradingAccountField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, bIsLast: bool) { 
+        info!(">>>>>>>>>on_rsp_qry_trading_account>>>>>>>>>>>>>");
         if bIsLast {
             Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
                 let account = Self::convert_account(pTradingAccount);
@@ -252,12 +254,10 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         }
     }
 
-    fn on_rsp_qry_instrument(&mut self, pInstrument: *mut CThostFtdcInstrumentField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, bIsLast: bool) {
-        if bIsLast {
-            Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-                let symbol_info = Self::convert_symbol_info(pInstrument);
-                self.subscription.send(&TradeEvent::SymbolQuery(symbol_info));
-            });
-        }
+    fn on_rsp_qry_instrument(&mut self, pInstrument: *mut CThostFtdcInstrumentField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) {
+        Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
+            let symbol_info = Self::convert_symbol_info(pInstrument);
+            self.subscription.send(&TradeEvent::SymbolQuery(symbol_info));
+        });
     }
 }

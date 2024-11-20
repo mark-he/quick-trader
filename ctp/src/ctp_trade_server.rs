@@ -4,6 +4,7 @@
 use common::msmc::StreamError;
 use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
+use log::{error, info};
 
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -230,10 +231,11 @@ impl TDApi {
     }
 
     fn req_qry_trading_account(&mut self, request_id: i32) -> Result<(), String> {
+        info!("==========req_qry_trading_account=========");
         let mut request = CThostFtdcQryTradingAccountField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
-            CurrencyID: string_to_c_char::<4>("".to_string()),
+            CurrencyID: string_to_c_char::<4>("CNY".to_string()),
             BizType: '0' as c_char,
             AccountID: string_to_c_char::<13>("".to_string()),
         };
@@ -412,6 +414,8 @@ pub struct CtpTradeServer {
     start_ticket: Arc<AtomicUsize>,
     symbol_info_map: Arc<RwLock<HashMap<String, SymbolInfo>>>,
     sync_wait: Arc<AtomicBool>,
+    position_checked: Arc<AtomicBool>,
+    account_checked: Arc<AtomicBool>,
     subscription: Option<Subscription<TradeEvent>>,
 }
 
@@ -426,6 +430,8 @@ impl CtpTradeServer {
             start_ticket: Arc::new(AtomicUsize::new(0)),
             symbol_info_map: Arc::new(RwLock::new(HashMap::new())),
             sync_wait:  Arc::new(AtomicBool::new(false)),
+            position_checked:  Arc::new(AtomicBool::new(false)),
+            account_checked:  Arc::new(AtomicBool::new(false)),
             subscription: None,
         }
     }
@@ -458,12 +464,15 @@ impl TradeServer for CtpTradeServer {
         self.subscription = Some(tdapi.start().map_err(|e| AppError::new(-200, &e))?);
         self.tapi = Some(Arc::new(Mutex::new(tdapi)));
         
+
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
         let positions_ref = self.positions.clone();
         let account_ref = self.account.clone();
         let symbol_info_map_ref = self.symbol_info_map.clone();
         let sync_wait_ref = self.sync_wait.clone();
+        let position_checked = self.position_checked.clone();
+        let account_checked = self.account_checked.clone();
         let subscription = self.subscription.take().unwrap();
         let closure = move |_rx: Rx<String>| {
             let _ = subscription.stream(&mut move |event| {
@@ -472,37 +481,60 @@ impl TradeServer for CtpTradeServer {
                 }
                 match event {
                     Some(TradeEvent::PositionQuery(v)) => {
+                        info!("TradeEvent::PositionQuery >>>>>>>>>>>>>");
                         *positions_ref.write().unwrap() = v.clone();
+                        position_checked.store(true, Ordering::SeqCst);
                     },
                     Some(TradeEvent::AccountQuery(v)) => {
+                        info!("TradeEvent::AccountQuery >>>>>>>>>>>>>");
                         *account_ref.write().unwrap() = v.clone();
+                        account_checked.store(true, Ordering::SeqCst);
                     },
                     Some(TradeEvent::SymbolQuery(symbol_info)) => {
                         symbol_info_map_ref.write().unwrap().insert(symbol_info.symbol.clone(), symbol_info.clone());
                         sync_wait_ref.store(false, Ordering::SeqCst);
                         return Ok(false)
                     },
-                    _ => {},
+                    None => {},
+                    _ => {
+                        info!("<<<<<<<<<<<<<<<<<<<<<<<< {:?}", event);
+                    },
                 }
                 Ok(true)
             }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));
 
-        Ok(())
-    }
-
-    fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
         let tapi_ref = self.tapi.as_ref().unwrap().clone();
         let _ = InteractiveThread::spawn(move |_rx| {
             loop {
                 let mut tapi = tapi_ref.lock().unwrap();
-                let _ = tapi.req_qry_investor_position(0);
-                let _ = tapi.req_qry_trading_account(0);
+                let ret = tapi.req_qry_investor_position(0);
+                if ret.is_err() {
+                    error!("req_qry_investor_position: {:?}", ret);
+                }
+                let ret = tapi.req_qry_trading_account(0);
+                if ret.is_err() {
+                    error!("req_qry_trading_account: {:?}", ret);
+                }
                 sleep(Duration::from_secs(3));
             }
         });
+        let time = Instant::now();
+        loop {
+            if time.elapsed().as_secs() > 5 {
+                return Err(AppError::new(-200, "Can not init account and position."));
+            } else {
+                if self.position_checked.load(Ordering::SeqCst) && self.account_checked.load(Ordering::SeqCst) {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(100));
+            }
+        }
+        Ok(())
+    }
 
+    fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
         let tapi_ref = self.tapi.as_ref().unwrap().clone();
         let mut tapi = tapi_ref.lock().unwrap();
         Ok(tapi.subscribe())
