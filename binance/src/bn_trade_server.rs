@@ -1,71 +1,15 @@
 use std::sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex, RwLock};
 use chrono::Local;
-use common::{error::AppError, msmc::{EventTrait, Subscription}, thread::{Handler, InteractiveThread, Rx}};
-use serde::{Serialize, Deserialize};
+use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use serde_json::Value;
 use binance_future_connector::{
-    account, http::Credentials, market as bn_market, market_stream::enums::{Level, UpdateSpeed}, trade::{self as bn_trade, enums::{MarginAssetMode, MarginType, PositionMode}, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
+    account, http::Credentials, market as bn_market, trade::{self as bn_trade, new_order::NewOrderRequest}, ureq::BinanceHttpClient, user_data_stream, wss_listen_key_keepalive::WssListeneKeyKeepalive
 };
-use trade::trade_server::{SymbolRoute, TradeServer};
+use trade::trade_server::TradeServer;
 use tungstenite::Message;
-use crate::model::{self, Account, Asset, CancelOrderRequest, ExchangeInfo, LeverageBracket, Position};
+use crate::model::*;
 use log::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct SymbolConfig {
-    pub margin_type: MarginType, 
-    pub leverage: i32,
-}
-
-impl SymbolConfig {
-    pub fn new() -> Self {
-        SymbolConfig {
-            margin_type: MarginType::Isolated,
-            leverage: 5,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SymbolInfo {
-    pub symbol: String, 
-    pub leverage: i32,
-    pub margin_type: MarginType,
-    pub dual_position_side: PositionMode,
-    pub multi_assets_margin: MarginAssetMode,
-    pub maint_margin_ratio: f64,
-    pub quantity_precision: usize,
-    pub price_precision: usize,
-    pub quote_precision: usize,
-    pub tick_update_speed: Option<UpdateSpeed>,
-    pub depth_level: Level,
-}
-
-#[derive(Clone, Debug)]
-pub enum AccountEvent {
-    AccountUpdate(model::AccountData),
-    OrderTradeUpdate(model::OrderData),
-    TradeLite(model::TradeLiteEvent),
-}
-
-impl EventTrait for AccountEvent {}
-
-impl SymbolRoute for AccountEvent {
-    fn get_symbol(&self) -> String {
-        match self {
-            AccountEvent::OrderTradeUpdate(event) => {
-                event.symbol.to_string()
-            },
-            AccountEvent::TradeLite(event) => {
-                event.symbol.to_string()
-            },
-            _ => {
-                "".to_string()
-            }
-        }
-    }
-}
 pub struct WssStream {
     subscription: Arc<Mutex<Subscription<AccountEvent>>>,
     handler: Option<Handler<()>>,
@@ -105,7 +49,7 @@ impl WssStream {
             let mut keepalive = WssListeneKeyKeepalive::new(&binance_future_connector::config::wss_api()).new_listen_key( move || {
                 let client = BinanceHttpClient::default().credentials(credentials.clone());
                 let request = user_data_stream::new_listen_key();
-                let string_data = model::get_resp_result(client.send(request), vec![])?;
+                let string_data = get_resp_result(client.send(request), vec![])?;
 
                 let json_value: Value = serde_json::from_str(&string_data).unwrap();
                 if let Some(key) = json_value.get("listenKey") {
@@ -116,7 +60,7 @@ impl WssStream {
             }).renew_listen_key( move |listen_key| {
                 let client = BinanceHttpClient::default().credentials(credentials2.clone());
                 let request = user_data_stream::renew_listen_key(listen_key);
-                let _ = model::get_resp_result(client.send(request), vec![])?;
+                let _ = get_resp_result(client.send(request), vec![])?;
                 Ok(())
             }, 3000);
 
@@ -133,15 +77,15 @@ impl WssStream {
                                 let event = event_type.as_str().unwrap();
                                 match event {
                                     "ACCOUNT_UPDATE" => {
-                                        let account_update_event: model::AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
+                                        let account_update_event: AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
                                         subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
                                     },
                                     "ORDER_TRADE_UPDATE" => {
-                                        let order_trade_update_event= serde_json::from_str::<model::OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
+                                        let order_trade_update_event= serde_json::from_str::<OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
                                         subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
                                     },
                                     "TRADE_LITE" => {
-                                        let trade_lite_event: model::TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
+                                        let trade_lite_event: TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
                                         subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
                                     },
                                     _ => {
@@ -176,17 +120,17 @@ impl WssStream {
     }
 }
 pub struct BnTradeServer {
-    pub config: model::Config,
+    pub config: Config,
     pub credentials: Credentials,
     pub wss_stream: WssStream,
-    pub positions: Arc<RwLock<Vec<model::Position>>>,
-    pub assets: Arc<RwLock<Vec<model::Asset>>>,
+    pub positions: Arc<RwLock<Vec<Position>>>,
+    pub assets: Arc<RwLock<Vec<Asset>>>,
     pub exchange_info: Option<ExchangeInfo>,
     pub handler: Option<Handler<()>>,
 }
 
 impl BnTradeServer {
-    pub fn new(config: model::Config) -> Self {
+    pub fn new(config: Config) -> Self {
         BnTradeServer {
             credentials: Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone()),
             config,
@@ -266,14 +210,14 @@ impl BnTradeServer {
 
     fn init_account(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let _ = model::get_resp_result(client.send(bn_trade::multi_assets_margin(self.config.multi_assets_margin)), vec![-4171])?;
-        let _ = model::get_resp_result(client.send(bn_trade::position_side(self.config.dual_position_side)), vec![-4059])?;
+        let _ = get_resp_result(client.send(bn_trade::multi_assets_margin(self.config.multi_assets_margin)), vec![-4171])?;
+        let _ = get_resp_result(client.send(bn_trade::position_side(self.config.dual_position_side)), vec![-4059])?;
         Ok(())
     }
 
     fn init_exchange(&mut self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let data = model::get_resp_result(client.send(bn_market::exchange_info()), vec![])?;
+        let data = get_resp_result(client.send(bn_market::exchange_info()), vec![])?;
         let exchange_info: ExchangeInfo = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         self.exchange_info = Some(exchange_info);
         Ok(())
@@ -281,7 +225,7 @@ impl BnTradeServer {
 
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let data = model::get_resp_result(client.send(account::account()), vec![])?;
+        let data = get_resp_result(client.send(account::account()), vec![])?;
         let account_info: Account = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         *self.assets.write().unwrap() = account_info.assets;
         *self.positions.write().unwrap() = account_info.positions;
@@ -317,27 +261,27 @@ impl TradeServer for BnTradeServer {
         Ok(sub)
     }
 
-    fn new_order(&mut self, request : NewOrderRequest) -> Result<(), AppError> {
+    fn new_order(&mut self, _symbol: &str, request : NewOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let _ = model::get_resp_result(client.send(request), vec![])?;
+        let _ = get_resp_result(client.send(request), vec![])?;
         Ok(())
     }
 
-    fn cancel_order(&mut self, request: CancelOrderRequest) -> Result<(), AppError> {
+    fn cancel_order(&mut self, symbol: &str, request: CancelOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let requset = bn_trade::cancel_order(&request.symbol).orig_client_order_id(&request.order_id);
-        let _ = model::get_resp_result(client.send(requset), vec![])?;
+        let requset = bn_trade::cancel_order(symbol).orig_client_order_id(&request.order_id);
+        let _ = get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }
 
     fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let requset = bn_trade::cancel_open_orders(symbol);
-        let _ = model::get_resp_result(client.send(requset), vec![])?;
+        let _ = get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }
 
-    fn get_positions(&self, symbol: &str) -> Vec<Position> {
+    fn get_positions(&self, symbol: &str) -> Result<Vec<Position>, AppError> {
         let positions = self.positions.read().unwrap();
         let mut ret = vec![];
         for position in positions.iter() {
@@ -345,10 +289,10 @@ impl TradeServer for BnTradeServer {
                 ret.push(position.clone());
             }
         }
-        ret
+        Ok(ret)
     }
 
-    fn get_account(&self, account_id: &str) -> Option<Asset>{
+    fn get_account(&self, account_id: &str) -> Result<Option<Asset>, AppError>{
         let assets = self.assets.read().unwrap();
         let mut ret = None;
         for asset in assets.iter() {
@@ -357,20 +301,20 @@ impl TradeServer for BnTradeServer {
                 break;
             }
         }
-        ret
+        Ok(ret)
     }
     
     fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig) -> Result<SymbolInfo, AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
 
         let request = bn_trade::margin_type(symbol, config.margin_type);
-        let _ = model::get_resp_result(client.send(request), vec![-4046])?;
+        let _ = get_resp_result(client.send(request), vec![-4046])?;
 
         let request = bn_trade::leverage(symbol, config.leverage);
-        let _ = model::get_resp_result(client.send(request), vec![])?;
+        let _ = get_resp_result(client.send(request), vec![])?;
 
         let request = account::leverage_bracket().symbol(symbol);
-        let data = model::get_resp_result(client.send(request), vec![])?;
+        let data = get_resp_result(client.send(request), vec![])?;
 
         let leverage_brackets: Vec<LeverageBracket> = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
 
@@ -399,7 +343,7 @@ impl TradeServer for BnTradeServer {
 
         if let Some(exchange_info) = self.exchange_info.as_ref() {
             for symbol_config in exchange_info.symbols.iter() {
-                if symbol_config.symbol == symbol {
+                if symbol_config.symbol == symbol.to_string() {
                     symbol_info.quantity_precision = symbol_config.quantity_precision;
                     symbol_info.price_precision = symbol_config.price_precision;
                     symbol_info.quote_precision = symbol_config.quote_precision;

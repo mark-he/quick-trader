@@ -6,7 +6,8 @@ use std::str::FromStr;
 use std::thread;
 use binance::model::{Asset, CancelOrderRequest, Config, Position};
 use binance::bn_market_server::BnMarketServer;
-use binance::bn_trade_server::{AccountEvent, BnTradeServer, SymbolConfig, SymbolInfo};
+use binance::bn_trade_server::BnTradeServer;
+use binance::model::*;
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use chrono::DateTime;
 use common::c::*;
@@ -174,15 +175,16 @@ pub extern "C" fn init(env: *const c_char, config: *const c_char) -> Box<CString
 }
 
 #[no_mangle]
-pub extern "C" fn new_order(order_request: *const c_char) -> Box<CString> {
+pub extern "C" fn new_order(symbol : *const c_char, order_request: *const c_char) -> Box<CString> {
     let mut result = ServiceResult::<String>::new(0, "", None);
+    let symbol_rust = c_char_to_string(symbol);
     let order_request_rust = c_char_to_string(order_request);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
     let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
     match ret {
         Ok(order) => {
-            let ret = gateway.new_order(order);
+            let ret = gateway.new_order(&symbol_rust, order);
             if ret.is_err() {
                 result.error_code = -1;
                 result.message = format!("{:?}", ret.unwrap_err());
@@ -205,7 +207,7 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let ret = gateway.cancel_order(CancelOrderRequest{symbol: symbol_rust, order_id: order_id_rust});
+    let ret = gateway.cancel_order(&symbol_rust, CancelOrderRequest{order_id: order_id_rust});
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
@@ -235,7 +237,15 @@ pub extern "C" fn get_positions(symbol : *const c_char) -> Box<CString> {
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    result.data = Some(gateway.get_positions(&symbol_rust));
+
+    
+    let ret = gateway.get_positions(&symbol_rust);
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    } else {
+        result.data = Some(ret.unwrap());
+    }
     result.to_c_json()
 }
 
@@ -245,7 +255,13 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
     let asset_rust = c_char_to_string(asset);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    result.data = Some(gateway.get_account(&asset_rust));
+    let ret = gateway.get_account(&asset_rust);
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    } else {
+        result.data = Some(ret.unwrap());
+    }
     result.to_c_json()
 }
 

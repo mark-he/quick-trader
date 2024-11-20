@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use common::msmc::EventTrait;
 use serde::{Deserialize, Serialize};
 use trade::trade_server::SymbolRoute;
@@ -20,10 +22,36 @@ impl SymbolRoute for TradeEvent {
     }
 }
 
+#[derive(Debug)]
+pub struct Symbol {
+    pub symbol: String,
+    pub exchange_id: String,
+}
+
+impl FromStr for Symbol {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = s.split('@').collect();
+        if parts.len() == 2 {
+            Ok(Symbol {
+                symbol: parts[0].to_string(),
+                exchange_id: parts[1].to_string(),
+            })
+        } else {
+            Err("Invalid input format. Expected symbol@exchange_id".to_string())
+        }
+    }
+}
+
+impl ToString for Symbol {
+    fn to_string(&self) -> String {
+        format!("{}", self.symbol)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CancelOrderRequest {
-    pub symbol: String, 
-    pub exchange: String,
     pub order_id: String,
 }
 
@@ -39,6 +67,7 @@ pub enum TradeEvent {
     TradeQuery(Vec<Trade>),
     PositionQuery(Vec<Position>),
     AccountQuery(Account),
+    SymbolQuery(SymbolInfo),
     HeartBeatWarning(i32),
     Disconnected(i32),
     Error(i32, String),
@@ -60,15 +89,22 @@ pub struct Config {
     pub password: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SymbolInfo {
+    pub symbol: String,
+    pub margin_ratio: f64,
+    pub underlying_multiple: f64,
+    pub volume_multiple: f64,
+    pub price_tick: f64,
+}
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NewOrderRequest {
-    pub symbol: String,
     pub order_ref: String,
     pub offset: String,
     pub order_type: String,
-    
-    pub exchange_id: String,
     pub volume_total: u32,
     pub direction: String,
     pub limit_price: f64,

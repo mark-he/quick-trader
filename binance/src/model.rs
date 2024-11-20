@@ -1,6 +1,7 @@
-use binance_future_connector::{http::error::ClientError, market_stream::enums::{Level, UpdateSpeed}, trade::enums::{MarginAssetMode, PositionMode}, ureq::{Error, Response}};
-use common::error::AppError;
+use binance_future_connector::{http::error::ClientError, market_stream::enums::{Level, UpdateSpeed}, trade::enums::{MarginAssetMode, MarginType, PositionMode}, ureq::{Error, Response}};
+use common::{error::AppError, msmc::EventTrait};
 use serde::{Deserialize, Deserializer, Serialize};
+use trade::trade_server::SymbolRoute;
 
 pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>) -> Result<String, AppError> {
     let err;
@@ -30,6 +31,62 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>
         },
         _ => {
             Err(AppError::new(-200, format!("{:?}", err).as_str()))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct SymbolConfig {
+    pub margin_type: MarginType, 
+    pub leverage: i32,
+}
+
+impl SymbolConfig {
+    pub fn new() -> Self {
+        SymbolConfig {
+            margin_type: MarginType::Isolated,
+            leverage: 5,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SymbolInfo {
+    pub symbol: String, 
+    pub leverage: i32,
+    pub margin_type: MarginType,
+    pub dual_position_side: PositionMode,
+    pub multi_assets_margin: MarginAssetMode,
+    pub maint_margin_ratio: f64,
+    pub quantity_precision: usize,
+    pub price_precision: usize,
+    pub quote_precision: usize,
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
+}
+
+#[derive(Clone, Debug)]
+pub enum AccountEvent {
+    AccountUpdate(AccountData),
+    OrderTradeUpdate(OrderData),
+    TradeLite(TradeLiteEvent),
+}
+
+impl EventTrait for AccountEvent {}
+
+impl SymbolRoute for AccountEvent {
+    fn get_symbol(&self) -> String {
+        match self {
+            AccountEvent::OrderTradeUpdate(event) => {
+                event.symbol.to_string()
+            },
+            AccountEvent::TradeLite(event) => {
+                event.symbol.to_string()
+            },
+            _ => {
+                "".to_string()
+            }
         }
     }
 }
@@ -580,7 +637,7 @@ pub struct Filter {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Symbol {
+pub struct Contract {
     #[serde(rename = "symbol")]
     pub symbol: String,
     #[serde(rename = "pair")]
@@ -642,7 +699,7 @@ pub struct ExchangeInfo {
     #[serde(rename = "assets")]
     pub assets: Vec<AssetInfo>,
     #[serde(rename = "symbols")]
-    pub symbols: Vec<Symbol>,
+    pub symbols: Vec<Contract>,
     #[serde(rename = "timezone")]
     pub timezone: String,
 }
@@ -671,7 +728,6 @@ pub struct BinanceDepthUpdate {
 
 #[derive(Debug, Clone)]
 pub struct CancelOrderRequest {
-    pub symbol: String,
     pub order_id: String,
 }
 

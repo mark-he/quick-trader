@@ -6,7 +6,7 @@ use libctp_sys::*;
 use std::collections::HashMap;
 use std::os::raw::*;
 use common::{c::*, msmc::Subscription};
-use crate::model::{Account, Order, Position, Trade, TradeEvent};
+use crate::model::{Account, Order, Position, SymbolInfo, Trade, TradeEvent};
 
 use super::ctp_code::*;
 
@@ -116,6 +116,19 @@ impl Spi {
         };
         account
     }
+
+    fn convert_symbol_info(pRspInfo: *mut CThostFtdcInstrumentField) -> SymbolInfo {
+        let pRspInfo = unsafe { &mut *pRspInfo };
+
+        let info = SymbolInfo {
+            symbol: c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
+            margin_ratio: pRspInfo.LongMarginRatio,
+            underlying_multiple: pRspInfo.UnderlyingMultiple,
+            volume_multiple: pRspInfo.VolumeMultiple as f64,
+            price_tick: pRspInfo.PriceTick,
+        };
+        info
+    }
     
 }
 
@@ -218,6 +231,12 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
             let account = Self::convert_account(pTradingAccount);
             self.subscription.send(&Some(TradeEvent::AccountQuery(account)));
+        });
+    }
+    fn on_rsp_qry_instrument(&mut self, pInstrument: *mut CThostFtdcInstrumentField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) {
+        Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
+            let symbol_info = Self::convert_symbol_info(pInstrument);
+            self.subscription.send(&Some(TradeEvent::SymbolQuery(symbol_info)));
         });
     }
 }

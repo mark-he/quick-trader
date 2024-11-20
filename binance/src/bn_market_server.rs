@@ -291,7 +291,7 @@ impl MarketServer for BnMarketServer {
         Ok(klines)
     }
 
-    fn subscribe_tick(&mut self, symbol: &str) {
+    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError>{
         let mut found = false;
         for topic in self.topics.iter() {
             if topic.symbol == symbol && topic.interval == "" {
@@ -307,9 +307,10 @@ impl MarketServer for BnMarketServer {
             };
             self.topics.push(topic);
         }
+        Ok(())
     }
 
-    fn subscribe_kline(&mut self, symbol: &str, interval: &str) {
+    fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Result<(), AppError>{
         let mut found = false;
         for topic in self.topics.iter() {
             if topic.symbol == symbol {
@@ -326,6 +327,7 @@ impl MarketServer for BnMarketServer {
             };
             self.topics.push(topic);
         }
+        Ok(())
     }
 
     fn get_server_ping(&self) -> usize {

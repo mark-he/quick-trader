@@ -4,13 +4,14 @@
 use common::error::AppError;
 use common::thread::{Handler, InteractiveThread};
 use market::kline::KLineCombiner;
-use crate::model::Config;
+use crate::model::{Config, Symbol};
 
 use super::ctp_market_cpi::Spi;
 use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use libctp_sys::*;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use common::msmc::*;
@@ -351,7 +352,8 @@ impl MarketServer for CtpMarketServer {
         Ok(outer_subscription)
     }
     
-    fn load_kline(&mut self, _symbol: &str, _interval: &str, _count: u32) -> Result<Vec<KLine>, AppError> {
+    fn load_kline(&mut self, symbol: &str, _interval: &str, _count: u32) -> Result<Vec<KLine>, AppError> {
+        let _contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
         Ok(vec![])
     }
 
@@ -363,7 +365,8 @@ impl MarketServer for CtpMarketServer {
         self.start_ticket.fetch_add(1, Ordering::SeqCst);
     }
 
-    fn subscribe_tick(&mut self, symbol: &str) {
+    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError> {
+        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
         let mut found = false;
         for topic in self.topics.iter() {
             if topic.symbol == symbol {
@@ -373,14 +376,16 @@ impl MarketServer for CtpMarketServer {
         }
         if !found {
             let topic = MarketTopic {
-                symbol: symbol.to_string(),
+                symbol: contract.symbol.clone(),
                 interval: "".to_string(),
             };
             self.topics.push(topic);
         }
+        Ok(())
     }
 
-    fn subscribe_kline(&mut self, symbol: &str, interval: &str) {
+    fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Result<(), AppError> {
+        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
         let mut found = false;
         for topic in self.topics.iter() {
             if topic.symbol == symbol && topic.interval == interval {
@@ -391,10 +396,11 @@ impl MarketServer for CtpMarketServer {
         }
         if !found {
             let topic = MarketTopic {
-                symbol: symbol.to_string(),
+                symbol: contract.symbol.clone(),
                 interval: interval.to_string(),
             };
             self.topics.push(topic);
         }
+        Ok(())
     }
 }

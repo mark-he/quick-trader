@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::thread;
 use ctp::ctp_market_server::CtpMarketServer;
 use ctp::ctp_trade_server::CtpTradeServer;
-use ctp::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, TradeEvent};
+use ctp::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, SymbolInfo, TradeEvent};
 use common::c::*;
 use market::market_server::{KLine, MarketData};
 use crate::c_model::ServiceResult;
@@ -117,6 +117,7 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
     thread::spawn(move || {
         loop {
             if let Ok(data) = rx.recv() {
+                info!("subscribe_kline >>> {:?}", data);
                 match data {
                     MarketData::Kline(k) => {
                         let json = serde_json::to_string(&k).unwrap();
@@ -144,7 +145,6 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
 #[no_mangle]
 pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
     let result = ServiceResult::<String>::new(0, "", None);
-
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_market_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
@@ -168,7 +168,8 @@ pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char,
 }
 
 #[no_mangle]
-pub extern "C" fn new_order(order_request: *const c_char) -> Box<CString> {
+pub extern "C" fn new_order(symbol : *const c_char, order_request: *const c_char) -> Box<CString> {
+    let symbol_rust = c_char_to_string(symbol);
     let mut result = ServiceResult::<String>::new(0, "", None);
     let order_request_rust = c_char_to_string(order_request);
     let gateway_ref = context::get_trade_gateway();
@@ -176,7 +177,7 @@ pub extern "C" fn new_order(order_request: *const c_char) -> Box<CString> {
     let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
     match ret {
         Ok(order) => {
-            let ret = gateway.new_order(order);
+            let ret = gateway.new_order(&symbol_rust, order);
             if ret.is_err() {
                 result.error_code = -1;
                 result.message = format!("{:?}", ret.unwrap_err());
@@ -191,16 +192,15 @@ pub extern "C" fn new_order(order_request: *const c_char) -> Box<CString> {
 }
 
 #[no_mangle]
-pub extern "C" fn cancel_order(symbol : *const c_char, exchange : *const c_char, order_id : *const c_char) -> Box<CString> {
+pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char) -> Box<CString> {
     let mut result = ServiceResult::<String>::new(0, "", None);
     let symbol_rust = c_char_to_string(symbol);
     let order_id_rust = c_char_to_string(order_id);
-    let exchange_rust = c_char_to_string(exchange);
 
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let ret = gateway.cancel_order(CancelOrderRequest{symbol: symbol_rust, exchange: exchange_rust, order_id: order_id_rust});
+    let ret = gateway.cancel_order(&&symbol_rust, CancelOrderRequest{order_id: order_id_rust});
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
@@ -230,7 +230,13 @@ pub extern "C" fn get_positions(symbol : *const c_char) -> Box<CString> {
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    result.data = Some(gateway.get_positions(&symbol_rust));
+    let ret = gateway.get_positions(&symbol_rust);
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    } else {
+        result.data = Some(ret.unwrap());
+    }
     result.to_c_json()
 }
 
@@ -240,13 +246,19 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
     let asset_rust = c_char_to_string(asset);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    result.data = Some(gateway.get_account(&asset_rust));
+    let ret = gateway.get_account(&asset_rust);
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    } else {
+        result.data = Some(ret.unwrap());
+    }
     result.to_c_json()
 }
 
 #[no_mangle]
 pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, _config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char, *const c_char)) -> Box<CString> {
-    let mut result = ServiceResult::<()>::new(0, "", None);
+    let mut result = ServiceResult::<SymbolInfo>::new(0, "", None);
 
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
@@ -279,14 +291,16 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                             callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                         },
                         TradeEvent::PositionQuery(_) => {
-                            let positions = gateway_ref.lock().unwrap().get_positions(&symbol_rust);
-                            if positions.len() > 0 || last_position.len() > 0{
-                                let json = serde_json::to_string(&positions).unwrap();
-                                let json_rust = CString::new(json).expect("CString failed");
-                                let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                                callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
-                            } 
-                            last_position = positions;
+                            let ret = gateway_ref.lock().unwrap().get_positions(&symbol_rust);
+                            if let Ok(positions) = ret {
+                                if positions.len() > 0 || last_position.len() > 0{
+                                    let json = serde_json::to_string(&positions).unwrap();
+                                    let json_rust = CString::new(json).expect("CString failed");
+                                    let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                                    callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                } 
+                                last_position = positions;
+                            }
                         },
                         _ => {},
                     }

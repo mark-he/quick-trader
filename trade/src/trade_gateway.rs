@@ -71,23 +71,23 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.init_symbol(symbol, config)
     }
 
-    pub fn new_order(&mut self, request : S::OrderRequest) -> Result<(), AppError> {
-        self.server.new_order(request)
+    pub fn new_order(&mut self, symbol: &str, request : S::OrderRequest) -> Result<(), AppError> {
+        self.server.new_order(symbol, request)
     }
 
-    pub fn cancel_order(&mut self, request: S::CancelOrderRequest) -> Result<(), AppError> {
-        self.server.cancel_order(request)
+    pub fn cancel_order(&mut self,  symbol: &str, request: S::CancelOrderRequest) -> Result<(), AppError> {
+        self.server.cancel_order(symbol, request)
     }
 
     pub fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
         self.server.cancel_orders(symbol)
     }
 
-    pub fn get_positions(&mut self, symbol: &str) -> Vec<S::Position> {
+    pub fn get_positions(&mut self, symbol:&str) -> Result<Vec<S::Position>, AppError> {
         self.server.get_positions(symbol)
     }
 
-    pub fn get_account(&mut self, account_id: &str) -> Option<S::Account> {
+    pub fn get_account(&mut self, account_id: &str) -> Result<Option<S::Account>, AppError> {
         self.server.get_account(account_id)
     }
 }
