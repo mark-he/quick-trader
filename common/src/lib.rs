@@ -124,7 +124,7 @@ pub mod msmc {
                     write!(f, "Stream disconnected")
                 },
                 StreamError::Error(e) => {
-                    write!(f, "Stream error {:?}", e)
+                    write!(f, "{:?}", e)
                 }
             }
         }
