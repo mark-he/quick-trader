@@ -78,15 +78,15 @@ impl WssStream {
                                 match event {
                                     "ACCOUNT_UPDATE" => {
                                         let account_update_event: AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                                        subscription.send(&Some(AccountEvent::AccountUpdate(account_update_event.update_data)));
+                                        subscription.send(&AccountEvent::AccountUpdate(account_update_event.update_data));
                                     },
                                     "ORDER_TRADE_UPDATE" => {
                                         let order_trade_update_event= serde_json::from_str::<OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
-                                        subscription.send(&Some(AccountEvent::OrderTradeUpdate(order_trade_update_event.order)));
+                                        subscription.send(&AccountEvent::OrderTradeUpdate(order_trade_update_event.order));
                                     },
                                     "TRADE_LITE" => {
                                         let trade_lite_event: TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                                        subscription.send(&Some(AccountEvent::TradeLite(trade_lite_event)));
+                                        subscription.send(&AccountEvent::TradeLite(trade_lite_event));
                                     },
                                     _ => {
                                         debug!("Received other event: {}", string_data);

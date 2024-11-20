@@ -133,7 +133,7 @@ impl WssStream {
                                                     let mut t = tick.clone();
                                                     t.asks = depth.asks;
                                                     t.bids = depth.bids;
-                                                    subscription.send(&Some(MarketData::Tick(t)));
+                                                    subscription.send(&MarketData::Tick(t));
                                                 }
                                             },
                                             _ => {},
@@ -154,7 +154,7 @@ impl WssStream {
                                                     } else {
                                                         last_klines.insert(key, k.clone());
                                                     }
-                                                    subscription.send(&Some(MarketData::Kline(k)));
+                                                    subscription.send(&MarketData::Kline(k));
                                                 }
                                             },
                                             _ => {},

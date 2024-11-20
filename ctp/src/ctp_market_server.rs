@@ -106,24 +106,14 @@ impl MDApi {
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
-                    Some(data) => {
-                        match data {
-                            MarketData::Connected => {
-                                should_break = true;
-                            },
-                            _ => {}
-                        }
+                    MarketData::Connected => {
+                        should_break = true;
                     },
-                    None => {
-                    },
+                    _ => {}
                 }
             });
             if ret.is_err() {
-                return Err("Error happened when connecting to market server".to_string());
-            } else {
-                if ret.unwrap().is_none() {
-                    return Err("Closed connection of market server".to_string());
-                }
+                return Err(format!("Error happened when connecting to market server: {:?}", ret.unwrap_err()));
             }
             if should_break {
                 break;
@@ -137,24 +127,14 @@ impl MDApi {
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
-                    Some(data) => {
-                        match data {
-                            MarketData::UserLogin => {
-                                should_break = true;
-                            },
-                            _ => {}
-                        }
+                    MarketData::UserLogin => {
+                        should_break = true;
                     },
-                    None => {
-                    },
+                    _ => {}
                 }
             });
             if ret.is_err() {
-                return Err("Error happened when logining to market server".to_string());
-            } else {
-                if ret.unwrap().is_none() {
-                    return Err("Closed connection of market server".to_string());
-                }
+                return Err(format!("Error happened when logining to market server: {:?}", ret.unwrap_err()));
             }
             if should_break {
                 break;
@@ -304,7 +284,7 @@ impl MarketServer for CtpMarketServer {
                     Some(data) => {
                         match data {
                             MarketData::Tick(t) => {
-                                subscription.send(&Some(MarketData::Tick(t.clone())));
+                                subscription.send(&MarketData::Tick(t.clone()));
                                 
                                 let mut volumn = 0 as f64;
                                 let mut turnover = 0 as f64;
@@ -332,7 +312,7 @@ impl MarketServer for CtpMarketServer {
                                         };
                                         let mut new_kline = combiner.combine_tick(&kline, true);
                                         if let Some(kline) = new_kline.take() {
-                                            let _ = subscription.send(&Some(MarketData::Kline(kline)));
+                                            let _ = subscription.send(&MarketData::Kline(kline));
                                         }
                                     }
                                 }

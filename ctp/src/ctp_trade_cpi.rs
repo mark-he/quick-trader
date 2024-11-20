@@ -26,7 +26,7 @@ impl Spi {
         if !pRspInfo.is_null() {
             let pRspInfo = unsafe { &mut *pRspInfo };
             if pRspInfo.ErrorID != 0 as c_int {
-                subscription.send(&Some(TradeEvent::Error(request_id,  c_char_to_gbk_string(pRspInfo.ErrorMsg.as_ptr()))));
+                subscription.send(&TradeEvent::Error(request_id,  c_char_to_gbk_string(pRspInfo.ErrorMsg.as_ptr())));
                 return
             }
         }
@@ -162,27 +162,27 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
     }
 
     fn on_front_connected(&mut self) {
-        self.subscription.send(&Some(TradeEvent::Connected));
+        self.subscription.send(&TradeEvent::Connected);
     }
 
     fn on_front_disconnected(&mut self, nReason: ::std::os::raw::c_int) {
-        self.subscription.send(&Some(TradeEvent::Disconnected(nReason))); 
+        self.subscription.send(&TradeEvent::Disconnected(nReason)); 
     }
 
     fn on_heart_beat_warning(&mut self, nTimeLapse: ::std::os::raw::c_int) {
-        self.subscription.send(&Some(TradeEvent::HeartBeatWarning(nTimeLapse))); 
+        self.subscription.send(&TradeEvent::HeartBeatWarning(nTimeLapse)); 
     }
 
     fn on_rsp_user_login(&mut self, _pRspUserLogin: *mut CThostFtdcRspUserLoginField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         //let pRspUserLogin = unsafe { &mut *pRspUserLogin };
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&Some(TradeEvent::UserLogin()));
+            self.subscription.send(&TradeEvent::UserLogin());
         });
     }
 
     fn on_rsp_user_logout(&mut self, _pUserLogout: *mut CThostFtdcUserLogoutField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&Some(TradeEvent::UserLogout));
+            self.subscription.send(&TradeEvent::UserLogout);
         });
     }
 
@@ -198,14 +198,14 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
 
     fn on_rsp_settlement_info_confirm(&mut self, _pSettlementInfoConfirm: *mut CThostFtdcSettlementInfoConfirmField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&Some(TradeEvent::SettlementConfirmed));
+            self.subscription.send(&TradeEvent::SettlementConfirmed);
         });
     }
 
     fn on_rtn_order(&mut self, pOrder: *mut CThostFtdcOrderField) { 
         // let temp = unsafe { &mut *pOrder };
         let ret = Self::convert_order(pOrder);
-        let _ = self.subscription.send(&Some(TradeEvent::OnOrder(ret)));
+        let _ = self.subscription.send(&TradeEvent::OnOrder(ret));
     }
 
     fn on_rtn_trade(&mut self, pTrade: *mut CThostFtdcTradeField) { 
@@ -213,7 +213,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         // let user_id = c_char_to_string(temp.UserID.as_ptr());
         // let request_id = user_id.parse::<i32>().unwrap();
         let ret = Self::convert_trade(pTrade);
-        let _ = self.subscription.send(&Some(TradeEvent::OnTrade(ret)));
+        let _ = self.subscription.send(&TradeEvent::OnTrade(ret));
     }
 
     fn on_rsp_qry_order(&mut self, pOrder: *mut CThostFtdcOrderField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, bIsLast: bool) { 
@@ -224,7 +224,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
             if bIsLast {
                 let mut ret = self.order_queue.remove(&request_id);
                 if let Some(order_vec) = ret.take() {
-                    let _ = self.subscription.send(&Some(TradeEvent::OrderQuery(order_vec)));
+                    let _ = self.subscription.send(&TradeEvent::OrderQuery(order_vec));
                 }
             }
         });
@@ -237,7 +237,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
             if bIsLast {
                 let mut ret = self.position_queue.remove(&nRequestID);
                 if let Some(position_vec) = ret.take() {
-                    self.subscription.send(&Some(TradeEvent::PositionQuery(position_vec)));
+                    self.subscription.send(&TradeEvent::PositionQuery(position_vec));
                 }
             }
         });
@@ -247,7 +247,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         if bIsLast {
             Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
                 let account = Self::convert_account(pTradingAccount);
-                self.subscription.send(&Some(TradeEvent::AccountQuery(account)));
+                self.subscription.send(&TradeEvent::AccountQuery(account));
             });
         }
     }
@@ -256,7 +256,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         if bIsLast {
             Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
                 let symbol_info = Self::convert_symbol_info(pInstrument);
-                self.subscription.send(&Some(TradeEvent::SymbolQuery(symbol_info)));
+                self.subscription.send(&TradeEvent::SymbolQuery(symbol_info));
             });
         }
     }

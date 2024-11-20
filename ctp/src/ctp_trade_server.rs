@@ -21,7 +21,6 @@ use crate::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Positio
 use super::ctp_code::*;
 use super::ctp_trade_cpi::Spi;
 use std::cmp::min;
-use log::*;
 
 struct SafePointer<T>(*mut T);
 
@@ -331,26 +330,14 @@ impl TDApi {
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
-                    Some(data) => {
-                        info!("Received from trade server {:?}", data);
-                        match data {
-                            TradeEvent::Connected => {
-                                should_break = true;
-                            },
-                            _ => {},
-                        }
-                    },
-                    None => { 
+                    TradeEvent::Connected => {
                         should_break = true;
-                    }
+                    },
+                    _ => {},
                 }
             });
             if ret.is_err() {
                 return Err(format!("Error happened when connecting to trade server: {:?}", ret.unwrap_err()));
-            } else {
-                if ret.unwrap().is_none() {
-                    return Err("Closed connection of trade server".to_string());
-                }
             }
             if should_break {
                 break;
@@ -364,25 +351,14 @@ impl TDApi {
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
-                    Some(data) => {
-                        match data {
-                            TradeEvent::UserLogin() => {
-                                should_break = true;
-                            },
-                            _ => {},
-                        }
-                    },
-                    None => { 
+                    TradeEvent::UserLogin() => {
                         should_break = true;
-                    }
+                    },
+                    _ => {},
                 }
             });
             if ret.is_err() {
                 return Err("Error happened when logining to trade server".to_string());
-            } else {
-                if ret.unwrap().is_none() {
-                    return Err("Closed connection of trade server".to_string());
-                }
             }
             if should_break {
                 break;

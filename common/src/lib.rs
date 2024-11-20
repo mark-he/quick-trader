@@ -74,10 +74,10 @@ pub mod c {
 pub mod msmc {
     use log::*;
     use std::{error::Error, fmt::Debug, marker::PhantomData, thread, time::Duration};
-    use crossbeam::{channel::{unbounded, Receiver, RecvError, Sender, TryRecvError}, select};
+    use crossbeam::{channel::{unbounded, Receiver, Sender, TryRecvError}, select};
 
-    pub type Rx<T> = Receiver<Option<T>>;
-    pub type Tx<T> = Sender<Option<T>>;
+    pub type Rx<T> = Receiver<T>;
+    pub type Tx<T> = Sender<T>;
 
     pub struct Spout<T: Clone + Send + Debug> {
         filter: Option<Box<dyn Fn(&T)->bool>>,
@@ -92,7 +92,7 @@ pub mod msmc {
     }
 
     impl <T: Clone + Send + Debug> Spout<T> {
-        fn new(filter: Option<Box<dyn Fn(&T)->bool>>, sender: Sender<Option<T>>) -> Self {
+        fn new(filter: Option<Box<dyn Fn(&T)->bool>>, sender: Sender<T>) -> Self {
             Spout {
                 filter,
                 sender,
@@ -151,19 +151,19 @@ pub mod msmc {
         }
 
         pub fn publish_to_under(&mut self, under: &mut Subscription<T>) {
-            let (tx, rx) = unbounded::<Option<T>>();
+            let (tx, rx) = unbounded::<T>();
             self.subscribers.push(Spout::new(None, tx));
             under.receiver = Some(rx);
         }
 
         pub fn publish_to_under_with_filter(&mut self, under: &mut Subscription<T>, filter: Box<dyn Fn(&T) -> bool>) {
-            let (tx, rx) = unbounded::<Option<T>>();
+            let (tx, rx) = unbounded::<T>();
             self.subscribers.push(Spout::new(Some(filter), tx));
             under.receiver = Some(rx);
         }
 
         pub fn subscribe(&mut self) -> Subscription<T> {
-            let (tx, rx) = unbounded::<Option<T>>();
+            let (tx, rx) = unbounded::<T>();
             self.subscribers.push(Spout::new(None, tx));
 
             Subscription::new(rx)
@@ -171,7 +171,7 @@ pub mod msmc {
         
         pub fn subscribe_with_filter<'a, F: 'static>(&mut self, filter: F) -> Subscription<T> 
             where F: Fn(&T) -> bool {
-            let (tx, rx) = unbounded::<Option<T>>();
+            let (tx, rx) = unbounded::<T>();
             self.subscribers.push(Spout::new(Some(Box::new(filter)), tx));
 
             Subscription::new(rx)
@@ -185,7 +185,7 @@ pub mod msmc {
                 match ret {
                     Ok(opt) => {
                         debug!("STREAM {}: {:?}", self.name, opt);
-                        block_ret = f(&opt);
+                        block_ret = f(&Some(opt.clone()));
                         if let Ok(continue_flag) = block_ret {
                             if continue_flag {
                                 self.send(&opt);
@@ -219,19 +219,12 @@ pub mod msmc {
             Ok(())
         }
 
-        pub fn send(&self, data : &Option<T>) {
+        pub fn send(&self, data : &T) {
             for s in self.subscribers.iter() {
                 match &s.filter {
                     Some(f) => {
-                        match data.as_ref() {
-                            Some(x) => {
-                                if f(x) {
-                                    let _ = s.sender.send(data.clone());
-                                }
-                            },
-                            None => {
-                                let _ = s.sender.send(None);
-                            },
+                        if f(data) {
+                            let _ = s.sender.send(data.clone());
                         }
                     },
                     None => {
@@ -241,21 +234,21 @@ pub mod msmc {
             }
         }
 
-        pub fn recv_timeout<F>(&self, secs: u64, f:&mut F) -> Result<Option<T>, ()>
-            where F : FnMut(&Option<T>) {
+        pub fn recv_timeout<F>(&self, secs: u64, f:&mut F) -> Result<T, String>
+            where F : FnMut(&T) {
             let rx = self.receiver.as_ref().unwrap();
             select! {
                 recv(rx) -> ret => {
-                    let mut data = None;
                     if let Ok(t) = ret {
-                        data = t;
+                        f(&t);
+                        self.send(&t);
+                        Ok(t)
+                    } else {
+                        Err(format!("{:?}", ret.unwrap_err()))
                     }
-                    f(&data);
-                    self.send(&data);
-                    Ok(data)
                 },
                 default(Duration::from_secs(secs)) => {
-                    Err(())
+                    Err("Timeout".to_string())
                 }
             }
         }
@@ -313,7 +306,7 @@ mod tests {
             let mut i = 0;
             loop {
                 i = i + 1;
-                top.send(&Some(format!("{}", i)));   
+                top.send(&format!("{}", i));   
                 thread::sleep(Duration::from_secs(1));
             }
         });
