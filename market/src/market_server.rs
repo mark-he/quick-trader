@@ -53,11 +53,12 @@ pub enum MarketData {
 impl EventTrait for MarketData {   
 }
 pub trait MarketServer {
+    type Symbol: ToString + Clone;
     fn init(&mut self) -> Result<(), AppError>;
     fn start(&mut self) -> Result<Subscription<MarketData>, AppError>;
-    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError>;
-    fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Result<(), AppError>;
-    fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError>;
+    fn subscribe_tick(&mut self, symbol: Self::Symbol) -> Result<(), AppError>;
+    fn subscribe_kline(&mut self, symbol: Self::Symbol, interval: &str) -> Result<(), AppError>;
+    fn load_kline(&mut self, symbol: Self::Symbol, interval: &str, count: u32) -> Result<Vec<KLine>, AppError>;
     fn get_server_ping(&self) -> usize;
     fn close(&self);
 }

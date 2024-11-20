@@ -22,7 +22,7 @@ impl SymbolRoute for TradeEvent {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Symbol {
     pub symbol: String,
     pub exchange_id: String,

@@ -463,6 +463,7 @@ impl TradeServer for CtpTradeServer {
     type Account = Account;
     type SymbolConfig = ();
     type SymbolInfo = SymbolInfo;
+    type Symbol = Symbol;
     
     fn init(&mut self) -> Result<(), AppError> {
         let mut tdapi = TDApi::new(Config {
@@ -531,11 +532,10 @@ impl TradeServer for CtpTradeServer {
         Ok(tapi.subscribe())
     }
 
-    fn new_order(&mut self, symbol: &str, request: Self::OrderRequest) -> Result<(), AppError> {
-        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn new_order(&mut self, symbol: Symbol, request: Self::OrderRequest) -> Result<(), AppError> {
         let mut tapi = self.tapi.as_ref().unwrap().lock().unwrap();
-        if request.offset == OFFSET_CLOSE.code && contract.exchange_id == "SHFE" {
-            let v = self.get_positions(&contract.symbol)?;
+        if request.offset == OFFSET_CLOSE.code && symbol.exchange_id == "SHFE" {
+            let v = self.get_positions(symbol.clone())?;
             let mut last_day = 0;
 
             for p in v.iter() {
@@ -550,40 +550,37 @@ impl TradeServer for CtpTradeServer {
                 last_day_order.offset = OFFSET_CLOSEYESTERDAY.code.to_string();
                 last_day_order.volume_total = min(last_day, request.volume_total);
                 remain -= last_day_order.volume_total;
-                let _ = tapi.req_order_insert(&contract.symbol, &contract.exchange_id, last_day_order, "", 0);
+                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, last_day_order, "", 0);
             }
             if remain > 0 {
                 let mut today_day_order = request.clone();
                 today_day_order.volume_total = remain;
-                let _ = tapi.req_order_insert(&contract.symbol, &contract.exchange_id, today_day_order, "", 0);
+                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, today_day_order, "", 0);
             }
         } else {
-            let _ = tapi.req_order_insert(&contract.symbol, &contract.exchange_id, request.clone(), "", 0);
+            let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "", 0);
         }
 
-        let _ = tapi.req_order_insert(&contract.symbol, &contract.exchange_id, request.clone(), "", 0);
+        let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "", 0);
         Ok(())
     }
 
-    fn cancel_order(&mut self, symbol: &str, request: CancelOrderRequest) -> Result<(), AppError> {
-        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn cancel_order(&mut self, symbol: Symbol, request: CancelOrderRequest) -> Result<(), AppError> {
         let mut tapi = self.tapi.as_ref().unwrap().lock().unwrap();
-        let _ = tapi.req_order_action(&contract.symbol, &contract.exchange_id, request, 0);
+        let _ = tapi.req_order_action(&symbol.symbol, &symbol.exchange_id, request, 0);
         Ok(())
     }
 
-    fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
-        let _contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn cancel_orders(&mut self, _symbol: Symbol) -> Result<(), AppError> {
         Err(AppError::new(-200, "The service cancel_orders is not supported"))
     }
 
-    fn get_positions(&self, symbol: &str) -> Result<Vec<Self::Position>, AppError> {
-        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn get_positions(&self, symbol: Symbol) -> Result<Vec<Self::Position>, AppError> {
         let positions = self.positions.as_ref().read().unwrap();
         let mut position_map = HashMap::<String, Position>::new();
 
         for p in positions.iter() {
-            if p.symbol == contract.symbol {
+            if p.symbol == symbol.symbol {
                 let mut op = position_map.get_mut(&p.direction);
                 if let Some(p1) = op.as_mut() {
                     p1.position = p1.position + p.position;
@@ -600,8 +597,7 @@ impl TradeServer for CtpTradeServer {
         Ok(Some(account.clone()))
     }
 
-    fn init_symbol(&self, symbol: &str, _config: Self::SymbolConfig)-> Result<Self::SymbolInfo, AppError> {
-        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn init_symbol(&self, symbol:Symbol, _config: Self::SymbolConfig)-> Result<Self::SymbolInfo, AppError> {
         let sync_flag_on = self.sync_wait.fetch_not(Ordering::SeqCst);
         if sync_flag_on {
             return Err(AppError::new(-200, "The initialization should not be running concurrently."));
@@ -609,7 +605,7 @@ impl TradeServer for CtpTradeServer {
 
         let tapi_ref = self.tapi.as_ref().unwrap().clone();
         let mut tapi = tapi_ref.lock().unwrap();
-        let _ = tapi.req_qry_instrument(&contract.symbol, &contract.exchange_id, 0);
+        let _ = tapi.req_qry_instrument(&symbol.symbol, &symbol.exchange_id, 0);
 
         let time = Instant::now();
         loop {
@@ -619,7 +615,7 @@ impl TradeServer for CtpTradeServer {
                 let sync_flag_on = self.sync_wait.load(Ordering::SeqCst);
                 if !sync_flag_on {
                     let symbol_info_map = self.symbol_info_map.read().unwrap();
-                    let symbol_info = symbol_info_map.get(&contract.symbol);
+                    let symbol_info = symbol_info_map.get(&symbol.symbol);
                     if let Some(si) = symbol_info {
                         return Ok(si.clone())
                     } else {

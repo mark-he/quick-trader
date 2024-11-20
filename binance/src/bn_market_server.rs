@@ -282,16 +282,17 @@ impl BnMarketServer {
 }
 
 impl MarketServer for BnMarketServer {
-    fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
+    type Symbol = String;
+    fn load_kline(&mut self, symbol: String, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
         let client = BinanceHttpClient::default();
         let kline_interval = KlineInterval::from_str(interval).map_err(|e| {AppError::new(-200, &e)})?;
-        let request = bn_market::klines(symbol,kline_interval).limit(count);
+        let request = bn_market::klines(&symbol, kline_interval).limit(count);
         let data = model::get_resp_result(client.send(request), vec![])?;
-        let klines = Self::convert_json_to_k_lines(symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let klines = Self::convert_json_to_k_lines(&symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
         Ok(klines)
     }
 
-    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError>{
+    fn subscribe_tick(&mut self, symbol: String) -> Result<(), AppError>{
         let mut found = false;
         for topic in self.topics.iter() {
             if topic.symbol == symbol && topic.interval == "" {
@@ -302,7 +303,7 @@ impl MarketServer for BnMarketServer {
 
         if !found {
             let topic = MarketTopic {
-                symbol: symbol.to_string(),
+                symbol: symbol,
                 interval: "".to_string(),
             };
             self.topics.push(topic);
@@ -310,7 +311,7 @@ impl MarketServer for BnMarketServer {
         Ok(())
     }
 
-    fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Result<(), AppError>{
+    fn subscribe_kline(&mut self, symbol: String, interval: &str) -> Result<(), AppError>{
         let mut found = false;
         for topic in self.topics.iter() {
             if topic.symbol == symbol {
@@ -322,7 +323,7 @@ impl MarketServer for BnMarketServer {
         }
         if !found {
             let topic = MarketTopic {
-                symbol: symbol.to_string(),
+                symbol: symbol,
                 interval: interval.to_string(),
             };
             self.topics.push(topic);

@@ -2,7 +2,6 @@ use crate::market_server::KLine;
 
 use super::market_server::{MarketData, MarketServer};
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
-use log::info;
 use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, vec};
 use crossbeam::channel::{self, Receiver, Sender};
 
@@ -51,12 +50,12 @@ impl<S: MarketServer> MarketGateway<S> {
         })
     }
     
-    pub fn load_kline(&mut self, symbol: &str, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
+    pub fn load_kline(&mut self, symbol: S::Symbol, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
         self.server.load_kline(symbol, interval, count)
     }
 
-    pub fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Receiver<MarketData> {
-        let _ = self.server.subscribe_kline(symbol, interval);
+    pub fn subscribe_kline(&mut self, symbol: S::Symbol, interval: &str) -> Receiver<MarketData> {
+        let _ = self.server.subscribe_kline(symbol.clone(), interval);
 
         let (tx, rx) = channel::unbounded::<MarketData>();
         self.subscribers.push(Subscriber {
@@ -67,8 +66,8 @@ impl<S: MarketServer> MarketGateway<S> {
         rx
     }
 
-    pub fn subscribe_tick(&mut self, symbol: &str) -> Receiver<MarketData> {
-        let _ = self.server.subscribe_tick(symbol);
+    pub fn subscribe_tick(&mut self, symbol: S::Symbol) -> Receiver<MarketData> {
+        let _ = self.server.subscribe_tick(symbol.clone());
 
         let (tx, rx) = channel::unbounded::<MarketData>();
         self.subscribers.push(Subscriber {
@@ -80,7 +79,6 @@ impl<S: MarketServer> MarketGateway<S> {
     }
   
     pub fn start(&mut self) -> Result<(), AppError> {
-        info!("gateway started");
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
         let subscription = self.server.start()?;

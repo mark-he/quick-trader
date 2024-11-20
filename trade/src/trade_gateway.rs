@@ -61,29 +61,29 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.close();
     }
 
-    pub fn register_symbol(&mut self, symbol: &str) -> Receiver<S::Event> {
+    pub fn register_symbol(&mut self, symbol: S::Symbol) -> Receiver<S::Event> {
         let (tx, rx) = channel::unbounded::<S::Event>();
         self.subscribers.push((symbol.to_string(), tx.clone()));
         rx
     }
 
-    pub fn init_symbol(&mut self, symbol: &str, config: S::SymbolConfig) -> Result<S::SymbolInfo, AppError> {
+    pub fn init_symbol(&mut self, symbol: S::Symbol, config: S::SymbolConfig) -> Result<S::SymbolInfo, AppError> {
         self.server.init_symbol(symbol, config)
     }
 
-    pub fn new_order(&mut self, symbol: &str, request : S::OrderRequest) -> Result<(), AppError> {
+    pub fn new_order(&mut self, symbol: S::Symbol, request : S::OrderRequest) -> Result<(), AppError> {
         self.server.new_order(symbol, request)
     }
 
-    pub fn cancel_order(&mut self,  symbol: &str, request: S::CancelOrderRequest) -> Result<(), AppError> {
+    pub fn cancel_order(&mut self,  symbol: S::Symbol, request: S::CancelOrderRequest) -> Result<(), AppError> {
         self.server.cancel_order(symbol, request)
     }
 
-    pub fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
+    pub fn cancel_orders(&mut self, symbol: S::Symbol) -> Result<(), AppError> {
         self.server.cancel_orders(symbol)
     }
 
-    pub fn get_positions(&mut self, symbol:&str) -> Result<Vec<S::Position>, AppError> {
+    pub fn get_positions(&mut self, symbol:S::Symbol) -> Result<Vec<S::Position>, AppError> {
         self.server.get_positions(symbol)
     }
 

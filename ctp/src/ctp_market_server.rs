@@ -267,6 +267,7 @@ impl CtpMarketServer {
 }
 
 impl MarketServer for CtpMarketServer {
+    type Symbol = Symbol;
     fn init(&mut self) -> Result<(), AppError> {
         Ok(())
     }
@@ -352,8 +353,7 @@ impl MarketServer for CtpMarketServer {
         Ok(outer_subscription)
     }
     
-    fn load_kline(&mut self, symbol: &str, _interval: &str, _count: u32) -> Result<Vec<KLine>, AppError> {
-        let _contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn load_kline(&mut self, _symbol: Symbol, _interval: &str, _count: u32) -> Result<Vec<KLine>, AppError> {
         Ok(vec![])
     }
 
@@ -365,18 +365,17 @@ impl MarketServer for CtpMarketServer {
         self.start_ticket.fetch_add(1, Ordering::SeqCst);
     }
 
-    fn subscribe_tick(&mut self, symbol: &str) -> Result<(), AppError> {
-        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn subscribe_tick(&mut self, symbol: Symbol) -> Result<(), AppError> {
         let mut found = false;
         for topic in self.topics.iter() {
-            if topic.symbol == symbol {
+            if topic.symbol == symbol.symbol {
                 found = true;
                 break;
             }
         }
         if !found {
             let topic = MarketTopic {
-                symbol: contract.symbol.clone(),
+                symbol: symbol.symbol.clone(),
                 interval: "".to_string(),
             };
             self.topics.push(topic);
@@ -384,11 +383,10 @@ impl MarketServer for CtpMarketServer {
         Ok(())
     }
 
-    fn subscribe_kline(&mut self, symbol: &str, interval: &str) -> Result<(), AppError> {
-        let contract = Symbol::from_str(symbol).map_err(|e| AppError::new(-200, &e))?;
+    fn subscribe_kline(&mut self, symbol: Symbol, interval: &str) -> Result<(), AppError> {
         let mut found = false;
         for topic in self.topics.iter() {
-            if topic.symbol == symbol && topic.interval == interval {
+            if topic.symbol == symbol.symbol && topic.interval == interval {
                 
                 found = true;
                 break;
@@ -396,7 +394,7 @@ impl MarketServer for CtpMarketServer {
         }
         if !found {
             let topic = MarketTopic {
-                symbol: contract.symbol.clone(),
+                symbol: symbol.symbol.clone(),
                 interval: interval.to_string(),
             };
             self.topics.push(topic);

@@ -242,6 +242,7 @@ impl TradeServer for BnTradeServer {
     type Account = Asset;
     type SymbolConfig = SymbolConfig;
     type SymbolInfo = SymbolInfo;
+    type Symbol = String;
     
     fn init(&mut self) -> Result<(), AppError> {
         self.wss_stream.cleanup();
@@ -261,27 +262,27 @@ impl TradeServer for BnTradeServer {
         Ok(sub)
     }
 
-    fn new_order(&mut self, _symbol: &str, request : NewOrderRequest) -> Result<(), AppError> {
+    fn new_order(&mut self, _symbol: String, request : NewOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
         let _ = get_resp_result(client.send(request), vec![])?;
         Ok(())
     }
 
-    fn cancel_order(&mut self, symbol: &str, request: CancelOrderRequest) -> Result<(), AppError> {
+    fn cancel_order(&mut self, symbol: String, request: CancelOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let requset = bn_trade::cancel_order(symbol).orig_client_order_id(&request.order_id);
+        let requset = bn_trade::cancel_order(&symbol).orig_client_order_id(&request.order_id);
         let _ = get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }
 
-    fn cancel_orders(&mut self, symbol: &str) -> Result<(), AppError> {
+    fn cancel_orders(&mut self, symbol: String) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let requset = bn_trade::cancel_open_orders(symbol);
+        let requset = bn_trade::cancel_open_orders(&symbol);
         let _ = get_resp_result(client.send(requset), vec![])?;
         Ok(())
     }
 
-    fn get_positions(&self, symbol: &str) -> Result<Vec<Position>, AppError> {
+    fn get_positions(&self, symbol: String) -> Result<Vec<Position>, AppError> {
         let positions = self.positions.read().unwrap();
         let mut ret = vec![];
         for position in positions.iter() {
@@ -304,16 +305,16 @@ impl TradeServer for BnTradeServer {
         Ok(ret)
     }
     
-    fn init_symbol(&self, symbol: &str, config: Self::SymbolConfig) -> Result<SymbolInfo, AppError> {
+    fn init_symbol(&self, symbol: String, config: Self::SymbolConfig) -> Result<SymbolInfo, AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
 
-        let request = bn_trade::margin_type(symbol, config.margin_type);
+        let request = bn_trade::margin_type(&symbol, config.margin_type);
         let _ = get_resp_result(client.send(request), vec![-4046])?;
 
-        let request = bn_trade::leverage(symbol, config.leverage);
+        let request = bn_trade::leverage(&symbol, config.leverage);
         let _ = get_resp_result(client.send(request), vec![])?;
 
-        let request = account::leverage_bracket().symbol(symbol);
+        let request = account::leverage_bracket().symbol(&symbol);
         let data = get_resp_result(client.send(request), vec![])?;
 
         let leverage_brackets: Vec<LeverageBracket> = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;

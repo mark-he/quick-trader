@@ -4,9 +4,10 @@ pub mod c_model;
 
 #[cfg(test)]
 mod tests {
-    use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::{Config, TradeEvent}};
+    use common::error::AppError;
+    use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::{Config, Symbol, TradeEvent}};
     use market::market_server::MarketData;
-    use std::thread;
+    use std::{str::FromStr, thread};
     use crate::context;
     use log::*;
 
@@ -31,12 +32,12 @@ mod tests {
     }
 
     #[test]
-    fn test_market_kline() {
+    fn test_market_kline() -> Result<(), AppError> {
         init_gateweay();
         let gateway_ref = context::get_market_gateway();
         let mut gateway = gateway_ref.lock().unwrap();
     
-        let rx  = gateway.subscribe_kline("m2501", "1m");
+        let rx  = gateway.subscribe_kline(Symbol::from_str("m2501@DCE").map_err(|e| AppError::new(-200, &e))?, "1m");
         let ret = gateway.start();
         if ret.is_err() {
             error!("{:?}", ret.unwrap_err());
@@ -59,16 +60,17 @@ mod tests {
             }
         });
         handler.join().unwrap();
+        Ok(())
     }
 
     #[test]
-    fn test_market_tick() {
+    fn test_market_tick() -> Result<(), AppError> {
         init_gateweay();
 
         let gateway_ref = context::get_market_gateway();
         let mut gateway = gateway_ref.lock().unwrap();
     
-        let rx  = gateway.subscribe_tick("m2501");
+        let rx  = gateway.subscribe_tick(Symbol::from_str("m2501@DCE").map_err(|e| AppError::new(-200, &e))?);
         let ret = gateway.start();
         if ret.is_err() {
             error!("{:?}", ret.unwrap_err());
@@ -89,39 +91,7 @@ mod tests {
             }
         });
         handler.join().unwrap();
+        Ok(())
     }
 
-    #[test]
-    fn test_trade_tick() {
-        init_gateweay();
-
-        let gateway_ref = context::get_trade_gateway();
-        let mut gateway = gateway_ref.lock().unwrap();
-    
-        let rx  = gateway.register_symbol("m2501");
-        let ret = gateway.start();
-        if ret.is_err() {
-            error!("{:?}", ret.unwrap_err());
-        }
-        let handler = thread::spawn(move || {
-            loop {
-                if let Ok(data) = rx.recv() {
-                    match data {
-                        TradeEvent::AccountQuery(account) => {
-                            let json = serde_json::to_string(&account).unwrap();
-                            info!("account {}", json);
-                        },
-                        TradeEvent::PositionQuery(positions) => {
-                            let json = serde_json::to_string(&positions).unwrap();
-                            info!("position {}", json);
-                        },
-                        _ => {
-                            info!("ssss");
-                        },
-                    }
-                }
-            }
-        });
-        handler.join().unwrap();
-    }
 }

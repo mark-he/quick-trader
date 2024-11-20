@@ -77,7 +77,7 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
     let gateway_ref = context::get_market_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let rx  = gateway.subscribe_kline(&symbol_rust, interval_rust.as_str());
+    let rx  = gateway.subscribe_kline(symbol_rust.clone(), interval_rust.as_str());
     let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
     thread::spawn(move || {
         loop {
@@ -93,7 +93,7 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
             }
         }
     });
-    let ret = gateway.load_kline(&symbol_rust, &interval_rust, count as u32);
+    let ret = gateway.load_kline(symbol_rust, &interval_rust, count as u32);
     match ret {
         Ok(klines) => {
             result.data = Some(klines);
@@ -113,7 +113,7 @@ pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char,
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_market_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    let rx  = gateway.subscribe_tick(&symbol_rust);
+    let rx  = gateway.subscribe_tick(symbol_rust);
     let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
     thread::spawn(move || {
         loop {
@@ -184,7 +184,7 @@ pub extern "C" fn new_order(symbol : *const c_char, order_request: *const c_char
     let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
     match ret {
         Ok(order) => {
-            let ret = gateway.new_order(&symbol_rust, order);
+            let ret = gateway.new_order(symbol_rust, order);
             if ret.is_err() {
                 result.error_code = -1;
                 result.message = format!("{:?}", ret.unwrap_err());
@@ -207,7 +207,7 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let ret = gateway.cancel_order(&symbol_rust, CancelOrderRequest{order_id: order_id_rust});
+    let ret = gateway.cancel_order(symbol_rust, CancelOrderRequest{order_id: order_id_rust});
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
@@ -223,7 +223,7 @@ pub extern "C" fn cancel_orders(symbol : *const c_char) -> Box<CString> {
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let ret = gateway.cancel_orders(&symbol_rust);
+    let ret = gateway.cancel_orders(symbol_rust);
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
@@ -239,7 +239,7 @@ pub extern "C" fn get_positions(symbol : *const c_char) -> Box<CString> {
     let mut gateway = gateway_ref.lock().unwrap();
 
     
-    let ret = gateway.get_positions(&symbol_rust);
+    let ret = gateway.get_positions(symbol_rust);
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
@@ -278,7 +278,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
 
     match ret {
         Ok(config) => {
-            let ret = gateway.init_symbol(&symbol_rust, config);
+            let ret = gateway.init_symbol(symbol_rust.clone(), config);
             match ret {
                 Ok(symbol_info) => {
                     result.data = Some(symbol_info);
@@ -295,7 +295,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
         },
     }
     if result.error_code == 0 {
-        let rx = gateway.register_symbol(&symbol_rust);
+        let rx = gateway.register_symbol(symbol_rust.clone());
         let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
         thread::spawn(move || {
             loop {
