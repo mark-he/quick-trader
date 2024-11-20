@@ -1,10 +1,8 @@
 use std::str::FromStr;
 
-use common::msmc::EventTrait;
 use serde::{Deserialize, Serialize};
 use trade::trade_server::SymbolRoute;
 
-impl EventTrait for TradeEvent {}
 
 impl SymbolRoute for TradeEvent {
     fn get_symbol(&self) -> String {
@@ -72,6 +70,7 @@ pub enum TradeEvent {
     Disconnected(i32),
     Error(i32, String),
 }
+unsafe impl Send for TradeEvent {}
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

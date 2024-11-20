@@ -1,4 +1,4 @@
-use common::{error::AppError, msmc::{EventTrait, Subscription}};
+use common::{error::AppError, msmc::Subscription};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize,)]
@@ -50,7 +50,7 @@ pub enum MarketData {
     Error(i32, String),
 }
 
-impl EventTrait for MarketData {   
+unsafe impl Send for MarketData {   
 }
 pub trait MarketServer {
     type Symbol: ToString + Clone;

@@ -11,7 +11,6 @@ use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use libctp_sys::*;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use common::msmc::*;
@@ -281,8 +280,8 @@ impl MarketServer for CtpMarketServer {
             ..Default::default()
         });
         let mut subscription = mapi.start().unwrap();
+        subscription.name = "CTP MARKETSERVER".to_string();
         let outer_subscription = subscription.subscribe();
-
         let mut tick_set = HashSet::new();
         for topic in self.topics.iter() {
             if !tick_set.contains(topic.symbol.as_str()) {
@@ -297,10 +296,9 @@ impl MarketServer for CtpMarketServer {
 
         let closure = move |_rx: Rx<String>| {
             let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
-            let continue_flag = true;
             let _ = subscription.stream(&mut |event| {
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Ok(false);
+                    return Err(StreamError::Exit);
                 }
                 match event {
                     Some(data) => {
@@ -338,6 +336,7 @@ impl MarketServer for CtpMarketServer {
                                         }
                                     }
                                 }
+                                return Ok(false);
                             },
                             _ => {
                             },
@@ -346,7 +345,7 @@ impl MarketServer for CtpMarketServer {
                     None => {
                     }
                 }
-                Ok(continue_flag)
+                Ok(true)
             }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));

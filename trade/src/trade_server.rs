@@ -1,12 +1,14 @@
 
-use common::{error::AppError, msmc::{EventTrait, Subscription}};
+use std::fmt::Debug;
+
+use common::{error::AppError, msmc::Subscription};
 
 pub trait SymbolRoute {
     fn get_symbol(&self) -> String;
 }
 
 pub trait TradeServer {
-    type Event: EventTrait + SymbolRoute + 'static;
+    type Event: Clone + Debug + Send + SymbolRoute + 'static;
     type OrderRequest;
     type CancelOrderRequest;
     type Position;

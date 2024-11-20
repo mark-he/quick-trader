@@ -5,7 +5,7 @@ pub mod c_model;
 #[cfg(test)]
 mod tests {
     use common::error::AppError;
-    use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::{Config, Symbol, TradeEvent}};
+    use ctp::{ctp_market_server::CtpMarketServer, ctp_trade_server::CtpTradeServer, model::{Config, Symbol}};
     use market::market_server::MarketData;
     use std::{str::FromStr, thread};
     use crate::context;

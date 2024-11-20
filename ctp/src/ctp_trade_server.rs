@@ -1,13 +1,13 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+use common::msmc::StreamError;
 use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
 
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
@@ -489,11 +489,10 @@ impl TradeServer for CtpTradeServer {
         let symbol_info_map_ref = self.symbol_info_map.clone();
         let sync_wait_ref = self.sync_wait.clone();
         let subscription = self.subscription.take().unwrap();
-        let continue_flag = true;
         let closure = move |_rx: Rx<String>| {
             let _ = subscription.stream(&mut move |event| {
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Ok(false);
+                    return Err(StreamError::Exit);
                 }
                 match event {
                     Some(TradeEvent::PositionQuery(v)) => {
@@ -505,10 +504,11 @@ impl TradeServer for CtpTradeServer {
                     Some(TradeEvent::SymbolQuery(symbol_info)) => {
                         symbol_info_map_ref.write().unwrap().insert(symbol_info.symbol.clone(), symbol_info.clone());
                         sync_wait_ref.store(false, Ordering::SeqCst);
+                        return Ok(false)
                     },
                     _ => {},
                 }
-                Ok(continue_flag)
+                Ok(true)
             }, true);
         };
         self.handler = Some(InteractiveThread::spawn(closure));

@@ -1,5 +1,5 @@
 use binance_future_connector::{http::error::ClientError, market_stream::enums::{Level, UpdateSpeed}, trade::enums::{MarginAssetMode, MarginType, PositionMode}, ureq::{Error, Response}};
-use common::{error::AppError, msmc::EventTrait};
+use common::error::AppError;
 use serde::{Deserialize, Deserializer, Serialize};
 use trade::trade_server::SymbolRoute;
 
@@ -73,7 +73,7 @@ pub enum AccountEvent {
     TradeLite(TradeLiteEvent),
 }
 
-impl EventTrait for AccountEvent {}
+unsafe impl Send for AccountEvent {}
 
 impl SymbolRoute for AccountEvent {
     fn get_symbol(&self) -> String {
