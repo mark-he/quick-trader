@@ -509,20 +509,21 @@ impl TradeServer for CtpTradeServer {
         let _ = InteractiveThread::spawn(move |_rx| {
             loop {
                 let mut tapi = tapi_ref.lock().unwrap();
-                let ret = tapi.req_qry_investor_position(0);
-                if ret.is_err() {
-                    error!("req_qry_investor_position: {:?}", ret);
-                }
                 let ret = tapi.req_qry_trading_account(0);
                 if ret.is_err() {
                     error!("req_qry_trading_account: {:?}", ret);
                 }
-                sleep(Duration::from_secs(3));
+                sleep(Duration::from_secs(1));
+                let ret = tapi.req_qry_investor_position(0);
+                if ret.is_err() {
+                    error!("req_qry_investor_position: {:?}", ret);
+                }
+                sleep(Duration::from_secs(1));
             }
         });
         let time = Instant::now();
         loop {
-            if time.elapsed().as_secs() > 5 {
+            if time.elapsed().as_secs() > 10 {
                 return Err(AppError::new(-200, "Can not init account and position."));
             } else {
                 if self.position_checked.load(Ordering::SeqCst) && self.account_checked.load(Ordering::SeqCst) {
