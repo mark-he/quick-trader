@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use libctp_sys::*;
+use log::warn;
 
 use std::collections::HashMap;
 use std::os::raw::*;
@@ -42,11 +43,10 @@ impl Spi {
         let direction = (pRspInfo.Direction as u8 as char).to_string();
 
         let order_type = OrderType {
-            price_type: (pRspInfo.OrderPriceType as u8 + 48) as char,
-            time_condition: (pRspInfo.TimeCondition as u8 + 48) as char,
-            volume_condition: (pRspInfo.VolumeCondition as u8 + 48) as char,
+            price_type: (pRspInfo.OrderPriceType as u8) as char,
+            time_condition: (pRspInfo.TimeCondition as u8) as char,
+            volume_condition: (pRspInfo.VolumeCondition as u8) as char,
         };
-       
         let order = Order {
             order_ref: c_char_to_string(pRspInfo.OrderRef.as_ptr()),
             direction:  DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
@@ -202,16 +202,12 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
         });
     }
 
-    fn on_rtn_order(&mut self, pOrder: *mut CThostFtdcOrderField) { 
-        // let temp = unsafe { &mut *pOrder };
+    fn on_rtn_order(&mut self, pOrder: *mut CThostFtdcOrderField) {
         let ret = Self::convert_order(pOrder);
         let _ = self.subscription.send(&TradeEvent::OnOrder(ret));
     }
 
-    fn on_rtn_trade(&mut self, pTrade: *mut CThostFtdcTradeField) { 
-        // let temp = unsafe { &mut *pTrade };
-        // let user_id = c_char_to_string(temp.UserID.as_ptr());
-        // let request_id = user_id.parse::<i32>().unwrap();
+    fn on_rtn_trade(&mut self, pTrade: *mut CThostFtdcTradeField) {
         let ret = Self::convert_trade(pTrade);
         let _ = self.subscription.send(&TradeEvent::OnTrade(ret));
     }

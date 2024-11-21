@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 common = { path = "../common" }
 crossbeam = "0.8.4"
+log = { path = "../log" }

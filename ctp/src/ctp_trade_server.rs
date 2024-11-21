@@ -4,7 +4,7 @@
 use common::msmc::StreamError;
 use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
-use log::error;
+use log::{error, info};
 
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -494,6 +494,7 @@ impl TradeServer for CtpTradeServer {
                     },
                     None => {},
                     _ => {
+                        info!("TRADE SERVER {:?}", event);
                     },
                 }
                 Ok(true)
@@ -538,7 +539,10 @@ impl TradeServer for CtpTradeServer {
 
     fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
         let mut tapi = self.tapi.lock().unwrap();
-        Ok(tapi.subscribe())
+        info!("TRADESERVER START");
+        let subscription = tapi.subscribe();
+        info!("TRADESERVER START COMPLETED");
+        Ok(subscription)
     }
 
     fn new_order(&mut self, symbol: Symbol, request: Self::OrderRequest) -> Result<(), AppError> {

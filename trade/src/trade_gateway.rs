@@ -3,6 +3,7 @@ use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
 use super::trade_server::*;
 use common::{error::AppError, msmc::StreamError, thread::{Handler, InteractiveThread, Rx}};
 use crossbeam::channel::{self, Receiver, Sender};
+use log::*;
 
 pub struct TradeGateway<S: TradeServer> {
     server: S,
@@ -33,6 +34,10 @@ impl<S: TradeServer> TradeGateway<S> {
 
         let closure = move |_rx: Rx<String>| { 
             let _ = subscription.stream(&mut move |event| {
+                if let Some(x) = event {
+
+                    info!("TRADE_GATEEWAY {:?}", x);
+                }
                 if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
                     return Err(StreamError::Exit);
                 }
@@ -40,6 +45,7 @@ impl<S: TradeServer> TradeGateway<S> {
                     Some(data) => {
                         let symbol = data.get_symbol();
                         for subscriber in subscribers.iter() {
+                            info!("TRADE_GATEEWAY {} {} {:?}", symbol, subscriber.0, data);
                             if subscriber.0 == symbol || symbol == "" {
                                 let _ = subscriber.1.send(data.clone());
                             }
