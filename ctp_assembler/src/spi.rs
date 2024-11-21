@@ -388,12 +388,14 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                                 position_event.push(op);
                                             }
                                         }
-                                        let json = serde_json::to_string(&position_event).unwrap();
-                                        let json_rust = CString::new(json).expect("CString failed");
-                                        let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                                        callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                        if !are_vecs_equal::<PositionEvent>(&position_event, &last_position) {
+                                            let json = serde_json::to_string(&position_event).unwrap();
+                                            let json_rust = CString::new(json).expect("CString failed");
+                                            let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                        }
+                                        last_position = position_event;
                                     } 
-                                    last_position = positions;
                                 },
                                 _ => {},
                             }
@@ -408,4 +410,18 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
         }
     }
     result.to_c_json()
+}
+
+fn are_vecs_equal<T: PartialEq + Eq + Clone>(vec1: &Vec<T>, vec2: &Vec<T>) -> bool {
+    if vec1.len()!= vec2.len() {
+        return false;
+    }
+
+    for (i, item) in vec1.iter().enumerate() {
+        if item!= &vec2[i] {
+            return false;
+        }
+    }
+
+    true
 }

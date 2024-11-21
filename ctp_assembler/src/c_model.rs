@@ -59,3 +59,19 @@ pub struct PositionEvent {
     pub trading_day: String,
     pub invest_unit_id : String,
 }
+
+impl PartialEq for PositionEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.symbol == other.symbol
+            && self.position == other.position
+            && self.today_position == other.today_position
+            && self.direction == other.direction
+            && self.cost == other.cost
+            && self.price == other.price
+            && self.cost_offset == other.cost_offset
+            && self.trading_day == other.trading_day
+            && self.invest_unit_id == other.invest_unit_id
+    }
+}
+
+impl Eq for PositionEvent {}

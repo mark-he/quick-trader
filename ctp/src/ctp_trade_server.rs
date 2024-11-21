@@ -176,6 +176,8 @@ impl TDApi {
             MacAddress: string_to_c_char::<21>("".to_string()),
             IPAddress: string_to_c_char::<33>("".to_string()),
         };
+        
+        info!("ORDER 2 {:?}", request.clone());
         Self::send_request(&mut move || unsafe {
             self.api.clone().lock().unwrap().ReqOrderInsert(&mut request, request_id)
         })
@@ -553,18 +555,16 @@ impl TradeServer for CtpTradeServer {
                 last_day_order.offset = OFFSET_CLOSEYESTERDAY.code.to_string();
                 last_day_order.volume_total = min(last_day, request.volume_total);
                 remain -= last_day_order.volume_total;
-                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, last_day_order, "", 0);
+                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, last_day_order, "", 0).map_err(|e| AppError::new(-200, &e))?;
             }
             if remain > 0 {
                 let mut today_day_order = request.clone();
                 today_day_order.volume_total = remain;
-                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, today_day_order, "", 0);
+                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, today_day_order, "", 0).map_err(|e| AppError::new(-200, &e))?;
             }
         } else {
-            let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "", 0);
+            let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "", 0).map_err(|e| AppError::new(-200, &e))?;
         }
-
-        let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "", 0);
         Ok(())
     }
 
