@@ -36,9 +36,6 @@ impl<S: TradeServer> TradeGateway<S> {
 
         let subscribers = self.subscribers.clone();
         let handler = self.subscription.lock().unwrap().stream(move |event| {
-            if let Some(e) = event {
-                info!("GATEWAY >>>>> {:?}", e);
-            }
             if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
                 return Err(StreamError::Exit);
             }

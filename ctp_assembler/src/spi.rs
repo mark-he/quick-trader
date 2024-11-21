@@ -380,6 +380,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                                     today_position: p.today_position,
                                                     direction: p.direction.clone(),
                                                     cost: p.cost,
+                                                    price: p.cost / p.position as f64,
                                                     cost_offset: p.cost_offset,
                                                     trading_day: p.trading_day.clone(),
                                                     invest_unit_id : p.invest_unit_id.clone(),
