@@ -385,7 +385,6 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                                     direction: p.direction.clone(),
                                                     cost: p.cost,
                                                     price,
-                                                    cost_offset: p.cost_offset,
                                                     invest_unit_id : p.invest_unit_id.clone(),
                                                 };
                                                 position_event.push(op);

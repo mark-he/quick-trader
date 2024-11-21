@@ -97,7 +97,6 @@ impl Spi {
             today_position: pRspInfo.TodayPosition as u32,
             direction: POSITION_DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
             cost: pRspInfo.PositionCost,
-            cost_offset: pRspInfo.PositionCostOffset,
             invest_unit_id: c_char_to_string(pRspInfo.InvestUnitID.as_ptr()),
         };
         position

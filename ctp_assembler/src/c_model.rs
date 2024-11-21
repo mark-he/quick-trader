@@ -55,7 +55,6 @@ pub struct PositionEvent {
     pub direction: String,
     pub cost: f64,
     pub price: f64,
-    pub cost_offset: f64,
     pub invest_unit_id : String,
 }
 
@@ -67,7 +66,6 @@ impl PartialEq for PositionEvent {
             && self.direction == other.direction
             && self.cost == other.cost
             && self.price == other.price
-            && self.cost_offset == other.cost_offset
             && self.invest_unit_id == other.invest_unit_id
     }
 }
