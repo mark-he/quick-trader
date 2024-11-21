@@ -3,6 +3,7 @@ use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, thread::JoinHandl
 use super::trade_server::*;
 use common::{error::AppError, msmc::{StreamError, Subscription}};
 use crossbeam::channel::{self, Receiver, Sender};
+use log::info;
 
 pub struct TradeGateway<S: TradeServer> {
     server: S,
@@ -35,6 +36,9 @@ impl<S: TradeServer> TradeGateway<S> {
 
         let subscribers = self.subscribers.clone();
         let handler = self.subscription.lock().unwrap().stream(move |event| {
+            if let Some(e) = event {
+                info!("GATEWAY >>>>> {:?}", e);
+            }
             if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
                 return Err(StreamError::Exit);
             }

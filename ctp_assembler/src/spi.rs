@@ -7,7 +7,7 @@ use ctp::ctp_trade_server::CtpTradeServer;
 use ctp::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, Symbol, SymbolInfo, TradeEvent};
 use common::c::*;
 use market::market_server::{KLine, MarketData};
-use crate::c_model::ServiceResult;
+use crate::c_model::{OrderEvent, PositionEvent, ServiceResult};
 use crate::context;
 use log::*;
 
@@ -344,7 +344,26 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                     loop {
                         if let Ok(data) = rx.recv() {
                             match data {
-                                TradeEvent::OnOrder(order_event) => {
+                                TradeEvent::OnOrder(order) => {
+
+                                    let order_event = OrderEvent {
+                                        order_ref: order.order_ref.clone(),
+                                        direction: order.direction.clone(),
+                                        offset: order.offset.clone(),
+                                        price: order.price,
+                                        volume_total_original: order.volume_total_original,   
+                                        submit_status: order.submit_status.clone(),
+                                        order_type: order.order_type.clone(),
+                                        sys_id: order.sys_id.clone(),
+                                        status: order.status.clone(),
+                                        volume_traded: order.volume_traded,
+                                        volume_total: order.volume_total,
+                                        status_msg: order.status_msg.clone(),
+                                        symbol: order.symbol.clone(),
+                                        request_id: order.request_id,
+                                        invest_unit_id : order.invest_unit_id.clone(),
+                                    };
+
                                     let json = serde_json::to_string(&order_event).unwrap();
                                     let json_rust = CString::new(json).expect("CString failed");
                                     let _type = CString::new("ORDER".to_string()).expect("CString failed");
@@ -352,7 +371,23 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                 },
                                 TradeEvent::PositionQuery(positions) => {
                                     if positions.len() > 0 || last_position.len() > 0 {
-                                        let json = serde_json::to_string(&positions).unwrap();
+                                        let mut position_event = vec![];
+                                        for p in positions.iter() {
+                                            if p.symbol == symbol.symbol {
+                                                let op = PositionEvent {
+                                                    symbol : p.symbol.clone(),
+                                                    position: p.position,
+                                                    today_position: p.today_position,
+                                                    direction: p.direction.clone(),
+                                                    cost: p.cost,
+                                                    cost_offset: p.cost_offset,
+                                                    trading_day: p.trading_day.clone(),
+                                                    invest_unit_id : p.invest_unit_id.clone(),
+                                                };
+                                                position_event.push(op);
+                                            }
+                                        }
+                                        let json = serde_json::to_string(&position_event).unwrap();
                                         let json_rust = CString::new(json).expect("CString failed");
                                         let _type = CString::new("POSITION".to_string()).expect("CString failed");
                                         callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());

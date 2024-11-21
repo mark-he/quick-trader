@@ -24,3 +24,37 @@ impl <T: Serialize> ServiceResult<T> {
         Box::new(CString::new(json).unwrap())
     }
 }
+
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct OrderEvent {
+    pub order_ref: String,
+    pub direction: String,
+    pub offset: String,
+    pub price: f64,
+    pub volume_total_original: u32,   
+    pub submit_status: String,
+    pub order_type: String,
+    pub sys_id: String,
+    pub status: String,
+    pub volume_traded: u32,
+    pub volume_total: u32,
+    pub status_msg: String,
+    pub symbol: String,
+    pub request_id: i32,
+    pub invest_unit_id : String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PositionEvent {
+    pub symbol : String,
+    pub position: u32,
+    pub today_position: u32,
+    pub direction: String,
+    pub cost: f64,
+    pub cost_offset: f64,
+    pub trading_day: String,
+    pub invest_unit_id : String,
+}
