@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use libctp_sys::*;
+use log::info;
 use std::collections::HashMap;
 use std::os::raw::*;
 use common::{c::*, msmc::Subscription};
@@ -88,7 +89,7 @@ impl Spi {
 
     fn convert_position(pRspInfo: *mut CThostFtdcInvestorPositionField) -> Position {
         let pRspInfo = unsafe { &mut *pRspInfo };
-
+        info!("POSITION: {:?}", pRspInfo);
         let direction = (pRspInfo.PosiDirection as u8 as char).to_string();
         let position = Position {
             symbol : c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
@@ -97,7 +98,6 @@ impl Spi {
             direction: POSITION_DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
             cost: pRspInfo.PositionCost,
             cost_offset: pRspInfo.PositionCostOffset,
-            trading_day: c_char_to_string(pRspInfo.TradingDay.as_ptr()),
             invest_unit_id: c_char_to_string(pRspInfo.InvestUnitID.as_ptr()),
         };
         position

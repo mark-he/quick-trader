@@ -165,7 +165,6 @@ pub struct Position {
     pub direction: String,
     pub cost: f64,
     pub cost_offset: f64,
-    pub trading_day: String,
     pub invest_unit_id : String,
 }
 
