@@ -1,15 +1,16 @@
-use std::sync::{atomic::{AtomicUsize, Ordering}, Arc};
+use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, thread::JoinHandle};
 
 use super::trade_server::*;
-use common::{error::AppError, msmc::StreamError, thread::{Handler, InteractiveThread, Rx}};
+use common::{error::AppError, msmc::{StreamError, Subscription}};
 use crossbeam::channel::{self, Receiver, Sender};
 use log::*;
 
 pub struct TradeGateway<S: TradeServer> {
     server: S,
     subscribers : Vec<(String, Sender<S::Event>)>,
-    pub handler: Option<Handler<()>>,
+    pub handler: Option<JoinHandle<()>>,
     start_ticket: Arc<AtomicUsize>,
+    subscription: Arc<Mutex<Subscription<S::Event>>>,
 }
 
 impl<S: TradeServer> TradeGateway<S> {
@@ -19,6 +20,7 @@ impl<S: TradeServer> TradeGateway<S> {
             subscribers: vec![],
             handler: None,
             start_ticket: Arc::new(AtomicUsize::new(0)),
+            subscription: Arc::new(Mutex::new(Subscription::top())),
         }
     }
     
@@ -30,34 +32,28 @@ impl<S: TradeServer> TradeGateway<S> {
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
         let subscription = self.server.start()?;
+        self.subscription = Arc::new(Mutex::new(subscription));
+
         let subscribers = self.subscribers.clone();
-
-        let closure = move |_rx: Rx<String>| { 
-            let _ = subscription.stream(&mut move |event| {
-                if let Some(x) = event {
-
-                    info!("TRADE_GATEEWAY {:?}", x);
-                }
-                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Err(StreamError::Exit);
-                }
-                match event {
-                    Some(data) => {
-                        let symbol = data.get_symbol();
-                        for subscriber in subscribers.iter() {
-                            info!("TRADE_GATEEWAY {} {} {:?}", symbol, subscriber.0, data);
-                            if subscriber.0 == symbol || symbol == "" {
-                                let _ = subscriber.1.send(data.clone());
-                            }
+        let handler = self.subscription.lock().unwrap().stream(move |event| {
+            if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                return Err(StreamError::Exit);
+            }
+            match event {
+                Some(data) => {
+                    let symbol = data.get_symbol();
+                    for subscriber in subscribers.iter() {
+                        if subscriber.0 == symbol || symbol == "" {
+                            let _ = subscriber.1.send(data.clone());
                         }
-                    },
-                    None => {
                     }
+                },
+                None => {
                 }
-                Ok(true)
-            }, true);
-        };
-        self.handler = Some(InteractiveThread::spawn(closure));
+            }
+            Ok(true)
+        });
+        self.handler = Some(handler);
         Ok(())
     }
 

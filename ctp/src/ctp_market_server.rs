@@ -2,8 +2,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use common::error::AppError;
-use common::thread::{Handler, InteractiveThread};
-use log::info;
 use market::kline::KLineCombiner;
 use crate::model::{Config, Symbol};
 
@@ -13,11 +11,11 @@ use libctp_sys::*;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use common::msmc::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use common::thread::Rx;
 
 struct SafePointer<T>(*mut T);
 
@@ -230,8 +228,9 @@ pub struct CtpMarketServer {
     mapi: Option<MDApi>,
     topics: Vec<MarketTopic>,
     config: Config,
-    handler: Option<Handler<()>>,
+    handler: Option<JoinHandle<()>>,
     start_ticket: Arc<AtomicUsize>,
+    subscription: Arc<Mutex<Subscription<MarketData>>>,
 }
 
 impl CtpMarketServer {
@@ -242,6 +241,7 @@ impl CtpMarketServer {
             topics: Vec::new(),
             handler: None,
             start_ticket: Arc::new(AtomicUsize::new(0)),
+            subscription: Arc::new(Mutex::new(Subscription::top())),
         }
     }
 }
@@ -263,6 +263,8 @@ impl MarketServer for CtpMarketServer {
         let mut subscription = mapi.start().unwrap();
         subscription.name = "CTP MARKETSERVER".to_string();
         let outer_subscription = subscription.subscribe();
+        self.subscription = Arc::new(Mutex::new(subscription));
+        
         let mut tick_set = HashSet::new();
         for topic in self.topics.iter() {
             if !tick_set.contains(topic.symbol.as_str()) {
@@ -274,62 +276,63 @@ impl MarketServer for CtpMarketServer {
 
         let topics = self.topics.clone();
         let mut last_ticks = HashMap::<String, Tick>::new();
+        let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
 
-        let closure = move |_rx: Rx<String>| {
-            let mut combiner_map:HashMap<String, KLineCombiner> = HashMap::new();
-            let _ = subscription.stream(&mut |event| {
-                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Err(StreamError::Exit);
-                }
-                match event {
-                    Some(data) => {
-                        match data {
-                            MarketData::Tick(t) => {
-                                subscription.send(&MarketData::Tick(t.clone()));
-                                
-                                let mut volumn = 0 as f64;
-                                let mut turnover = 0 as f64;
-                                let prev_tick = last_ticks.get(&t.symbol);
-                                if let Some(prev) = prev_tick {
-                                    volumn = t.volume - prev.volume;
-                                    turnover = t.turnover - prev.turnover;
-                                }
-                                last_ticks.insert(t.symbol.to_string(), t.clone());
 
-                                for topic in topics.iter() {
-                                    if topic.symbol == t.symbol && topic.interval != "" {
-                                        let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
-                                        let kline = KLine {
-                                            symbol: t.symbol.clone(),
-                                            datetime: t.datetime.clone(),
-                                            interval: topic.interval.clone(),
-                                            open: t.close,
-                                            high: t.close,
-                                            low: t.close,
-                                            close: t.close,
-                                            volume: volumn,
-                                            turnover: turnover,
-                                            timestamp: t.timestamp,
-                                        };
-                                        let mut new_kline = combiner.combine_tick(&kline, true);
-                                        if let Some(kline) = new_kline.take() {
-                                            let _ = subscription.send(&MarketData::Kline(kline));
-                                        }
+        let subscription_ref = self.subscription.clone();
+        let handler = self.subscription.lock().unwrap().stream(move |event| {
+            if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                return Err(StreamError::Exit);
+            }
+            match event {
+                Some(data) => {
+                    match data {
+                        MarketData::Tick(t) => {
+                            let subscription = subscription_ref.lock().unwrap();
+                            subscription.send(&MarketData::Tick(t.clone()));
+                            
+                            let mut volumn = 0 as f64;
+                            let mut turnover = 0 as f64;
+                            let prev_tick = last_ticks.get(&t.symbol);
+                            if let Some(prev) = prev_tick {
+                                volumn = t.volume - prev.volume;
+                                turnover = t.turnover - prev.turnover;
+                            }
+                            last_ticks.insert(t.symbol.to_string(), t.clone());
+
+                            for topic in topics.iter() {
+                                if topic.symbol == t.symbol && topic.interval != "" {
+                                    let combiner = combiner_map.entry(format!("{}_{}", topic.symbol, topic.interval)).or_insert(KLineCombiner::new(topic.interval.as_str(), 100, Some(21)));
+                                    let kline = KLine {
+                                        symbol: t.symbol.clone(),
+                                        datetime: t.datetime.clone(),
+                                        interval: topic.interval.clone(),
+                                        open: t.close,
+                                        high: t.close,
+                                        low: t.close,
+                                        close: t.close,
+                                        volume: volumn,
+                                        turnover: turnover,
+                                        timestamp: t.timestamp,
+                                    };
+                                    let mut new_kline = combiner.combine_tick(&kline, true);
+                                    if let Some(kline) = new_kline.take() {
+                                        let _ = subscription.send(&MarketData::Kline(kline));
                                     }
                                 }
-                                return Ok(false);
-                            },
-                            _ => {
-                            },
-                        }
-                    },
-                    None => {
+                            }
+                            return Ok(false);
+                        },
+                        _ => {
+                        },
                     }
+                },
+                None => {
                 }
-                Ok(true)
-            }, true);
-        };
-        self.handler = Some(InteractiveThread::spawn(closure));
+            }
+            Ok(true)
+        });
+        self.handler = Some(handler);
         Ok(outer_subscription)
     }
     

@@ -2,8 +2,7 @@ use crate::market_server::KLine;
 
 use super::market_server::{MarketData, MarketServer};
 use common::{error::AppError, msmc::{StreamError, Subscription}, thread::{Handler, InteractiveThread, Rx}};
-use log::info;
-use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, vec};
+use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, thread::JoinHandle, vec};
 use crossbeam::channel::{self, Receiver, Sender};
 
 #[derive(Clone, Debug)]
@@ -17,7 +16,7 @@ pub struct MarketGateway<S: MarketServer> {
     server: S,
     subscription: Arc<Mutex<Subscription<MarketData>>>,
     subscribers : Vec<Subscriber>,
-    pub handler: Option<Handler<()>>,
+    pub handler: Option<JoinHandle<()>>,
     start_ticket: Arc<AtomicUsize>,
 }
 
@@ -39,16 +38,7 @@ impl<S: MarketServer> MarketGateway<S> {
     }
 
     pub fn get_tick_sub(&mut self) -> Subscription<MarketData> {
-        self.subscription.lock().unwrap().subscribe_with_filter(|event| {
-            match event {
-                MarketData::Tick(_) => {
-                    true
-                },
-                _ => {
-                    false
-                },
-            }  
-        })
+        self.subscription.lock().unwrap().subscribe()
     }
     
     pub fn load_kline(&mut self, symbol: S::Symbol, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
@@ -83,49 +73,47 @@ impl<S: MarketServer> MarketGateway<S> {
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
         let mut subscription = self.server.start()?;
-
         subscription.name = "MARKET_GATEWAY".to_string();
+
+        self.subscription = Arc::new(Mutex::new(subscription));
         let subscribers = self.subscribers.clone();
-
-        let closure = move |_rx: Rx<String>| {
-            let _ = subscription.stream(&mut |event| {
-                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Err(StreamError::Exit);
-                }
-                match event {
-                    Some(data) => {
-                        match data {
-                            MarketData::Tick(t) => {
-                                for sub in subscribers.iter() {
-                                    if t.symbol == sub.symbol && sub.interval == "" {
-                                        let _ = sub.sender.send(MarketData::Tick(t.clone()));
-                                    }
+        
+        let handler = self.subscription.lock().unwrap().stream(move |event| {
+            if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                return Err(StreamError::Exit);
+            }
+            match event {
+                Some(data) => {
+                    match data {
+                        MarketData::Tick(t) => {
+                            for sub in subscribers.iter() {
+                                if t.symbol == sub.symbol && sub.interval == "" {
+                                    let _ = sub.sender.send(MarketData::Tick(t.clone()));
                                 }
-                            },
-                            MarketData::Kline(k) => {
-                                for sub in subscribers.iter() {
-                                    if k.symbol == sub.symbol && k.interval == sub.interval {
-                                        let _ = sub.sender.send(MarketData::Kline(k.clone()));
-                                    }
+                            }
+                        },
+                        MarketData::Kline(k) => {
+                            for sub in subscribers.iter() {
+                                if k.symbol == sub.symbol && k.interval == sub.interval {
+                                    let _ = sub.sender.send(MarketData::Kline(k.clone()));
                                 }
-                            },
-                            MarketData::MarketClosed => {
-                                for sub in subscribers.iter() {
-                                    let _ = sub.sender.send(MarketData::MarketClosed);
-                                }
-                            },
-                            _ => {},
-                        }
-                    },
-                    None => {
-                        
-                    },
-                }
-                Ok(true)
-            }, true);
-
-        };
-        self.handler = Some(InteractiveThread::spawn(closure));
+                            }
+                        },
+                        MarketData::MarketClosed => {
+                            for sub in subscribers.iter() {
+                                let _ = sub.sender.send(MarketData::MarketClosed);
+                            }
+                        },
+                        _ => {},
+                    }
+                },
+                None => {
+                    
+                },
+            }
+            Ok(true)
+        });
+        self.handler = Some(handler);
         Ok(())
     }
 

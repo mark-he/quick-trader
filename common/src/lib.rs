@@ -72,39 +72,16 @@ pub mod c {
 }
 
 pub mod msmc {
-    use log::*;
-    use std::{error::Error, fmt::Debug, marker::PhantomData, thread, time::Duration};
+    use std::{error::Error, fmt::Debug, sync::{Arc, Mutex}, thread::{self, JoinHandle}, time::Duration};
     use crossbeam::{channel::{unbounded, Receiver, Sender, TryRecvError}, select};
 
     pub type Rx<T> = Receiver<T>;
     pub type Tx<T> = Sender<T>;
-
-    pub struct Spout<T: Clone + Send + Debug> {
-        filter: Option<Box<dyn Fn(&T)->bool>>,
-        sender: Tx<T>,
-    }
-
-    unsafe impl <T: Clone + Send + Debug> Sync for Spout<T> {
-    }
-
-    unsafe impl <T: Clone + Send + Debug> Send for Spout<T> {
-        
-    }
-
-    impl <T: Clone + Send + Debug> Spout<T> {
-        fn new(filter: Option<Box<dyn Fn(&T)->bool>>, sender: Sender<T>) -> Self {
-            Spout {
-                filter,
-                sender,
-            }
-        }
-    }
     
     pub struct Subscription<T: Clone + Send + Debug> {
-        _phantom_data: PhantomData<T>,
         pub name: String,
         pub receiver: Option<Rx<T>>,
-        pub subscribers: Vec<Spout<T>>,
+        pub subscribers: Arc<Mutex<Vec<Tx<T>>>>,
     }
 
     #[derive(Debug)]
@@ -134,102 +111,85 @@ pub mod msmc {
     impl <T : Clone + Send + Debug> Subscription<T> {
         pub fn top() -> Subscription<T> {
             Subscription {
-                _phantom_data: PhantomData::default(),
                 name : String::from("top"),
                 receiver: None,
-                subscribers: vec![],
+                subscribers: Arc::new(Mutex::new(vec![])),
             }
         }
 
         pub fn new(rx: Rx<T>) -> Subscription<T> {
             Subscription {
-                _phantom_data: PhantomData::default(),
                 name : String::from("unnamed"),
                 receiver: Some(rx),
-                subscribers: vec![],
+                subscribers: Arc::new(Mutex::new(vec![])),
             }
         }
 
         pub fn publish_to_under(&mut self, under: &mut Subscription<T>) {
             let (tx, rx) = unbounded::<T>();
-            self.subscribers.push(Spout::new(None, tx));
-            under.receiver = Some(rx);
-        }
-
-        pub fn publish_to_under_with_filter(&mut self, under: &mut Subscription<T>, filter: Box<dyn Fn(&T) -> bool>) {
-            let (tx, rx) = unbounded::<T>();
-            self.subscribers.push(Spout::new(Some(filter), tx));
+            let sub_ref = self.subscribers.clone();
+            sub_ref.lock().unwrap().push(tx);
             under.receiver = Some(rx);
         }
 
         pub fn subscribe(&mut self) -> Subscription<T> {
             let (tx, rx) = unbounded::<T>();
-            self.subscribers.push(Spout::new(None, tx));
-
-            Subscription::new(rx)
-        }
-        
-        pub fn subscribe_with_filter<'a, F: 'static>(&mut self, filter: F) -> Subscription<T> 
-            where F: Fn(&T) -> bool {
-            let (tx, rx) = unbounded::<T>();
-            self.subscribers.push(Spout::new(Some(Box::new(filter)), tx));
-
+            let sub_ref = self.subscribers.clone();
+            sub_ref.lock().unwrap().push(tx);
             Subscription::new(rx)
         }
 
-        pub fn stream<F>(&self, f: &mut F, skip_error: bool) -> Result<(), Box<dyn Error>>
-            where F : FnMut(&Option<T>) -> Result<bool, StreamError> {
-            loop {
-                let block_ret ;
-                let ret = self.receiver.as_ref().unwrap().try_recv();
-                match ret {
-                    Ok(opt) => {
-                        block_ret = f(&Some(opt.clone()));
-                        if let Ok(continue_flag) = block_ret {
-                            if continue_flag {
-                                self.send(&opt);
+        pub fn stream<F>(&mut self, mut f: F) -> JoinHandle<()>
+            where 
+                F: FnMut(&Option<T>) -> Result<bool, StreamError> + Send + 'static,
+                T: Send + 'static,
+            {
+            let rx = self.receiver.take().unwrap();
+            let sub_ref = self.subscribers.clone();
+            let closure = move || {
+                let f = &mut f; 
+                loop {
+                    let block_ret ;
+                    let ret = rx.try_recv();
+                    match ret {
+                        Ok(opt) => {
+                            block_ret = f(&Some(opt.clone()));
+                            if let Ok(continue_flag) = block_ret {
+                                if continue_flag {
+                                    let subscripers = sub_ref.lock().unwrap();
+                                    for sub in subscripers.iter() {
+                                        let _ = sub.send(opt.clone());
+                                    }
+                                }
                             }
+                        },
+                        Err(TryRecvError::Empty) => {
+                            block_ret = f(&None);
+                            thread::sleep(Duration::from_millis(100));
+                        },
+                        Err(TryRecvError::Disconnected) => {
+                            break;
+                        },
+                    }
+                    match block_ret {
+                        Err(StreamError::Exit) => {
+                            break;
+                        },
+                        Err(StreamError::Disconnected) => {
+                            break;
                         }
-                    },
-                    Err(TryRecvError::Empty) => {
-                        block_ret = f(&None);
-                        thread::sleep(Duration::from_millis(100));
-                    },
-                    Err(TryRecvError::Disconnected) => {
-                        break;
-                    },
+                        _ => {}
+                    }
                 }
-                match block_ret {
-                    Err(StreamError::Exit) => {
-                        break;
-                    },
-                    Err(StreamError::Disconnected) => {
-                        break;
-                    },
-                    Err(StreamError::Error(e)) => {
-                        error!("{:?}", e);
-                        if !skip_error {
-                            return Err(e);
-                        }
-                    },
-                    _ => {}
-                }
-            }
-            Ok(())
+            };
+            let handler = thread::spawn(closure);
+            handler
         }
 
         pub fn send(&self, data : &T) {
-            for s in self.subscribers.iter() {
-                match &s.filter {
-                    Some(f) => {
-                        if f(data) {
-                            let _ = s.sender.send(data.clone());
-                        }
-                    },
-                    None => {
-                        let _ = s.sender.send(data.clone());
-                    }
-                }
+            let sub_ref = self.subscribers.clone();
+            for s in sub_ref.lock().unwrap().iter() {
+                let _ = s.send(data.clone());
             }
         }
 
@@ -299,7 +259,7 @@ mod tests {
     #[test]
     fn test_subscription() -> Result<(), AppError> {
         let mut top = Subscription::<String>::top();
-        let sub = top.subscribe();
+        let mut sub = top.subscribe();
 
         thread::spawn(move|| {
             let mut i = 0;
@@ -309,12 +269,12 @@ mod tests {
                 thread::sleep(Duration::from_secs(1));
             }
         });
-        let _ = sub.stream(&mut move |m| {
+        let _ = sub.stream(move |m| {
             if let Some(x) = m {
                 println!("{:?}", x);
             }
             Ok(true)
-        }, true);
+        });
         Ok(())
     }
 }

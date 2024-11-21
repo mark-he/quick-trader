@@ -1,4 +1,4 @@
-use std::sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex, RwLock};
+use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex, RwLock}, thread::JoinHandle};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use serde_json::Value;
@@ -126,7 +126,8 @@ pub struct BnTradeServer {
     pub positions: Arc<RwLock<Vec<Position>>>,
     pub assets: Arc<RwLock<Vec<Asset>>>,
     pub exchange_info: Option<ExchangeInfo>,
-    pub handler: Option<Handler<()>>,
+    pub handler: Option<JoinHandle<()>>,
+    pub subscription: Arc<Mutex<Subscription<AccountEvent>>>,
 }
 
 impl BnTradeServer {
@@ -139,73 +140,72 @@ impl BnTradeServer {
             assets: Arc::new(RwLock::new(Vec::new())),
             exchange_info: None,
             handler: None,
+            subscription: Arc::new(Mutex::new(Subscription::top())),
         }
     }
     
-    fn monitor_account_positions(&mut self, sub: Subscription<AccountEvent>) {
+    fn monitor_account_positions(&mut self) {
         let assets_ref = self.assets.clone();
         let positions_ref = self.positions.clone();
 
-        let closure = move |_: Rx<String>| {
-            let _ = sub.stream(&mut |event| {
-                if let Some(e) = event {
-                    match e {
-                        AccountEvent::AccountUpdate(a) => {
-                            let mut positions = positions_ref.write().unwrap();
-                            for position_data in a.positions.iter() {
-                                let mut found = false;
-                                for position in positions.iter_mut() {
-                                    if position_data.symbol == position.symbol && position_data.position_side == position.position_side {
-                                        position.position_amt = position_data.position_amount.clone();
-                                        position.entry_price = position_data.entry_price;
-                                        position.unrealized_profit = position_data.unrealized_pnl;
-                                        position.update_time = Local::now().timestamp_millis() as u64;
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if !found {
-                                    positions.push(Position {
-                                        symbol: position_data.symbol.clone(),
-                                        position_side: position_data.position_side.clone(),
-                                        position_amt: position_data.position_amount,
-                                        unrealized_profit: position_data.unrealized_pnl,
-                                        entry_price: position_data.entry_price,
-                                        update_time: Local::now().timestamp_millis() as u64,
-                                        ..Default::default()
-                                    });
+        let handler = self.subscription.lock().unwrap().stream(move |event| {
+            if let Some(e) = event {
+                match e {
+                    AccountEvent::AccountUpdate(a) => {
+                        let mut positions = positions_ref.write().unwrap();
+                        for position_data in a.positions.iter() {
+                            let mut found = false;
+                            for position in positions.iter_mut() {
+                                if position_data.symbol == position.symbol && position_data.position_side == position.position_side {
+                                    position.position_amt = position_data.position_amount.clone();
+                                    position.entry_price = position_data.entry_price;
+                                    position.unrealized_profit = position_data.unrealized_pnl;
+                                    position.update_time = Local::now().timestamp_millis() as u64;
+                                    found = true;
+                                    break;
                                 }
                             }
+                            if !found {
+                                positions.push(Position {
+                                    symbol: position_data.symbol.clone(),
+                                    position_side: position_data.position_side.clone(),
+                                    position_amt: position_data.position_amount,
+                                    unrealized_profit: position_data.unrealized_pnl,
+                                    entry_price: position_data.entry_price,
+                                    update_time: Local::now().timestamp_millis() as u64,
+                                    ..Default::default()
+                                });
+                            }
+                        }
 
-                            let mut assets = assets_ref.write().unwrap();
-                            for balance_data in a.balances.iter() {
-                                let mut found = false;
-                                for asset in assets.iter_mut() {
-                                    if balance_data.asset == asset.asset {
-                                        asset.wallet_balance = balance_data.wallet_balance.clone();
-                                        asset.cross_wallet_balance = balance_data.cross_wallet_balance.clone();
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if !found {
-                                    assets.push(Asset {
-                                        asset: balance_data.asset.clone(),
-                                        wallet_balance: balance_data.wallet_balance.clone(),
-                                        cross_wallet_balance: balance_data.cross_wallet_balance,
-                                        update_time: Local::now().timestamp_millis() as u64,
-                                        ..Default::default()
-                                    });
+                        let mut assets = assets_ref.write().unwrap();
+                        for balance_data in a.balances.iter() {
+                            let mut found = false;
+                            for asset in assets.iter_mut() {
+                                if balance_data.asset == asset.asset {
+                                    asset.wallet_balance = balance_data.wallet_balance.clone();
+                                    asset.cross_wallet_balance = balance_data.cross_wallet_balance.clone();
+                                    found = true;
+                                    break;
                                 }
                             }
-                        },
-                        _ => {},
-                    }
+                            if !found {
+                                assets.push(Asset {
+                                    asset: balance_data.asset.clone(),
+                                    wallet_balance: balance_data.wallet_balance.clone(),
+                                    cross_wallet_balance: balance_data.cross_wallet_balance,
+                                    update_time: Local::now().timestamp_millis() as u64,
+                                    ..Default::default()
+                                });
+                            }
+                        }
+                    },
+                    _ => {},
                 }
-                Ok(true)
-            }, true);
-        };
-        self.handler = Some(InteractiveThread::spawn(closure));
+            }
+            Ok(true)
+        });
+        self.handler = Some(handler);
     }
 
     fn init_account(&self) -> Result<(), AppError> {
@@ -254,7 +254,9 @@ impl TradeServer for BnTradeServer {
 
     fn start(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
         let sub = self.wss_stream.subscribe();
-        self.monitor_account_positions(sub);
+        self.subscription = Arc::new(Mutex::new(sub));
+
+        self.monitor_account_positions();
 
         let credentials = self.credentials.clone();
         self.wss_stream.connect(credentials);

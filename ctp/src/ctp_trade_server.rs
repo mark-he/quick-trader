@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::thread::{self, sleep};
+use std::thread::{self, sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use std::vec;
 use serde::{Deserialize, Serialize};
@@ -38,7 +38,6 @@ pub struct TDApi {
     api: Arc<Mutex<Rust_CThostFtdcTraderApi>>,
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
     pub config: Config,
-    pub subscription: Subscription<TradeEvent>,
 }
 impl TDApi {
     fn send_request<F>(f: &mut F) -> Result<(), String> 
@@ -75,12 +74,7 @@ impl TDApi {
             api: Arc::new(Mutex::new(api)),
             spi: None,
             config,
-            subscription: Subscription::top(),
         }
-    }
-    
-    pub fn subscribe(&mut self) -> Subscription<TradeEvent> {
-        self.subscription.subscribe()
     }
 
     fn req_user_login(&self, request_id: i32) -> Result<(), String> {
@@ -406,7 +400,7 @@ impl Drop for TDApi {
 pub struct CtpTradeServer {
     tapi: Arc<Mutex<TDApi>>,
     config: Config,
-    handler: Option<Handler<()>>,
+    handler: Option<JoinHandle<()>>,
     positions: Arc<RwLock<Vec<Position>>>,
     account: Arc<RwLock<Account>>,
     start_ticket: Arc<AtomicUsize>,
@@ -414,7 +408,7 @@ pub struct CtpTradeServer {
     sync_wait: Arc<AtomicBool>,
     position_checked: Arc<AtomicBool>,
     account_checked: Arc<AtomicBool>,
-    subscription: Option<Subscription<TradeEvent>>,
+    subscription: Arc<Mutex<Subscription<TradeEvent>>>,
 }
 
 impl CtpTradeServer {
@@ -443,7 +437,7 @@ impl CtpTradeServer {
             sync_wait:  Arc::new(AtomicBool::new(false)),
             position_checked:  Arc::new(AtomicBool::new(false)),
             account_checked:  Arc::new(AtomicBool::new(false)),
-            subscription: None,
+            subscription: Arc::new(Mutex::new(Subscription::top())),
         }
     }
 }
@@ -459,10 +453,10 @@ impl TradeServer for CtpTradeServer {
     type Symbol = Symbol;
     
     fn init(&mut self) -> Result<(), AppError> {
-        {
-            let mut tdapi = self.tapi.lock().unwrap();
-            self.subscription = Some(tdapi.start().map_err(|e| AppError::new(-200, &e))?);
-        }
+        let mut tdapi = self.tapi.lock().unwrap();
+        let subscription = tdapi.start().map_err(|e| AppError::new(-200, &e))?;
+        drop(tdapi);
+        self.subscription = Arc::new(Mutex::new(subscription));
 
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
@@ -472,35 +466,32 @@ impl TradeServer for CtpTradeServer {
         let sync_wait_ref = self.sync_wait.clone();
         let position_checked = self.position_checked.clone();
         let account_checked = self.account_checked.clone();
-        let subscription = self.subscription.take().unwrap();
-        let closure = move |_rx: Rx<String>| {
-            let _ = subscription.stream(&mut move |event| {
-                if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
-                    return Err(StreamError::Exit);
-                }
-                match event {
-                    Some(TradeEvent::PositionQuery(v)) => {
-                        *positions_ref.write().unwrap() = v.clone();
-                        position_checked.store(true, Ordering::SeqCst);
-                    },
-                    Some(TradeEvent::AccountQuery(v)) => {
-                        *account_ref.write().unwrap() = v.clone();
-                        account_checked.store(true, Ordering::SeqCst);
-                    },
-                    Some(TradeEvent::SymbolQuery(symbol_info)) => {
-                        symbol_info_map_ref.write().unwrap().insert(symbol_info.symbol.clone(), symbol_info.clone());
-                        sync_wait_ref.store(false, Ordering::SeqCst);
-                        return Ok(false)
-                    },
-                    None => {},
-                    _ => {
-                        info!("TRADE SERVER {:?}", event);
-                    },
-                }
-                Ok(true)
-            }, true);
-        };
-        self.handler = Some(InteractiveThread::spawn(closure));
+        let handler = self.subscription.lock().unwrap().stream(move |event| {
+            if start_ticket != start_ticket_ref.load(Ordering::SeqCst) - 1 {
+                return Err(StreamError::Exit);
+            }
+            match event {
+                Some(TradeEvent::PositionQuery(v)) => {
+                    *positions_ref.write().unwrap() = v.clone();
+                    position_checked.store(true, Ordering::SeqCst);
+                },
+                Some(TradeEvent::AccountQuery(v)) => {
+                    *account_ref.write().unwrap() = v.clone();
+                    account_checked.store(true, Ordering::SeqCst);
+                },
+                Some(TradeEvent::SymbolQuery(symbol_info)) => {
+                    symbol_info_map_ref.write().unwrap().insert(symbol_info.symbol.clone(), symbol_info.clone());
+                    sync_wait_ref.store(false, Ordering::SeqCst);
+                    return Ok(false)
+                },
+                None => {},
+                _ => {
+                    info!("TRADE SERVER {:?}", event);
+                },
+            }
+            Ok(true)
+        });
+        self.handler = Some(handler);
 
         let tapi_ref = self.tapi.clone();
         let _ = thread::spawn(move || {
@@ -538,10 +529,7 @@ impl TradeServer for CtpTradeServer {
     }
 
     fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
-        let mut tapi = self.tapi.lock().unwrap();
-        info!("TRADESERVER START");
-        let subscription = tapi.subscribe();
-        info!("TRADESERVER START COMPLETED");
+        let subscription = self.subscription.lock().unwrap().subscribe();
         Ok(subscription)
     }
 

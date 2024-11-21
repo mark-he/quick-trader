@@ -2,8 +2,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use libctp_sys::*;
-use log::warn;
-
 use std::collections::HashMap;
 use std::os::raw::*;
 use common::{c::*, msmc::Subscription};
