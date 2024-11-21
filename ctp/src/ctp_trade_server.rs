@@ -4,7 +4,7 @@
 use common::msmc::StreamError;
 use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
-use log::{error, info};
+use log::error;
 
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
@@ -231,7 +231,6 @@ impl TDApi {
     }
 
     fn req_qry_trading_account(&mut self, request_id: i32) -> Result<(), String> {
-        info!("==========req_qry_trading_account=========");
         let mut request = CThostFtdcQryTradingAccountField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -481,12 +480,10 @@ impl TradeServer for CtpTradeServer {
                 }
                 match event {
                     Some(TradeEvent::PositionQuery(v)) => {
-                        info!("TradeEvent::PositionQuery >>>>>>>>>>>>>");
                         *positions_ref.write().unwrap() = v.clone();
                         position_checked.store(true, Ordering::SeqCst);
                     },
                     Some(TradeEvent::AccountQuery(v)) => {
-                        info!("TradeEvent::AccountQuery >>>>>>>>>>>>>");
                         *account_ref.write().unwrap() = v.clone();
                         account_checked.store(true, Ordering::SeqCst);
                     },
@@ -497,7 +494,6 @@ impl TradeServer for CtpTradeServer {
                     },
                     None => {},
                     _ => {
-                        info!("<<<<<<<<<<<<<<<<<<<<<<<< {:?}", event);
                     },
                 }
                 Ok(true)
