@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, RwLock};
 use trade::trade_server::*;
 use common::{c::*, msmc::Subscription, error::AppError};
-use crate::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, Symbol, SymbolInfo, TradeEvent};
+use crate::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, Session, Symbol, SymbolInfo, TradeEvent};
 
 use super::ctp_code::*;
 use super::ctp_trade_cpi::Spi;
@@ -36,7 +36,8 @@ pub enum Resume {
 pub struct TDApi {
     api: Arc<Mutex<Rust_CThostFtdcTraderApi>>,
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
-    pub config: Config,
+    config: Config,
+    session: Option<Session>,
 }
 impl TDApi {
     fn send_request<F>(f: &mut F) -> Result<(), String> 
@@ -73,6 +74,7 @@ impl TDApi {
             api: Arc::new(Mutex::new(api)),
             spi: None,
             config,
+            session: None,
         }
     }
 
@@ -187,14 +189,14 @@ impl TDApi {
             UserID: string_to_c_char::<16>(request_id.to_string()),
             InstrumentID: string_to_c_char::<81>(symbol.to_string()),
             ExchangeID: string_to_c_char::<9>(exchange.to_string()),
-            OrderSysID: string_to_c_char::<21>(request.order_id.to_string()),
-            OrderRef: string_to_c_char::<13>("".to_string()),
+            OrderSysID: string_to_c_char::<21>("".to_string()),
+            OrderRef: string_to_c_char::<13>(request.order_id.to_string()),
             OrderActionRef: 0 as c_int,
             RequestID: request_id as c_int,
 
             ActionFlag: THOST_FTDC_AF_Delete as i8,
-            FrontID: 0 as c_int,
-            SessionID: 0 as c_int,
+            FrontID: self.session.as_ref().unwrap().front_id.clone(),
+            SessionID: self.session.as_ref().unwrap().session_id.clone(),
             InvestUnitID: string_to_c_char::<17>("".to_string()),
             LimitPrice: 0.0 as f64,
             VolumeChange: 0 as c_int,
@@ -343,7 +345,8 @@ impl TDApi {
         loop {
             let ret = subscription.recv_timeout(5,  &mut |event| {
                 match event {
-                    TradeEvent::UserLogin() => {
+                    TradeEvent::UserLogin(session) => {
+                        self.session = Some(session.clone());
                         should_break = true;
                     },
                     _ => {},

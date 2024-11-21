@@ -5,7 +5,7 @@ use libctp_sys::*;
 use std::collections::HashMap;
 use std::os::raw::*;
 use common::{c::*, msmc::Subscription};
-use crate::model::{Account, Order, Position, SymbolInfo, Trade, TradeEvent};
+use crate::model::{Account, Order, Position, Session, SymbolInfo, Trade, TradeEvent};
 
 use super::ctp_code::*;
 
@@ -115,6 +115,17 @@ impl Spi {
         account
     }
 
+    fn convert_session(pRspInfo: *mut CThostFtdcRspUserLoginField) -> Session {
+        let pRspInfo = unsafe { &mut *pRspInfo };
+
+        let session = Session {
+            session_id: pRspInfo.SessionID,
+            front_id: pRspInfo.FrontID,
+            trading_day: c_char_to_string(pRspInfo.TradingDay.as_ptr()),
+        };
+        session
+    }
+    
     fn convert_symbol_info(pRspInfo: *mut CThostFtdcInstrumentField) -> SymbolInfo {
         let pRspInfo = unsafe { &mut *pRspInfo };
 
@@ -174,7 +185,8 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
     fn on_rsp_user_login(&mut self, _pRspUserLogin: *mut CThostFtdcRspUserLoginField, pRspInfo: *mut CThostFtdcRspInfoField, nRequestID: ::std::os::raw::c_int, _bIsLast: bool) { 
         //let pRspUserLogin = unsafe { &mut *pRspUserLogin };
         Self::handle_result(&self.subscription, nRequestID, pRspInfo, &mut ||{
-            self.subscription.send(&TradeEvent::UserLogin());
+            let session = Self::convert_session(_pRspUserLogin);
+            self.subscription.send(&TradeEvent::UserLogin(session));
         });
     }
 

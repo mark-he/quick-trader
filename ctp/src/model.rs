@@ -53,10 +53,18 @@ pub struct CancelOrderRequest {
     pub order_id: String,
 }
 
+
+#[derive(Debug, Clone)]
+pub struct Session {
+    pub session_id: i32,
+    pub front_id: i32,
+    pub trading_day: String,
+}
+
 #[derive(Debug, Clone)]
 pub enum TradeEvent {
     Connected,
-    UserLogin(),
+    UserLogin(Session),
     UserLogout,
     SettlementConfirmed,
     OnOrder(Order),
