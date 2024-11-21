@@ -23,7 +23,7 @@ pub const ORDER_TYPE_FAK : CtpCode = CtpCode {code : "FAK", ctp_code : "2,1,1"};
 pub const ORDER_TYPE_FOK : CtpCode = CtpCode {code : "FOK", ctp_code : "2,1,3"}; //立即成交全部，否则撤销
 
 pub const OFFSET_OPEN : CtpCode = CtpCode {code : "OPEN", ctp_code : "0"}; //开
-pub const OFFSET_CLOSE : CtpCode = CtpCode {code : "CLOSE", ctp_code : "1"}; //多
+pub const OFFSET_CLOSE : CtpCode = CtpCode {code : "CLOSE", ctp_code : "1"}; //平
 pub const OFFSET_CLOSETODAY : CtpCode = CtpCode {code : "CLOSETODAY", ctp_code : "3"}; //平今
 pub const OFFSET_CLOSEYESTERDAY : CtpCode = CtpCode {code : "CLOSEYESTERDAY", ctp_code : "4"}; //平昨
 

@@ -6,6 +6,7 @@ use crate::http::{request::Request, Method};
 ///
 /// Either `orderId` or `origClientOrderId` must be sent.
 ///
+#[derive(Debug)]
 pub struct CancelOrderRequest {
     symbol: String,
     order_id: Option<u64>,

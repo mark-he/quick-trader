@@ -272,15 +272,16 @@ impl TradeServer for BnTradeServer {
 
     fn cancel_order(&mut self, symbol: String, request: CancelOrderRequest) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let requset = bn_trade::cancel_order(&symbol).orig_client_order_id(&request.order_id);
-        let _ = get_resp_result(client.send(requset), vec![])?;
+        let request = bn_trade::cancel_order(&symbol).orig_client_order_id(&request.order_id);
+        info!("Cancel Order {:?}", request);
+        let _ = get_resp_result(client.send(request), vec![])?;
         Ok(())
     }
 
     fn cancel_orders(&mut self, symbol: String) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let requset = bn_trade::cancel_open_orders(&symbol);
-        let _ = get_resp_result(client.send(requset), vec![])?;
+        let request = bn_trade::cancel_open_orders(&symbol);
+        let _ = get_resp_result(client.send(request), vec![])?;
         Ok(())
     }
 

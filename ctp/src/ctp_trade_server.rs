@@ -136,6 +136,7 @@ impl TDApi {
     }
 
     fn req_order_insert(&self, symbol: &str, exchange: &str, order: NewOrderRequest, unit_id: &str, request_id: i32) -> Result<(), String> {
+        info!("req_order_insert>>>>>>>>>> {}, {}, {:?}", symbol, exchange, order);
         let order_type = OrderType::from_string(ORDER_TYPE.as_ref().get(&order.order_type).unwrap());
 
         let mut request = CThostFtdcInputOrderField {
