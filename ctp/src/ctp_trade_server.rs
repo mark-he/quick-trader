@@ -2,7 +2,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use common::msmc::StreamError;
-use common::thread::{Handler, InteractiveThread, Rx};
 use libctp_sys::*;
 use log::{error, info};
 

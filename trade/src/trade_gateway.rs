@@ -3,7 +3,6 @@ use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, thread::JoinHandl
 use super::trade_server::*;
 use common::{error::AppError, msmc::{StreamError, Subscription}};
 use crossbeam::channel::{self, Receiver, Sender};
-use log::*;
 
 pub struct TradeGateway<S: TradeServer> {
     server: S,

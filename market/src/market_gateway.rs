@@ -1,7 +1,7 @@
 use crate::market_server::KLine;
 
 use super::market_server::{MarketData, MarketServer};
-use common::{error::AppError, msmc::{StreamError, Subscription}, thread::{Handler, InteractiveThread, Rx}};
+use common::{error::AppError, msmc::{StreamError, Subscription}};
 use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex}, thread::JoinHandle, vec};
 use crossbeam::channel::{self, Receiver, Sender};
 
