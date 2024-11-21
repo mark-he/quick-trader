@@ -88,7 +88,6 @@ fn _convert_tick(market_data: &CThostFtdcDepthMarketDataField) -> Tick {
     let tick = Tick {
         symbol: c_char_to_string(market_data.InstrumentID.as_ptr()),
         datetime: datetime,
-        trading_day: _format_date(&c_char_to_string(market_data.TradingDay.as_ptr())),
         open: market_data.OpenPrice,
         high: market_data.HighestPrice,
         low: market_data.LowestPrice,

@@ -5,7 +5,6 @@ use serde::{Serialize, Deserialize};
 pub struct Tick {
     pub symbol: String,
     pub datetime: String,
-    pub trading_day: String,
     pub open: f64,
     pub high: f64,
     pub low: f64,

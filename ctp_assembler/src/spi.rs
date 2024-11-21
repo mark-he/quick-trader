@@ -373,6 +373,10 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                     if positions.len() > 0 || last_position.len() > 0 {
                                         let mut position_event = vec![];
                                         for p in positions.iter() {
+                                            let mut price = 0 as f64;
+                                            if p.position != 0 {
+                                                price = p.cost / p.position as f64;
+                                            }
                                             if p.symbol == symbol.symbol {
                                                 let op = PositionEvent {
                                                     symbol : p.symbol.clone(),
@@ -380,7 +384,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                                     today_position: p.today_position,
                                                     direction: p.direction.clone(),
                                                     cost: p.cost,
-                                                    price: p.cost / p.position as f64,
+                                                    price,
                                                     cost_offset: p.cost_offset,
                                                     trading_day: p.trading_day.clone(),
                                                     invest_unit_id : p.invest_unit_id.clone(),

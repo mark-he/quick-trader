@@ -167,7 +167,6 @@ impl WssStream {
                                                 let t = Tick {
                                                     symbol: tick.symbol.clone(),
                                                     datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                                    trading_day: datetime.format("%Y-%m-%d").to_string(),
                                                     open: tick.open_price,
                                                     high: tick.high_price,
                                                     low: tick.low_price,
