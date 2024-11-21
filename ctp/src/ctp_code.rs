@@ -18,7 +18,7 @@ pub const POSITION_DIRECTION_LONG : CtpCode = CtpCode {code : "LONG", ctp_code :
 pub const POSITION_DIRECTION_SHORT : CtpCode = CtpCode {code : "SHORT", ctp_code : "3"}; //空
 
 pub const ORDER_TYPE_LIMIT : CtpCode = CtpCode {code : "LIMIT", ctp_code : "2,3,1"}; //限价
-pub const ORDER_TYPE_MARKET : CtpCode = CtpCode {code : "MARKET", ctp_code : "1,3,1"}; //市价
+pub const ORDER_TYPE_MARKET : CtpCode = CtpCode {code : "MARKET", ctp_code : "1,1,1"}; //市价
 pub const ORDER_TYPE_FAK : CtpCode = CtpCode {code : "FAK", ctp_code : "2,1,1"}; //立即成交任意，然后撤销
 pub const ORDER_TYPE_FOK : CtpCode = CtpCode {code : "FOK", ctp_code : "2,1,3"}; //立即成交全部，否则撤销
 
