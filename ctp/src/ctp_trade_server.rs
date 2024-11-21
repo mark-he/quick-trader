@@ -35,7 +35,7 @@ pub enum Resume {
 }
 
 pub struct TDApi {
-    api: Rust_CThostFtdcTraderApi,
+    api: Arc<Mutex<Rust_CThostFtdcTraderApi>>,
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
     pub config: Config,
     pub subscription: Subscription<TradeEvent>,
@@ -72,7 +72,7 @@ impl TDApi {
             Rust_CThostFtdcTraderApi::new(CThostFtdcTraderApi_CreateFtdcTraderApi(cs.as_ptr()))
         };
         Self {
-            api,
+            api: Arc::new(Mutex::new(api)),
             spi: None,
             config,
             subscription: Subscription::top(),
@@ -83,7 +83,7 @@ impl TDApi {
         self.subscription.subscribe()
     }
 
-    fn req_user_login(&mut self, request_id: i32) -> Result<(), String> {
+    fn req_user_login(&self, request_id: i32) -> Result<(), String> {
         let mut request = CThostFtdcReqUserLoginField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             UserID: string_to_c_char::<16>(self.config.user_id.clone()),
@@ -102,11 +102,11 @@ impl TDApi {
         };
         
         Self::send_request(&mut move || unsafe {
-            self.api.ReqUserLogin(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqUserLogin(&mut request, request_id)
         })
     }
 
-    fn req_qry_instrument(&mut self, symbol: &str, exchange: &str, request_id: i32) -> Result<(), String>{
+    fn req_qry_instrument(&self, symbol: &str, exchange: &str, request_id: i32) -> Result<(), String>{
         let mut request = CThostFtdcQryInstrumentField {
             InstrumentID: string_to_c_char::<81>(symbol.to_string()),
             ExchangeID: string_to_c_char::<9>(exchange.to_string()),
@@ -118,12 +118,12 @@ impl TDApi {
         };
 
         Self::send_request(&mut move || unsafe {
-            self.api.ReqQryInstrument(&mut request, 
+            self.api.clone().lock().unwrap().ReqQryInstrument(&mut request, 
                 request_id)
         })
     }
 
-    fn req_settlement_info_confirm(&mut self, settlement_id : i32, request_id: i32) -> Result<(), String>{
+    fn req_settlement_info_confirm(&self, settlement_id : i32, request_id: i32) -> Result<(), String>{
         let mut request = CThostFtdcSettlementInfoConfirmField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -135,12 +135,12 @@ impl TDApi {
         };
 
         Self::send_request(&mut move || unsafe {
-            self.api.ReqSettlementInfoConfirm(&mut request, 
+            self.api.clone().lock().unwrap().ReqSettlementInfoConfirm(&mut request, 
                 request_id)
         })
     }
 
-    fn req_order_insert(&mut self, symbol: &str, exchange: &str, order: NewOrderRequest, unit_id: &str, request_id: i32) -> Result<(), String> {
+    fn req_order_insert(&self, symbol: &str, exchange: &str, order: NewOrderRequest, unit_id: &str, request_id: i32) -> Result<(), String> {
         let order_type = OrderType::from_string(ORDER_TYPE.as_ref().get(&order.order_type).unwrap());
 
         let mut request = CThostFtdcInputOrderField {
@@ -182,11 +182,11 @@ impl TDApi {
             IPAddress: string_to_c_char::<33>("".to_string()),
         };
         Self::send_request(&mut move || unsafe {
-            self.api.ReqOrderInsert(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqOrderInsert(&mut request, request_id)
         })
     }
     
-    fn req_order_action(&mut self, symbol: &str, exchange: &str, request: CancelOrderRequest, request_id: i32) -> Result<(), String> {
+    fn req_order_action(&self, symbol: &str, exchange: &str, request: CancelOrderRequest, request_id: i32) -> Result<(), String> {
         let mut request = CThostFtdcInputOrderActionField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -211,11 +211,11 @@ impl TDApi {
             IPAddress: string_to_c_char::<33>("".to_string()),
         };
         Self::send_request(&mut move || unsafe {
-            self.api.ReqOrderAction(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqOrderAction(&mut request, request_id)
         })
     }
 
-    fn req_qry_investor_position(&mut self, request_id: i32) -> Result<(), String> {
+    fn req_qry_investor_position(&self, request_id: i32) -> Result<(), String> {
         let mut request = CThostFtdcQryInvestorPositionField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -226,11 +226,11 @@ impl TDApi {
         };
         
         Self::send_request(&mut move || unsafe {
-            self.api.ReqQryInvestorPosition(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqQryInvestorPosition(&mut request, request_id)
         })
     }
 
-    fn req_qry_trading_account(&mut self, request_id: i32) -> Result<(), String> {
+    fn req_qry_trading_account(&self, request_id: i32) -> Result<(), String> {
         let mut request = CThostFtdcQryTradingAccountField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -240,7 +240,7 @@ impl TDApi {
         };
         
         Self::send_request(&mut move || unsafe {
-            self.api.ReqQryTradingAccount(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqQryTradingAccount(&mut request, request_id)
         })
     }
     /*
@@ -297,7 +297,7 @@ impl TDApi {
         let spi_stub = unsafe { Rust_CThostFtdcTraderSpi::new(ptr) };
         let spi: *mut Rust_CThostFtdcTraderSpi = Box::into_raw(Box::new(spi_stub));
         unsafe {
-            self.api.RegisterSpi(spi as _);
+            self.api.clone().lock().unwrap().RegisterSpi(spi as _);
         }
 
         self.spi = Some(SafePointer(spi));
@@ -310,19 +310,17 @@ impl TDApi {
 
         let cs = CString::new(self.config.front_addr.as_bytes()).unwrap();
         unsafe {
-            self.api.RegisterFront(cs.as_ptr() as *mut _);
+            self.api.clone().lock().unwrap().RegisterFront(cs.as_ptr() as *mut _);
         }
 
         unsafe {
-            self.api
-                .SubscribePrivateTopic(Resume::Quick as _);
-            self.api
-                .SubscribePublicTopic(Resume::Quick as _);
+            let api_ref = self.api.clone();
+            let mut api = api_ref.lock().unwrap();
+            api.SubscribePrivateTopic(Resume::Quick as _);
+            api.SubscribePublicTopic(Resume::Quick as _);
+            api.Init();
         }
 
-        unsafe {
-            self.api.Init();
-        }
         Ok(subscription)
     }
     
@@ -396,7 +394,7 @@ impl Default for Resume {
 impl Drop for TDApi {
     fn drop(&mut self) {
         unsafe {
-            self.api.destruct();
+            self.api.clone().lock().unwrap().destruct();
         }
         if let Some(spi) = self.spi.take() {
             Self::drop_spi(spi);
@@ -404,8 +402,9 @@ impl Drop for TDApi {
     }
 }
 
+#[allow(dead_code)]
 pub struct CtpTradeServer {
-    tapi: Option<Arc<Mutex<TDApi>>>,
+    tapi: Arc<Mutex<TDApi>>,
     config: Config,
     handler: Option<Handler<()>>,
     positions: Arc<RwLock<Vec<Position>>>,
@@ -420,8 +419,21 @@ pub struct CtpTradeServer {
 
 impl CtpTradeServer {
     pub fn new(config: Config) -> Self {
+        let tdapi = TDApi::new(Config {
+            flow_path: "".into(),
+            nm_addr: "".into(),
+            user_info: "".into(),
+            product_info: "".into(),
+            front_addr: format!("tcp://{}", config.front_addr.clone()),
+            broker_id: config.broker_id.clone(),
+            auth_code: config.auth_code.clone(),
+            app_id: config.app_id.clone(),
+            user_id: config.user_id.clone(),
+            password: config.password.clone(),
+            ..Default::default()
+        });
         CtpTradeServer {
-            tapi: None,
+            tapi: Arc::new(Mutex::new(tdapi)),
             config,
             handler: None,
             positions: Arc::new(RwLock::new(vec![])),
@@ -447,22 +459,10 @@ impl TradeServer for CtpTradeServer {
     type Symbol = Symbol;
     
     fn init(&mut self) -> Result<(), AppError> {
-        let mut tdapi = TDApi::new(Config {
-            flow_path: "".into(),
-            nm_addr: "".into(),
-            user_info: "".into(),
-            product_info: "".into(),
-            front_addr: format!("tcp://{}", self.config.front_addr.clone()),
-            broker_id: self.config.broker_id.clone(),
-            auth_code: self.config.auth_code.clone(),
-            app_id: self.config.app_id.clone(),
-            user_id: self.config.user_id.clone(),
-            password: self.config.password.clone(),
-            ..Default::default()
-        });
-        self.subscription = Some(tdapi.start().map_err(|e| AppError::new(-200, &e))?);
-        self.tapi = Some(Arc::new(Mutex::new(tdapi)));
-        
+        {
+            let mut tdapi = self.tapi.lock().unwrap();
+            self.subscription = Some(tdapi.start().map_err(|e| AppError::new(-200, &e))?);
+        }
 
         let start_ticket = self.start_ticket.fetch_add(1, Ordering::SeqCst);
         let start_ticket_ref = self.start_ticket.clone();
@@ -501,44 +501,48 @@ impl TradeServer for CtpTradeServer {
         };
         self.handler = Some(InteractiveThread::spawn(closure));
 
-        let tapi_ref = self.tapi.as_ref().unwrap().clone();
-        let _ = InteractiveThread::spawn(move |_rx| {
+        let tapi_ref = self.tapi.clone();
+        let _ = thread::spawn(move || {
             loop {
-                let mut tapi = tapi_ref.lock().unwrap();
-                let ret = tapi.req_qry_trading_account(0);
-                if ret.is_err() {
-                    error!("req_qry_trading_account: {:?}", ret);
+                {
+                    let tapi = tapi_ref.lock().unwrap();
+                    let ret = tapi.req_qry_trading_account(0);
+                    if ret.is_err() {
+                        error!("req_qry_trading_account: {:?}", ret);
+                    }
                 }
                 sleep(Duration::from_secs(1));
-                let ret = tapi.req_qry_investor_position(0);
-                if ret.is_err() {
-                    error!("req_qry_investor_position: {:?}", ret);
+                {
+                    let tapi = tapi_ref.lock().unwrap();
+                    let ret = tapi.req_qry_investor_position(0);
+                    if ret.is_err() {
+                        error!("req_qry_investor_position: {:?}", ret);
+                    }
                 }
                 sleep(Duration::from_secs(1));
             }
         });
         let time = Instant::now();
         loop {
-            if time.elapsed().as_secs() > 10 {
+            if time.elapsed().as_secs() > 30 {
                 return Err(AppError::new(-200, "Can not init account and position."));
             } else {
                 if self.position_checked.load(Ordering::SeqCst) && self.account_checked.load(Ordering::SeqCst) {
                     break;
                 }
-                thread::sleep(Duration::from_millis(100));
+                thread::sleep(Duration::from_millis(1));
             }
         }
         Ok(())
     }
 
     fn start(&mut self) -> Result<Subscription<Self::Event>, AppError> {
-        let tapi_ref = self.tapi.as_ref().unwrap().clone();
-        let mut tapi = tapi_ref.lock().unwrap();
+        let mut tapi = self.tapi.lock().unwrap();
         Ok(tapi.subscribe())
     }
 
     fn new_order(&mut self, symbol: Symbol, request: Self::OrderRequest) -> Result<(), AppError> {
-        let mut tapi = self.tapi.as_ref().unwrap().lock().unwrap();
+        let tapi = self.tapi.lock().unwrap();
         if request.offset == OFFSET_CLOSE.code && symbol.exchange_id == "SHFE" {
             let v = self.get_positions(symbol.clone())?;
             let mut last_day = 0;
@@ -571,7 +575,7 @@ impl TradeServer for CtpTradeServer {
     }
 
     fn cancel_order(&mut self, symbol: Symbol, request: CancelOrderRequest) -> Result<(), AppError> {
-        let mut tapi = self.tapi.as_ref().unwrap().lock().unwrap();
+        let tapi = self.tapi.lock().unwrap();
         let _ = tapi.req_order_action(&symbol.symbol, &symbol.exchange_id, request, 0);
         Ok(())
     }
@@ -607,10 +611,8 @@ impl TradeServer for CtpTradeServer {
         if sync_flag_on {
             return Err(AppError::new(-200, "The initialization should not be running concurrently."));
         }
-
-        let tapi_ref = self.tapi.as_ref().unwrap().clone();
-        let mut tapi = tapi_ref.lock().unwrap();
-        let _ = tapi.req_qry_instrument(&symbol.symbol, &symbol.exchange_id, 0);
+        let tapi = self.tapi.lock().unwrap();
+        let _ = tapi.req_qry_instrument(&symbol.symbol, &symbol.exchange_id, 0).map_err(|e| AppError::new(-200, &e));
 
         let time = Instant::now();
         loop {
@@ -627,7 +629,7 @@ impl TradeServer for CtpTradeServer {
                         return Err(AppError::new(-200, "Empty response from init_symbol."));
                     }
                 }
-                thread::sleep(Duration::from_millis(100));
+                thread::sleep(Duration::from_millis(1000));
             }
         }
     }

@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 use common::error::AppError;
 use common::thread::{Handler, InteractiveThread};
+use log::info;
 use market::kline::KLineCombiner;
 use crate::model::{Config, Symbol};
 
