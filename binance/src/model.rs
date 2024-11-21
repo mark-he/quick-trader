@@ -67,21 +67,21 @@ pub struct SymbolInfo {
 }
 
 #[derive(Clone, Debug)]
-pub enum AccountEvent {
+pub enum TradeEvent {
     AccountUpdate(AccountData),
     OrderTradeUpdate(OrderData),
     TradeLite(TradeLiteEvent),
 }
 
-unsafe impl Send for AccountEvent {}
+unsafe impl Send for TradeEvent {}
 
-impl SymbolRoute for AccountEvent {
+impl SymbolRoute for TradeEvent {
     fn get_symbol(&self) -> String {
         match self {
-            AccountEvent::OrderTradeUpdate(event) => {
+            TradeEvent::OrderTradeUpdate(event) => {
                 event.symbol.to_string()
             },
-            AccountEvent::TradeLite(event) => {
+            TradeEvent::TradeLite(event) => {
                 event.symbol.to_string()
             },
             _ => {

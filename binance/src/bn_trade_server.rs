@@ -11,7 +11,7 @@ use crate::model::*;
 use log::*;
 
 pub struct WssStream {
-    subscription: Arc<Mutex<Subscription<AccountEvent>>>,
+    subscription: Arc<Mutex<Subscription<TradeEvent>>>,
     handler: Option<Handler<()>>,
     connect_ticket: Arc<AtomicUsize>,
     server_ping: Arc<AtomicUsize>,
@@ -33,7 +33,7 @@ impl WssStream {
         self.handler = None;
     }
 
-    pub fn subscribe(&mut self) -> Subscription<AccountEvent> {
+    pub fn subscribe(&mut self) -> Subscription<TradeEvent> {
         self.subscription.lock().unwrap().subscribe()
     }
 
@@ -78,15 +78,15 @@ impl WssStream {
                                 match event {
                                     "ACCOUNT_UPDATE" => {
                                         let account_update_event: AccountUpdateEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                                        subscription.send(&AccountEvent::AccountUpdate(account_update_event.update_data));
+                                        subscription.send(&TradeEvent::AccountUpdate(account_update_event.update_data));
                                     },
                                     "ORDER_TRADE_UPDATE" => {
                                         let order_trade_update_event= serde_json::from_str::<OrderTradeUpdateEvent>(&string_data).map_err(|e| Box::new(e))?;
-                                        subscription.send(&AccountEvent::OrderTradeUpdate(order_trade_update_event.order));
+                                        subscription.send(&TradeEvent::OrderTradeUpdate(order_trade_update_event.order));
                                     },
                                     "TRADE_LITE" => {
                                         let trade_lite_event: TradeLiteEvent = serde_json::from_str(&string_data).map_err(|e| Box::new(e))?;
-                                        subscription.send(&AccountEvent::TradeLite(trade_lite_event));
+                                        subscription.send(&TradeEvent::TradeLite(trade_lite_event));
                                     },
                                     _ => {
                                         debug!("Received other event: {}", string_data);
@@ -127,7 +127,7 @@ pub struct BnTradeServer {
     pub assets: Arc<RwLock<Vec<Asset>>>,
     pub exchange_info: Option<ExchangeInfo>,
     pub handler: Option<JoinHandle<()>>,
-    pub subscription: Arc<Mutex<Subscription<AccountEvent>>>,
+    pub subscription: Arc<Mutex<Subscription<TradeEvent>>>,
 }
 
 impl BnTradeServer {
@@ -151,7 +151,7 @@ impl BnTradeServer {
         let handler = self.subscription.lock().unwrap().stream(move |event| {
             if let Some(e) = event {
                 match e {
-                    AccountEvent::AccountUpdate(a) => {
+                    TradeEvent::AccountUpdate(a) => {
                         let mut positions = positions_ref.write().unwrap();
                         for position_data in a.positions.iter() {
                             let mut found = false;
@@ -235,7 +235,7 @@ impl BnTradeServer {
 }
 
 impl TradeServer for BnTradeServer {
-    type Event = AccountEvent;
+    type Event = TradeEvent;
     type OrderRequest = NewOrderRequest;
     type CancelOrderRequest = CancelOrderRequest;
     type Position = Position;
@@ -252,7 +252,7 @@ impl TradeServer for BnTradeServer {
         Ok(())
     }
 
-    fn start(&mut self) -> Result<Subscription<AccountEvent>, AppError> {
+    fn start(&mut self) -> Result<Subscription<TradeEvent>, AppError> {
         let sub = self.wss_stream.subscribe();
         self.subscription = Arc::new(Mutex::new(sub));
 

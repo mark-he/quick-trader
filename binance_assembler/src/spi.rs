@@ -301,7 +301,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
             loop {
                 if let Ok(data) = rx.recv() {
                     match data {
-                        AccountEvent::OrderTradeUpdate(order) => {
+                        TradeEvent::OrderTradeUpdate(order) => {
                             if symbol_rust == order.symbol {
                                 let datetime = DateTime::from_timestamp((order.order_trade_time/1000) as i64, 0).unwrap();
                                 let order_event = OrderEvent {
@@ -329,7 +329,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                 callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                             }
                         },
-                        AccountEvent::AccountUpdate(ad) => {
+                        TradeEvent::AccountUpdate(ad) => {
                             let mut positions = vec![];
                             for p in ad.positions.iter() {
                                 if p.symbol == symbol_rust {
