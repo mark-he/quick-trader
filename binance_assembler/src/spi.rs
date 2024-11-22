@@ -8,7 +8,6 @@ use binance::model::{Asset, CancelOrderRequest, Config, Position};
 use binance::bn_market_server::BnMarketServer;
 use binance::bn_trade_server::BnTradeServer;
 use binance::model::*;
-use binance_future_connector::trade::enums::Side;
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use chrono::DateTime;
 use common::c::*;
