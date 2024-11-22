@@ -510,7 +510,7 @@ impl TradeServer for CtpTradeServer {
                         error!("req_qry_trading_account: {:?}", ret);
                     }
                 }
-                sleep(Duration::from_secs(1));
+                sleep(Duration::from_secs(2));
                 {
                     let tapi = tapi_ref.lock().unwrap();
                     let ret = tapi.req_qry_investor_position(0);
@@ -518,7 +518,7 @@ impl TradeServer for CtpTradeServer {
                         error!("req_qry_investor_position: {:?}", ret);
                     }
                 }
-                sleep(Duration::from_secs(1));
+                sleep(Duration::from_secs(2));
             }
         });
         let time = Instant::now();
