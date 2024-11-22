@@ -335,11 +335,11 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                 if p.symbol == symbol_rust {
                                     let position_event = PositionEvent {
                                         symbol: p.symbol.clone(),
-                                        position_amount: p.position_amount,
+                                        position_amt: p.position_amount,
                                         entry_price: p.entry_price,
                                         breakeven_price: p.breakeven_price,
                                         accumulated_realized: p.accumulated_realized,
-                                        unrealized_pnl: p.unrealized_pnl,
+                                        unrealized_profit: p.unrealized_pnl,
                                         margin_type: p.margin_type.clone(),
                                         isolated_wallet: p.isolated_wallet,
                                         position_side: p.position_side.clone(),

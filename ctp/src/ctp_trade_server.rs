@@ -181,8 +181,6 @@ impl TDApi {
             MacAddress: string_to_c_char::<21>("".to_string()),
             IPAddress: string_to_c_char::<33>("".to_string()),
         };
-        
-        info!("ORDER 2 {:?}", request.clone());
         Self::send_request(&mut move || unsafe {
             self.api.clone().lock().unwrap().ReqOrderInsert(&mut request, request_id)
         })
