@@ -64,7 +64,7 @@ impl Spi {
 
     fn convert_trade(pRspInfo: *mut CThostFtdcTradeField) -> Trade {
         let pRspInfo = unsafe { &mut *pRspInfo };
-        let date = c_char_to_string(pRspInfo.TradeDate.as_ptr());
+        let date = _format_date(&c_char_to_string(pRspInfo.TradeDate.as_ptr()));
         let time = c_char_to_string(pRspInfo.TradeTime.as_ptr());
         let trade = Trade {
             order_ref: c_char_to_string(pRspInfo.OrderRef.as_ptr()),
@@ -254,4 +254,12 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
             self.subscription.send(&TradeEvent::SymbolQuery(symbol_info));
         });
     }
+}
+
+
+fn _format_date(date_str: &str) -> String {
+    let year = &date_str[0..4];
+    let month = &date_str[4..6];
+    let day = &date_str[6..8];
+    format!("{}-{}-{}", year, month, day)
 }
