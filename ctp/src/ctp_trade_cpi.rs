@@ -35,6 +35,8 @@ impl Spi {
 
     fn convert_order(pRspInfo: *mut CThostFtdcOrderField) -> Order {
         let pRspInfo = unsafe { &mut *pRspInfo };
+        let date = c_char_to_string(pRspInfo.InsertDate.as_ptr());
+        let time = c_char_to_string(pRspInfo.InsertTime.as_ptr());
         let order_type = OrderType {
             price_type: pRspInfo.OrderPriceType as u8,
             time_condition: pRspInfo.TimeCondition as u8,
@@ -56,6 +58,7 @@ impl Spi {
             symbol: c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
             request_id: pRspInfo.RequestID,
             invest_unit_id: c_char_to_string(pRspInfo.InvestUnitID.as_ptr()),
+            datetime: format!("{} {}", date, time),
         };
         order
     }
@@ -80,7 +83,6 @@ impl Spi {
 
     fn convert_position(pRspInfo: *mut CThostFtdcInvestorPositionField) -> Position {
         let pRspInfo = unsafe { &mut *pRspInfo };
-        info!("POSITION: {:?}", pRspInfo);
         let position = Position {
             symbol : c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
             position: pRspInfo.Position as u32,

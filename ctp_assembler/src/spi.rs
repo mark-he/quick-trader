@@ -362,6 +362,7 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                                         symbol: order.symbol.clone(),
                                         request_id: order.request_id,
                                         invest_unit_id : order.invest_unit_id.clone(),
+                                        datetime: order.datetime.clone(),
                                     };
 
                                     let json = serde_json::to_string(&order_event).unwrap();

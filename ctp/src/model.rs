@@ -143,6 +143,7 @@ pub struct Order {
     pub symbol: String,
     pub request_id: i32,
     pub invest_unit_id : String,
+    pub datetime: String,
 }
 
 #[derive(Debug, Clone)]

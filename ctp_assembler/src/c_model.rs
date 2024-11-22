@@ -44,6 +44,7 @@ pub struct OrderEvent {
     pub symbol: String,
     pub request_id: i32,
     pub invest_unit_id : String,
+    pub datetime: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
