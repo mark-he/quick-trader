@@ -115,6 +115,7 @@ pub struct NewOrderRequest {
     pub volume_total: u32,
     pub direction: String,
     pub limit_price: f64,
+    pub stop_price: f64,
 }
 
 #[derive(Debug, Clone)]

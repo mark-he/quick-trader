@@ -35,27 +35,21 @@ impl Spi {
 
     fn convert_order(pRspInfo: *mut CThostFtdcOrderField) -> Order {
         let pRspInfo = unsafe { &mut *pRspInfo };
-
-        let offset = c_char_to_string(pRspInfo.CombOffsetFlag.as_ptr());
-        let submit_status = (pRspInfo.OrderSubmitStatus as u8 as char).to_string();
-        let status = (pRspInfo.OrderStatus as u8 as char).to_string();
-        let direction = (pRspInfo.Direction as u8 as char).to_string();
-
         let order_type = OrderType {
-            price_type: (pRspInfo.OrderPriceType as u8) as char,
-            time_condition: (pRspInfo.TimeCondition as u8) as char,
-            volume_condition: (pRspInfo.VolumeCondition as u8) as char,
+            price_type: pRspInfo.OrderPriceType as u8,
+            time_condition: pRspInfo.TimeCondition as u8,
+            volume_condition: pRspInfo.VolumeCondition as u8,
         };
         let order = Order {
             order_ref: c_char_to_string(pRspInfo.OrderRef.as_ptr()),
-            direction:  DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
-            offset: OFFSET_REV.as_ref().get(&offset).unwrap().to_string(),
+            direction:  DIRECTION_REV.as_ref().get(&(pRspInfo.Direction as u8)).unwrap().to_string(),
+            offset: OFFSET_REV.as_ref().get(&(pRspInfo.CombOffsetFlag[0] as u8)).unwrap().to_string(),
             price: pRspInfo.LimitPrice,
-            order_type: ORDER_TYPE_REV.as_ref().get(&order_type.to_string()).unwrap().to_string(),
+            order_type: order_type.to_string(),
             volume_total_original: pRspInfo.VolumeTotalOriginal as u32,   
-            submit_status: ORDER_SUBMIT_REV.as_ref().get(&submit_status).unwrap().to_string(),
+            submit_status: ORDER_SUBMIT_REV.as_ref().get(&(pRspInfo.OrderSubmitStatus as u8)).unwrap().to_string(),
             sys_id: c_char_to_string(pRspInfo.OrderSysID.as_ptr()),
-            status: ORDER_STATUS_REV.as_ref().get(&status).unwrap().to_string(),
+            status: ORDER_STATUS_REV.as_ref().get(&(pRspInfo.OrderStatus as u8)).unwrap().to_string(),
             volume_traded: pRspInfo.VolumeTraded as u32,
             volume_total: pRspInfo.VolumeTotal as u32,
             status_msg: c_char_to_gbk_string(pRspInfo.StatusMsg.as_ptr()),
@@ -68,17 +62,14 @@ impl Spi {
 
     fn convert_trade(pRspInfo: *mut CThostFtdcTradeField) -> Trade {
         let pRspInfo = unsafe { &mut *pRspInfo };
-
-        let direction = (pRspInfo.Direction as u8 as char).to_string();
-        let offset = (pRspInfo.OffsetFlag as u8 as char).to_string();
         let date = c_char_to_string(pRspInfo.TradeDate.as_ptr());
         let time = c_char_to_string(pRspInfo.TradeTime.as_ptr());
         let trade = Trade {
             order_ref: c_char_to_string(pRspInfo.OrderRef.as_ptr()),
             trade_id: c_char_to_string(pRspInfo.TradeID.as_ptr()),
             sys_id: c_char_to_string(pRspInfo.OrderSysID.as_ptr()),
-            direction: DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
-            offset: OFFSET_REV.as_ref().get(&offset).unwrap().to_string(),
+            direction: DIRECTION_REV.as_ref().get(&(pRspInfo.Direction as u8)).unwrap().to_string(),
+            offset: OFFSET_REV.as_ref().get(&(pRspInfo.OffsetFlag as u8)).unwrap().to_string(),
             price: pRspInfo.Price,
             volume: pRspInfo.Volume as u32,
             datetime: format!("{} {}", date, time),
@@ -90,12 +81,11 @@ impl Spi {
     fn convert_position(pRspInfo: *mut CThostFtdcInvestorPositionField) -> Position {
         let pRspInfo = unsafe { &mut *pRspInfo };
         info!("POSITION: {:?}", pRspInfo);
-        let direction = (pRspInfo.PosiDirection as u8 as char).to_string();
         let position = Position {
             symbol : c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
             position: pRspInfo.Position as u32,
             today_position: pRspInfo.TodayPosition as u32,
-            direction: POSITION_DIRECTION_REV.as_ref().get(&direction).unwrap().to_string(),
+            direction: POSITION_DIRECTION_REV.as_ref().get(&(pRspInfo.PosiDirection as u8)).unwrap().to_string(),
             cost: pRspInfo.PositionCost,
             invest_unit_id: c_char_to_string(pRspInfo.InvestUnitID.as_ptr()),
         };

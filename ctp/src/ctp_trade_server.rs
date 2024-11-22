@@ -8,6 +8,7 @@ use log::{error, info};
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread::{self, sleep, JoinHandle};
 use std::time::{Duration, Instant};
@@ -136,7 +137,12 @@ impl TDApi {
     }
 
     fn req_order_insert(&self, symbol: &str, exchange: &str, order: NewOrderRequest, unit_id: &str, request_id: i32) -> Result<(), String> {
-        let order_type = OrderType::from_string(ORDER_TYPE.as_ref().get(&order.order_type).unwrap());
+        let order_type = OrderType::from_str(&order.order_type)?;
+        let direction = DIRECTION.as_ref().get(&order.direction).unwrap().clone();
+        let mut comb_offset_flag: [i8; 5] = [0; 5];
+        comb_offset_flag[0] = OFFSET.as_ref().get(&order.offset).unwrap().clone() as i8; 
+        let mut comb_hedge_flag: [i8; 5] = [0; 5];
+        comb_hedge_flag[0] = THOST_FTDC_HF_Speculation as i8;
 
         let mut request = CThostFtdcInputOrderField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
@@ -144,25 +150,24 @@ impl TDApi {
             InstrumentID: string_to_c_char::<81>(symbol.to_string()),
             OrderRef: string_to_c_char::<13>(order.order_ref.to_string()),
 
-            CombOffsetFlag: string_to_c_char::<5>(OFFSET.as_ref().get(&order.offset).unwrap().to_string()),
-            CombHedgeFlag: string_to_c_char::<5>("1".to_string()),
+            CombOffsetFlag: comb_offset_flag,
+            CombHedgeFlag: comb_hedge_flag,
             ExchangeID: string_to_c_char::<9>(exchange.to_string()),
-            RequestID: request_id as c_int,
-            VolumeTotalOriginal: order.volume_total as c_int,
-            IsAutoSuspend: 0 as c_int,
-            IsSwapOrder: 0 as c_int,
-            OrderPriceType: order_type.price_type as c_char,
-
-            Direction: DIRECTION.as_ref().get(&order.direction).unwrap().chars().next().unwrap() as c_char,
-            TimeCondition: order_type.time_condition as c_char,
-            VolumeCondition: order_type.volume_condition as c_char,
+            RequestID: request_id as i32,
+            VolumeTotalOriginal: order.volume_total as i32,
+            IsAutoSuspend: 0 as i32,
+            IsSwapOrder: 0 as i32,
+            OrderPriceType: order_type.price_type as i8,
+            Direction: direction as i8,
+            TimeCondition: order_type.time_condition as i8,
+            VolumeCondition: order_type.volume_condition as i8,
             InvestUnitID: string_to_c_char::<17>(unit_id.to_string()),
             UserID: string_to_c_char::<16>(unit_id.to_string().to_string()),
 
-            ContingentCondition: '1' as c_char,
-            ForceCloseReason: '0' as c_char,
+            ContingentCondition: THOST_FTDC_CC_Immediately as c_char,
+            ForceCloseReason: THOST_FTDC_FCC_NotForceClose as c_char,
             LimitPrice: order.limit_price,
-            StopPrice: 0.0,
+            StopPrice: order.stop_price,
             MinVolume: 1 as c_int,
 
             reserve2: string_to_c_char::<16>("".to_string()),
