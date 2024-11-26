@@ -229,6 +229,7 @@ impl WssStream {
             close: kline.kline_data.close_price,
             volume: kline.kline_data.number_of_trades as f64,
             turnover: kline.kline_data.quote_asset_volume,
+            taker_buy_volume: kline.kline_data.taker_buy_base_asset_volume,
             timestamp: kline.kline_data.start_time,
         };
         k
@@ -272,6 +273,7 @@ impl BnMarketServer {
                 close: line[4].as_str().unwrap().parse::<f64>()?,
                 volume: line[5].as_str().unwrap().parse::<f64>()?,
                 turnover: line[7].as_str().unwrap().parse::<f64>()?,
+                taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
                 timestamp: line[0].as_u64().unwrap(),
             };
             k_lines.push(k_line);

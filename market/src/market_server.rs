@@ -2,6 +2,7 @@ use common::{error::AppError, msmc::Subscription};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize,)]
+#[serde(rename_all = "camelCase")]
 pub struct Tick {
     pub symbol: String,
     pub datetime: String,
@@ -17,6 +18,7 @@ pub struct Tick {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize,)]
+#[serde(rename_all = "camelCase")]
 pub struct KLine {
     pub symbol: String,
     pub interval: String,
@@ -27,6 +29,7 @@ pub struct KLine {
     pub close: f64,
     pub volume: f64,
     pub turnover: f64,
+    pub taker_buy_volume: f64,
     pub timestamp: u64,
 }
 
