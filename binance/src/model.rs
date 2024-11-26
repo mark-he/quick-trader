@@ -161,7 +161,7 @@ pub struct KlineData {
     pub low_price: f64,
     /// Volume of the base asset
     #[serde(rename = "v", deserialize_with = "string_to_f64")]
-    pub base_asset_volume: f64,
+    pub volume: f64,
     /// Number of trades
     #[serde(rename = "n")]
     pub number_of_trades: u64,
@@ -170,13 +170,13 @@ pub struct KlineData {
     pub is_closed: bool,
     /// Volume of the quote asset
     #[serde(rename = "q", deserialize_with = "string_to_f64")]
-    pub quote_asset_volume: f64,
+    pub turnover: f64,
     /// Taker buy volume of the base asset
     #[serde(rename = "V", deserialize_with = "string_to_f64")]
-    pub taker_buy_base_asset_volume: f64,
+    pub taker_buy_volume: f64,
     /// Taker buy volume of the quote asset
     #[serde(rename = "Q", deserialize_with = "string_to_f64")]
-    pub taker_buy_quote_asset_volume: f64,
+    pub taker_buy_turnover: f64,
     /// Ignore
     #[serde(rename = "B")]
     ignored_value: String,

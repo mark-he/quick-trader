@@ -30,6 +30,7 @@ pub struct KLine {
     pub volume: f64,
     pub turnover: f64,
     pub taker_buy_volume: f64,
+    pub taker_buy_turnover: f64,
     pub timestamp: u64,
 }
 

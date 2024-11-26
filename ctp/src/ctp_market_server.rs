@@ -314,6 +314,7 @@ impl MarketServer for CtpMarketServer {
                                         volume: volumn,
                                         turnover: turnover,
                                         taker_buy_volume: 0.0,
+                                        taker_buy_turnover: 0.0,
                                         timestamp: t.timestamp,
                                     };
                                     let mut new_kline = combiner.combine_tick(&kline, true);
