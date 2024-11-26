@@ -263,7 +263,7 @@ impl BnMarketServer {
     
         for line in data {
             let datetime = DateTime::from_timestamp((line[0].as_u64().unwrap()/1000) as i64, 0).unwrap();
-            info!("{}", DateTime::from_timestamp((line[6].as_u64().unwrap()/1000) as i64, 0).unwrap().to_string());
+
             let k_line = KLine {
                 symbol: symbol.to_string(),
                 interval: interval.to_string(),
@@ -275,11 +275,23 @@ impl BnMarketServer {
                 volume: line[5].as_str().unwrap().parse::<f64>()?,
                 turnover: line[7].as_str().unwrap().parse::<f64>()?,
                 taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
-                timestamp: line[0].as_u64().unwrap(),
+                timestamp: line[6].as_u64().unwrap(),
             };
             k_lines.push(k_line);
         }
         Ok(k_lines)
+    }
+
+
+    pub fn get_server_timestamp(&self) -> Result<u64, AppError> {
+        let client = BinanceHttpClient::default();
+        let request = bn_market::time();
+        let data = model::get_resp_result(client.send(request), vec![])?;
+        let json_value: Value = serde_json::from_str(&data).unwrap();
+        if let Some(key) = json_value.get("serverTime") {
+            return Ok(key.as_u64().unwrap())   
+        }
+        Err(AppError::new(-200, "Can not get servertime"))
     }
 }
 
@@ -290,7 +302,15 @@ impl MarketServer for BnMarketServer {
         let kline_interval = KlineInterval::from_str(interval).map_err(|e| {AppError::new(-200, &e)})?;
         let request = bn_market::klines(&symbol, kline_interval).limit(count);
         let data = model::get_resp_result(client.send(request), vec![])?;
-        let klines = Self::convert_json_to_k_lines(&symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let mut klines = Self::convert_json_to_k_lines(&symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+
+        let server_time = self.get_server_timestamp()?;
+        if let Some(v) = klines.last() {
+            if v.timestamp > server_time {
+                warn!("Remove the last kline as it has not closed yet.");
+                klines.pop();
+            }
+        }
         Ok(klines)
     }
 
