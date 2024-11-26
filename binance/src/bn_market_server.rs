@@ -218,7 +218,6 @@ impl WssStream {
     }
 
     fn convert_bn_kline(kline: BinanceKline) -> KLine {
-        info!("{:?}", kline);
         let datetime = DateTime::from_timestamp((kline.kline_data.start_time/1000) as i64, 0).unwrap();
         let k = KLine {
             symbol: kline.kline_data.symbol.clone(),
