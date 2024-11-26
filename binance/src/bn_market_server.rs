@@ -263,6 +263,7 @@ impl BnMarketServer {
     
         for line in data {
             let datetime = DateTime::from_timestamp((line[0].as_u64().unwrap()/1000) as i64, 0).unwrap();
+            info!("{}", DateTime::from_timestamp((line[6].as_u64().unwrap()/1000) as i64, 0).unwrap().to_string());
             let k_line = KLine {
                 symbol: symbol.to_string(),
                 interval: interval.to_string(),
