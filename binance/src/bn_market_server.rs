@@ -232,7 +232,7 @@ impl WssStream {
             turnover: kline.kline_data.turnover,
             taker_buy_volume: kline.kline_data.taker_buy_volume,
             taker_buy_turnover: kline.kline_data.taker_buy_turnover,
-            timestamp: kline.kline_data.start_time,
+            timestamp: kline.kline_data.close_time,
         };
         k
     }
