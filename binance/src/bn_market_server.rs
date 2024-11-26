@@ -307,7 +307,7 @@ impl MarketServer for BnMarketServer {
         let server_time = self.get_server_timestamp()?;
         if let Some(v) = klines.last() {
             if v.timestamp > server_time {
-                warn!("Remove the last kline as it has not closed yet.");
+                warn!("Remove the last kline of {} as it has not closed yet.", symbol);
                 klines.pop();
             }
         }
