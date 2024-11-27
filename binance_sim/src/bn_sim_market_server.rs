@@ -11,12 +11,14 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 #[derive(Clone)]
 pub struct Config {
     start_time: u64,
     end_time: u64,
     interval: u64,
+    line_per_sec: u64,
 }
 
 pub struct BnSimMarketServer {
@@ -100,9 +102,14 @@ impl MarketServer for BnSimMarketServer {
                             let subscrption = subscription_ref.lock().unwrap();  
                             subscrption.send(&MarketData::Kline(v));
                         }
+                    } else {
+                        panic!("Error when running bn_sim_market_server");
                     }
                 }
                 temp = temp + config.interval;
+                if config.line_per_sec > 0 && 1000 / config.line_per_sec > 0 {
+                    thread::sleep(Duration::from_millis(1000 / config.line_per_sec));
+                }
             }
         });
         Ok(sub)
