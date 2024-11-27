@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex, RwLock}, thread::JoinHandle};
+use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription};
 use binance_future_connector::trade::{enums::{MarginType, OrderStatus, Side}, new_order::NewOrderRequest};
