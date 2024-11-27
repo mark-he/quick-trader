@@ -9,8 +9,6 @@ pub struct BnSimTradeServer {
     pub config: Config,
     pub positions: Arc<RwLock<Vec<Position>>>,
     pub assets: Arc<RwLock<Vec<Asset>>>,
-    pub exchange_info: Option<ExchangeInfo>,
-    pub handler: Option<JoinHandle<()>>,
     pub subscription: Arc<Mutex<Subscription<TradeEvent>>>,
 }
 
@@ -20,8 +18,6 @@ impl BnSimTradeServer {
             config,
             positions: Arc::new(RwLock::new(Vec::new())),
             assets: Arc::new(RwLock::new(Vec::new())),
-            exchange_info: None,
-            handler: None,
             subscription: Arc::new(Mutex::new(Subscription::top())),
         }
     }

@@ -41,7 +41,6 @@ impl Ord for MarketTopic {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let self_interval = KlineInterval::from_str(&self.interval);
         let other_interval = KlineInterval::from_str(&other.interval);
-        
         let ret =  self_interval.cmp(&other_interval);
         return  ret;
     }
