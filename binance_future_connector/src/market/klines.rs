@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::http::{request::Request, Method};
 use strum::Display;
 
-#[derive(Copy, Clone, Display)]
+#[derive(Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KlineInterval {
     #[strum(serialize = "1m")]
     Minutes1,

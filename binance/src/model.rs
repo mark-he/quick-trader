@@ -329,7 +329,7 @@ pub struct AccountUpdateEvent {
 }
 
 //Order trade update event
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct OrderData {
     #[serde(rename = "s")]
     pub symbol: String,

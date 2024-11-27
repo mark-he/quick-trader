@@ -22,10 +22,29 @@ use crate::model::BinanceKline;
 use log::*;
 use super::model;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MarketTopic {
     pub symbol: String,
     pub interval: String,
+}
+
+impl PartialOrd for MarketTopic {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let self_interval = KlineInterval::from_str(&self.interval);
+        let other_interval = KlineInterval::from_str(&other.interval);
+        let ret =  self_interval.cmp(&other_interval);
+        return Some(ret);
+    }
+}
+
+impl Ord for MarketTopic {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let self_interval = KlineInterval::from_str(&self.interval);
+        let other_interval = KlineInterval::from_str(&other.interval);
+        
+        let ret =  self_interval.cmp(&other_interval);
+        return  ret;
+    }
 }
 
 pub struct WssStream {
@@ -143,7 +162,7 @@ impl WssStream {
                                         match serde_json::from_str::<model::BinanceKline>(&string_data) {
                                             Ok(kline) => {
                                                 if kline.kline_data.is_closed {
-                                                    let k = Self::convert_bn_kline(kline);
+                                                    let k = convert_bn_kline(kline);
 
                                                     let key = format!("{}_{}", k.symbol, k.interval);
                                                     let prev_kline = last_klines.get(&key);
@@ -217,25 +236,6 @@ impl WssStream {
         self.handler = Some(InteractiveThread::spawn(closure));
     }
 
-    fn convert_bn_kline(kline: BinanceKline) -> KLine {
-        let datetime = DateTime::from_timestamp((kline.kline_data.start_time/1000) as i64, 0).unwrap();
-        let k = KLine {
-            symbol: kline.kline_data.symbol.clone(),
-            interval: kline.kline_data.interval.clone(),
-            datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-            open: kline.kline_data.open_price,
-            high: kline.kline_data.high_price,
-            low: kline.kline_data.low_price,
-            close: kline.kline_data.close_price,
-            volume: kline.kline_data.volume,
-            turnover: kline.kline_data.turnover,
-            taker_buy_volume: kline.kline_data.taker_buy_volume,
-            taker_buy_turnover: kline.kline_data.taker_buy_turnover,
-            timestamp: kline.kline_data.close_time,
-        };
-        k
-    }
-
     fn close(&self) {
         self.connect_ticket.fetch_add(1, Ordering::SeqCst);
     }
@@ -258,33 +258,6 @@ impl BnMarketServer {
         }
     }
 
-    fn convert_json_to_k_lines(symbol: &str, interval: &str, json_str: &str) -> Result<Vec<KLine>, Box<dyn std::error::Error>> {
-        let data: Vec<Vec<serde_json::Value>> = serde_json::from_str(json_str)?;
-        let mut k_lines = Vec::new();
-    
-        for line in data {
-            let datetime = DateTime::from_timestamp((line[0].as_u64().unwrap()/1000) as i64, 0).unwrap();
-
-            let k_line = KLine {
-                symbol: symbol.to_string(),
-                interval: interval.to_string(),
-                datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                open: line[1].as_str().unwrap().parse::<f64>()?,
-                high: line[2].as_str().unwrap().parse::<f64>()?,
-                low: line[3].as_str().unwrap().parse::<f64>()?,
-                close: line[4].as_str().unwrap().parse::<f64>()?,
-                volume: line[5].as_str().unwrap().parse::<f64>()?,
-                turnover: line[7].as_str().unwrap().parse::<f64>()?,
-                taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
-                taker_buy_turnover: line[10].as_str().unwrap().parse::<f64>()?,
-                timestamp: line[6].as_u64().unwrap(),
-            };
-            k_lines.push(k_line);
-        }
-        Ok(k_lines)
-    }
-
-
     pub fn get_server_timestamp(&self) -> Result<u64, AppError> {
         let client = BinanceHttpClient::default();
         let request = bn_market::time();
@@ -304,7 +277,7 @@ impl MarketServer for BnMarketServer {
         let kline_interval = KlineInterval::from_str(interval).map_err(|e| {AppError::new(-200, &e)})?;
         let request = bn_market::klines(&symbol, kline_interval).limit(count);
         let data = model::get_resp_result(client.send(request), vec![])?;
-        let mut klines = Self::convert_json_to_k_lines(&symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+        let mut klines = convert_json_to_k_lines(&symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
 
         let server_time = self.get_server_timestamp()?;
         if let Some(v) = klines.last() {
@@ -374,3 +347,51 @@ impl MarketServer for BnMarketServer {
         self.wss_stream.close();
     }
 }
+
+
+
+pub fn convert_bn_kline(kline: BinanceKline) -> KLine {
+    let datetime = DateTime::from_timestamp((kline.kline_data.start_time/1000) as i64, 0).unwrap();
+    let k = KLine {
+        symbol: kline.kline_data.symbol.clone(),
+        interval: kline.kline_data.interval.clone(),
+        datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+        open: kline.kline_data.open_price,
+        high: kline.kline_data.high_price,
+        low: kline.kline_data.low_price,
+        close: kline.kline_data.close_price,
+        volume: kline.kline_data.volume,
+        turnover: kline.kline_data.turnover,
+        taker_buy_volume: kline.kline_data.taker_buy_volume,
+        taker_buy_turnover: kline.kline_data.taker_buy_turnover,
+        timestamp: kline.kline_data.close_time,
+    };
+    k
+}
+
+pub fn convert_json_to_k_lines(symbol: &str, interval: &str, json_str: &str) -> Result<Vec<KLine>, Box<dyn std::error::Error>> {
+    let data: Vec<Vec<serde_json::Value>> = serde_json::from_str(json_str)?;
+    let mut k_lines = Vec::new();
+
+    for line in data {
+        let datetime = DateTime::from_timestamp((line[0].as_u64().unwrap()/1000) as i64, 0).unwrap();
+
+        let k_line = KLine {
+            symbol: symbol.to_string(),
+            interval: interval.to_string(),
+            datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+            open: line[1].as_str().unwrap().parse::<f64>()?,
+            high: line[2].as_str().unwrap().parse::<f64>()?,
+            low: line[3].as_str().unwrap().parse::<f64>()?,
+            close: line[4].as_str().unwrap().parse::<f64>()?,
+            volume: line[5].as_str().unwrap().parse::<f64>()?,
+            turnover: line[7].as_str().unwrap().parse::<f64>()?,
+            taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
+            taker_buy_turnover: line[10].as_str().unwrap().parse::<f64>()?,
+            timestamp: line[6].as_u64().unwrap(),
+        };
+        k_lines.push(k_line);
+    }
+    Ok(k_lines)
+}
+
