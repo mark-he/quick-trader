@@ -150,10 +150,10 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
             let kline = v.0.get(v.1);
             if let Some(value) = kline {
                 info!("visit =========== value.timestamp{} - current_time{}", value.timestamp, current_time);
+                v.1 = v.1 + 1;
                 if value.timestamp <= current_time {
                     return Ok(Some(value.clone()));
                 }
-                v.1 = v.1 + 1;
             }
         }
     }
