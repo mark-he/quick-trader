@@ -1,4 +1,4 @@
-use std::{any::Any, sync::{Arc, Mutex}};
+use std::sync::{Arc, Mutex};
 
 use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{Asset, CancelOrderRequest, Position, SymbolConfig, SymbolInfo, TradeEvent}};
 use binance_future_connector::trade::new_order::NewOrderRequest;

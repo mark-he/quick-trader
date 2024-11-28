@@ -64,7 +64,6 @@ impl <T: Serialize> ServiceResult<T> {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-#[serde(rename_all = "camelCase")]
 pub struct BacktestConfig {
     pub log_utc: bool,
     pub log_level: String,
@@ -77,7 +76,6 @@ pub struct BacktestConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-#[serde(rename_all = "camelCase")]
 pub struct RealConfig {
     pub log_utc: bool,
     pub log_level: String,
@@ -90,7 +88,6 @@ pub struct RealConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-#[serde(rename_all = "camelCase")]
 pub struct SimConfig {
     pub log_utc: bool,
     pub log_level: String,

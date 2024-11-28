@@ -5,6 +5,7 @@ use binance_future_connector::ureq::BinanceHttpClient;
 use binance_future_connector::market as bn_market;
 
 use common::error::AppError;
+use log::info;
 use market::market_server::{KLine, MarketData, MarketServer};
 use common::msmc::*;
 use std::collections::HashMap;
@@ -86,6 +87,7 @@ impl MarketServer for BnSimMarketServer {
         let topics = self.topics.clone();
         let subscription_ref = self.subscription.clone();
         thread::spawn(move|| {
+            info!("CONFIG: {:?}", config);
             let mut temp = config.start_time;
             let mut kline_store: HashMap<String, (Vec<KLine>, usize)> = HashMap::new();
             while temp <= config.end_time {
@@ -93,7 +95,8 @@ impl MarketServer for BnSimMarketServer {
                     let ret = visit(&mut kline_store, topic.symbol.clone(), &topic.interval.clone(), temp);
                     if let Ok(kline) = ret {
                         if let Some(v) = kline {
-                            let subscrption = subscription_ref.lock().unwrap();  
+                            let subscrption = subscription_ref.lock().unwrap();
+                            info!("SENDING KLINE: {:?}", v);
                             subscrption.send(&MarketData::Kline(v));
                         }
                     } else {
@@ -134,7 +137,7 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
         }
     }
     if need_more {
-        let klines = load_more(symbol.clone(), interval, 100, current_time)?;
+        let klines = load_more(symbol.clone(), interval, 500, current_time)?;
         klines_store.insert(symbol.clone(), (klines, 0));
     }
 

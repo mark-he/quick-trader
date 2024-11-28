@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription};
-use binance_future_connector::{market_stream::enums::{Level, UpdateSpeed}, trade::{enums::{MarginAssetMode, MarginType, OrderStatus, PositionMode, PositionSide, Side}, new_order::NewOrderRequest}};
+use binance_future_connector::trade::{enums::{MarginAssetMode, MarginType, OrderStatus, PositionMode, Side}, new_order::NewOrderRequest};
 use trade::trade_server::TradeServer;
 use binance::{bn_trade_server::BnTradeServerTrait, model::*};
 
