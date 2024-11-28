@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription};
-use binance_future_connector::trade::{enums::{MarginAssetMode, MarginType, OrderStatus, PositionMode, Side}, new_order::NewOrderRequest};
+use binance_future_connector::trade::{enums::{MarginAssetMode, MarginType, OrderStatus, OrderType, PositionMode, Side}, new_order::NewOrderRequest};
 use trade::trade_server::TradeServer;
 use binance::{bn_trade_server::BnTradeServerTrait, model::*};
 
@@ -53,6 +53,10 @@ impl TradeServer for BnSimTradeServer {
     }
 
     fn new_order(&mut self, _symbol: String, request : NewOrderRequest) -> Result<(), AppError> {
+        if request.type_.to_string() == OrderType::Market.to_string() {
+            return Err(AppError::new(-200, "Sim Trade Server does not support MARKET order type"));
+        }
+
         let mut positions = self.positions.write().unwrap();
         let mut found: Option<Position> = None;
         for p in positions.iter_mut() {
