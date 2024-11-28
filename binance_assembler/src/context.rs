@@ -57,8 +57,8 @@ pub fn init_backtest(market_server: BnSimMarketServer, trade_server: BnSimTradeS
 pub fn init_sim(market_server: BnMarketServer, trade_server: BnSimTradeServer) {
     let market_gateway = MarketGateway::new(Box::new(market_server));
     let trade_gateway= TradeGateway::new(Box::new(trade_server));
-    let market_delegate = Arc::new(Mutex::new(MarketGatewayDelegate {mode: Mode::Backtest, real: Some(market_gateway), sim: None}));
-    let trade_delegate = Arc::new(Mutex::new(TradeGatewayDelegate {mode: Mode::Backtest, real: None, sim: Some(trade_gateway)}));
+    let market_delegate = Arc::new(Mutex::new(MarketGatewayDelegate {mode: Mode::Sim, real: Some(market_gateway), sim: None}));
+    let trade_delegate = Arc::new(Mutex::new(TradeGatewayDelegate {mode: Mode::Sim, real: None, sim: Some(trade_gateway)}));
     
     unsafe {
         if TRADE_GATEWAY.is_some() || MARKET_GATEWAY.is_some() {
