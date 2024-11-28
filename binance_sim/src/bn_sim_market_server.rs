@@ -5,7 +5,6 @@ use binance_future_connector::ureq::BinanceHttpClient;
 use binance_future_connector::market as bn_market;
 
 use common::error::AppError;
-use log::info;
 use market::market_server::{KLine, MarketData, MarketServer};
 use common::msmc::*;
 use std::collections::HashMap;
@@ -25,7 +24,7 @@ pub struct BnSimMarketServer {
 impl BnSimMarketServer {
     pub fn new(config: SimMarketConfig) -> Self {
         BnSimMarketServer {
-            config: config,
+            config,
             topics: Vec::new(),
             subscription: Arc::new(Mutex::new(Subscription::top())),
         }
@@ -92,7 +91,6 @@ impl MarketServer for BnSimMarketServer {
             while temp <= config.end_time {
                 for topic in topics.iter() {
                     let ret = visit(&mut kline_store, topic.symbol.clone(), &topic.interval.clone(), temp);
-                    
                     if let Ok(kline) = ret {
                         if let Some(v) = kline {
                             let subscrption = subscription_ref.lock().unwrap();
