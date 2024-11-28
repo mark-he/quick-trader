@@ -93,6 +93,8 @@ impl MarketServer for BnSimMarketServer {
             while temp <= config.end_time {
                 for topic in topics.iter() {
                     let ret = visit(&mut kline_store, topic.symbol.clone(), &topic.interval.clone(), temp);
+                    
+                    info!("visit result: {:?}", ret);
                     if let Ok(kline) = ret {
                         if let Some(v) = kline {
                             let subscrption = subscription_ref.lock().unwrap();
@@ -150,8 +152,9 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
             let kline = v.0.get(v.1);
             if let Some(value) = kline {
                 info!("visit =========== value.timestamp{} - current_time{}", value.timestamp, current_time);
-                v.1 = v.1 + 1;
                 if value.timestamp <= current_time {
+                    info!("visit ===========got");
+                    v.1 = v.1 + 1;
                     return Ok(Some(value.clone()));
                 }
             }
