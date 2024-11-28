@@ -152,7 +152,7 @@ impl TradeServer for BnSimTradeServer {
             order_filled_accumulated_quantity: quantity,
             last_filled_price: price,
             is_reduce_only: request.reduce_only.is_some() && "true" == request.reduce_only.unwrap(),
-            position_side: request.position_side.unwrap().to_string(),
+            position_side: "BOTH".to_string(),
             order_trade_time: Local::now().timestamp_millis() as u64,
             ..Default::default()
         };
