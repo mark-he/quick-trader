@@ -131,7 +131,7 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
     let mut need_more = true;
     if let Some(v) = item {
         if v.0.len() > 0 {
-            need_more = v.1 < v.0.len();
+            need_more = v.1 >= v.0.len();
         } else {
             need_more = false;
         }
