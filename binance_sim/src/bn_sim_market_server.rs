@@ -143,11 +143,13 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
     }
 
     let item = klines_store.get_mut(&symbol);
-    info!("visit =========== {:?}", item);
+
     if let Some(v) = item {
+        info!("visit =========== v0.len{} - v1{}", v.0.len(), v.1);
         if v.0.len() > 0 && v.1 < v.0.len() {
             let kline = v.0.get(v.1);
             if let Some(value) = kline {
+                info!("visit =========== value.timestamp{} - current_time{}", value.timestamp, current_time);
                 if value.timestamp <= current_time {
                     return Ok(Some(value.clone()));
                 }
