@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription};
-use binance_future_connector::trade::{enums::{MarginAssetMode, MarginType, OrderStatus, OrderType, PositionMode, Side}, new_order::NewOrderRequest};
+use binance_future_connector::trade::{enums::{MarginAssetMode, MarginType, OrderStatus, OrderType, PositionMode, PositionSide, Side}, new_order::NewOrderRequest};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use trade::trade_server::TradeServer;
 use binance::{bn_trade_server::BnTradeServerTrait, model::*};
@@ -60,6 +60,11 @@ impl TradeServer for BnSimTradeServer {
 
         let mut positions = self.positions.write().unwrap();
         let mut found: Option<Position> = None;
+
+        if request.position_side.is_none() {
+            request.position_side = Some(PositionSide::Both);
+        }
+
         for p in positions.iter_mut() {
             if p.symbol == request.symbol && p.position_side == request.position_side.unwrap().to_string() {
                 let mut quantity: f64;
