@@ -153,6 +153,7 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
                 if value.timestamp <= current_time {
                     return Ok(Some(value.clone()));
                 }
+                v.1 = v.1 + 1;
             }
         }
     }
