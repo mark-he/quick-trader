@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription};
 use binance_future_connector::trade::{enums::{MarginAssetMode, MarginType, OrderStatus, OrderType, PositionMode, Side}, new_order::NewOrderRequest};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use trade::trade_server::TradeServer;
 use binance::{bn_trade_server::BnTradeServerTrait, model::*};
 
@@ -52,7 +53,7 @@ impl TradeServer for BnSimTradeServer {
         Ok(sub)
     }
 
-    fn new_order(&mut self, _symbol: String, request : NewOrderRequest) -> Result<(), AppError> {
+    fn new_order(&mut self, _symbol: String, mut request : NewOrderRequest) -> Result<(), AppError> {
         if request.type_.to_string() == OrderType::Market.to_string() {
             return Err(AppError::new(-200, "Sim Trade Server does not support MARKET order type"));
         }
@@ -61,7 +62,13 @@ impl TradeServer for BnSimTradeServer {
         let mut found: Option<Position> = None;
         for p in positions.iter_mut() {
             if p.symbol == request.symbol && p.position_side == request.position_side.unwrap().to_string() {
-                let mut quantity: f64 = request.quantity.unwrap().to_string().parse::<f64>().unwrap();
+                let mut quantity: f64;
+                if let Some(v) = request.quantity {
+                    quantity = v.to_string().parse::<f64>().unwrap();
+                } else {
+                    quantity = p.position_amt.abs();
+                }
+                request.quantity = Decimal::from_f64(quantity);
                 match request.side {
                     Side::Buy => {
                         if let Some(v) = request.reduce_only.as_ref() {
@@ -122,8 +129,14 @@ impl TradeServer for BnSimTradeServer {
         sub.send(&TradeEvent::AccountUpdate(account_data));
 
         let quantity = request.quantity.unwrap().to_string().parse::<f64>().unwrap();
-        let stop_price = request.stop_price.unwrap().to_string().parse::<f64>().unwrap();
-        let price = request.price.unwrap().to_string().parse::<f64>().unwrap();
+        let mut stop_price = 0 as f64;
+        if let Some(v) = request.stop_price {
+            stop_price = v.to_string().parse::<f64>().unwrap();
+        }
+        let mut price = 0 as f64;
+        if let Some(v) = request.price {
+            price = v.to_string().parse::<f64>().unwrap();
+        }
         let order_data = OrderData {
             symbol: request.symbol.clone(),
             client_order_id: request.new_client_order_id.unwrap().clone(),
