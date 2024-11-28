@@ -127,7 +127,7 @@ fn load_more(symbol: String, interval: &str, count: u32, start_time: u64) -> Res
 
 fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String, interval: &str, current_time: u64) -> Result<Option<KLine>, AppError> {
     let item = klines_store.get_mut(&symbol);
-    
+    info!("visit ===========");
     let mut need_more = true;
     if let Some(v) = item {
         if v.0.len() > 0 {
@@ -137,11 +137,13 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
         }
     }
     if need_more {
+        info!("visit ===========need_more");
         let klines = load_more(symbol.clone(), interval, 500, current_time)?;
         klines_store.insert(symbol.clone(), (klines, 0));
     }
 
     let item = klines_store.get_mut(&symbol);
+    info!("visit =========== {:?}", item);
     if let Some(v) = item {
         if v.0.len() > 0 && v.1 < v.0.len() {
             let kline = v.0.get(v.1);
