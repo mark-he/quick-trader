@@ -93,7 +93,7 @@ impl TradeServer for BnSimTradeServer {
             let p = Position {
                 symbol: request.symbol.clone(),
                 entry_price: request.price.unwrap().to_string().parse::<f64>().unwrap(),
-                position_side: request.position_side.unwrap().to_string(),
+                position_side: "BOTH".to_string(),
                 position_amt: quantity,
                 ..Default::default()
             };
