@@ -87,18 +87,15 @@ impl MarketServer for BnSimMarketServer {
         let topics = self.topics.clone();
         let subscription_ref = self.subscription.clone();
         thread::spawn(move|| {
-            info!("CONFIG: {:?}", config);
             let mut temp = config.start_time;
             let mut kline_store: HashMap<String, (Vec<KLine>, usize)> = HashMap::new();
             while temp <= config.end_time {
                 for topic in topics.iter() {
                     let ret = visit(&mut kline_store, topic.symbol.clone(), &topic.interval.clone(), temp);
                     
-                    info!("visit result: {:?}", ret);
                     if let Ok(kline) = ret {
                         if let Some(v) = kline {
                             let subscrption = subscription_ref.lock().unwrap();
-                            info!("SENDING KLINE: {:?}", v);
                             subscrption.send(&MarketData::Kline(v));
                         }
                     } else {
@@ -129,7 +126,6 @@ fn load_more(symbol: String, interval: &str, count: u32, start_time: u64) -> Res
 
 fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String, interval: &str, current_time: u64) -> Result<Option<KLine>, AppError> {
     let item = klines_store.get_mut(&symbol);
-    info!("visit ===========");
     let mut need_more = true;
     if let Some(v) = item {
         if v.0.len() > 0 {
@@ -139,7 +135,6 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
         }
     }
     if need_more {
-        info!("visit ===========need_more");
         let klines = load_more(symbol.clone(), interval, 500, current_time)?;
         klines_store.insert(symbol.clone(), (klines, 0));
     }
@@ -147,13 +142,10 @@ fn visit(klines_store: &mut HashMap<String, (Vec<KLine>, usize)>, symbol: String
     let item = klines_store.get_mut(&symbol);
 
     if let Some(v) = item {
-        info!("visit =========== v0.len{} - v1{}", v.0.len(), v.1);
         if v.0.len() > 0 && v.1 < v.0.len() {
             let kline = v.0.get(v.1);
             if let Some(value) = kline {
-                info!("visit =========== value.timestamp{} - current_time{}", value.timestamp, current_time);
                 if value.timestamp <= current_time {
-                    info!("visit ===========got");
                     v.1 = v.1 + 1;
                     return Ok(Some(value.clone()));
                 }
