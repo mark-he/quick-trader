@@ -119,8 +119,22 @@ impl WssStream {
         self.connect_ticket.fetch_add(1, Ordering::SeqCst);
     }
 }
+
+pub trait BnTradeServerTrait : TradeServer<
+        Event = TradeEvent,
+        OrderRequest = NewOrderRequest,
+        CancelOrderRequest = CancelOrderRequest,
+        Position = Position,
+        Account = Asset,
+        SymbolConfig = SymbolConfig,
+        SymbolInfo = SymbolInfo,
+        Symbol = String,
+        > {}
+
+impl BnTradeServerTrait for BnTradeServer {}
+
 pub struct BnTradeServer {
-    pub config: Config,
+    pub config: TradeConfig,
     pub credentials: Credentials,
     pub wss_stream: WssStream,
     pub positions: Arc<RwLock<Vec<Position>>>,
@@ -131,7 +145,7 @@ pub struct BnTradeServer {
 }
 
 impl BnTradeServer {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: TradeConfig) -> Self {
         BnTradeServer {
             credentials: Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone()),
             config,
@@ -233,6 +247,17 @@ impl BnTradeServer {
     }
 
 }
+
+pub type BnTradeServerType = dyn TradeServer<
+            Event = TradeEvent,
+            OrderRequest = NewOrderRequest,
+            CancelOrderRequest = CancelOrderRequest,
+            Position = Position,
+            Account = Asset,
+            SymbolConfig = SymbolConfig,
+            SymbolInfo = SymbolInfo,
+            Symbol = String,
+            >;
 
 impl TradeServer for BnTradeServer {
     type Event = TradeEvent;
@@ -341,8 +366,6 @@ impl TradeServer for BnTradeServer {
             quantity_precision: 0,
             price_precision: 0,
             quote_precision: 0,
-            depth_level: self.config.depth_level,
-            tick_update_speed: self.config.tick_update_speed,
         };
 
         if let Some(exchange_info) = self.exchange_info.as_ref() {

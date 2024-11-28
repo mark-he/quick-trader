@@ -62,8 +62,6 @@ pub struct SymbolInfo {
     pub quantity_precision: usize,
     pub price_precision: usize,
     pub quote_precision: usize,
-    pub tick_update_speed: Option<UpdateSpeed>,
-    pub depth_level: Level,
 }
 
 #[derive(Clone, Debug)]
@@ -91,17 +89,22 @@ impl SymbolRoute for TradeEvent {
     }
 }
 
+
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct Config {
-    pub log_utc: bool,
-    pub log_level: String,
+pub struct MarketConfig {
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct TradeConfig {
     pub api_key: String, 
     pub api_secret: String,
     pub dual_position_side: PositionMode,
     pub multi_assets_margin: MarginAssetMode,
-    pub tick_update_speed: Option<UpdateSpeed>,
-    pub depth_level: Level,
 }
+
 
 fn string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
    where

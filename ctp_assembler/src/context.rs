@@ -19,8 +19,8 @@ pub static mut CONTEXT: Context = Context {
 
 pub fn init(market_server: CtpMarketServer, trade_server: CtpTradeServer) {
     unsafe {
-        CONTEXT.market_gateway = Some(Arc::new(Mutex::new(MarketGateway::new(market_server))));
-        CONTEXT.trade_gateway = Some(Arc::new(Mutex::new(TradeGateway::new(trade_server))));
+        CONTEXT.market_gateway = Some(Arc::new(Mutex::new(MarketGateway::new(Box::new(market_server)))));
+        CONTEXT.trade_gateway = Some(Arc::new(Mutex::new(TradeGateway::new(Box::new(trade_server)))));
     }
 }
 

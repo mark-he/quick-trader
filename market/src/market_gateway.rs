@@ -13,7 +13,7 @@ struct Subscriber {
 }
 
 pub struct MarketGateway<S: MarketServer> {
-    server: S,
+    server: Box<S>,
     subscription: Arc<Mutex<Subscription<MarketData>>>,
     subscribers : Vec<Subscriber>,
     pub handler: Option<JoinHandle<()>>,
@@ -21,7 +21,7 @@ pub struct MarketGateway<S: MarketServer> {
 }
 
 impl <S: MarketServer> MarketGateway<S> {
-    pub fn new(server: S) -> Self {
+    pub fn new(server: Box<S>) -> Self {
         MarketGateway {
             server,
             subscription: Arc::new(Mutex::new(Subscription::top())),

@@ -5,7 +5,7 @@ use common::{error::AppError, msmc::{StreamError, Subscription}};
 use crossbeam::channel::{self, Receiver, Sender};
 
 pub struct TradeGateway<S: TradeServer> {
-    server: S,
+    server: Box<S>,
     subscribers : Vec<(String, Sender<S::Event>)>,
     pub handler: Option<JoinHandle<()>>,
     start_ticket: Arc<AtomicUsize>,
@@ -13,7 +13,7 @@ pub struct TradeGateway<S: TradeServer> {
 }
 
 impl<S: TradeServer> TradeGateway<S> {
-    pub fn new(server: S) -> Self {
+    pub fn new(server: Box<S>) -> Self {
         TradeGateway {
             server,
             subscribers: vec![],

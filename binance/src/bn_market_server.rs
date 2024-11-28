@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use chrono::DateTime;
-use crate::model::BinanceKline;
+use crate::model::{BinanceKline, MarketConfig};
 use log::*;
 use super::model;
 
@@ -240,14 +240,16 @@ impl WssStream {
     }
 }
 
+pub type BnMarketServerType = dyn MarketServer<Symbol = String>;
+
 pub struct BnMarketServer {
-    pub config: model::Config,
+    pub config: MarketConfig,
     pub wss_stream: WssStream,
     topics: Vec<MarketTopic>,
 }
 
 impl BnMarketServer {
-    pub fn new(config: model::Config) -> Self {
+    pub fn new(config: MarketConfig) -> Self {
         let depth_level = config.depth_level;
         let tick_update_speed = config.tick_update_speed;
         BnMarketServer {

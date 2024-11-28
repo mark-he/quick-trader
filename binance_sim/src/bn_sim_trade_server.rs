@@ -1,19 +1,22 @@
 use std::sync::{Arc, Mutex, RwLock};
 use chrono::Local;
 use common::{error::AppError, msmc::Subscription};
-use binance_future_connector::trade::{enums::{MarginType, OrderStatus, Side}, new_order::NewOrderRequest};
+use binance_future_connector::{market_stream::enums::{Level, UpdateSpeed}, trade::{enums::{MarginAssetMode, MarginType, OrderStatus, PositionMode, PositionSide, Side}, new_order::NewOrderRequest}};
 use trade::trade_server::TradeServer;
-use binance::model::*;
+use binance::{bn_trade_server::BnTradeServerTrait, model::*};
 
+use crate::model::SimTradeConfig;
+
+impl BnTradeServerTrait for BnSimTradeServer {}
 pub struct BnSimTradeServer {
-    pub config: Config,
+    pub config: SimTradeConfig,
     pub positions: Arc<RwLock<Vec<Position>>>,
     pub assets: Arc<RwLock<Vec<Asset>>>,
     pub subscription: Arc<Mutex<Subscription<TradeEvent>>>,
 }
 
 impl BnSimTradeServer {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: SimTradeConfig) -> Self {
         BnSimTradeServer {
             config,
             positions: Arc::new(RwLock::new(Vec::new())),
@@ -21,7 +24,6 @@ impl BnSimTradeServer {
             subscription: Arc::new(Mutex::new(Subscription::top())),
         }
     }
-
 }
 
 impl TradeServer for BnSimTradeServer {
@@ -35,6 +37,11 @@ impl TradeServer for BnSimTradeServer {
     type Symbol = String;
     
     fn init(&mut self) -> Result<(), AppError> {
+        self.assets.write().unwrap().push(Asset {
+            asset: self.config.asset.clone(),
+            wallet_balance: self.config.balance as f64,
+            ..Default::default()
+        });
         Ok(())
     }
 
@@ -172,14 +179,12 @@ impl TradeServer for BnSimTradeServer {
             symbol: symbol.to_string(),
             leverage: config.leverage,
             margin_type: config.margin_type,
-            dual_position_side: self.config.dual_position_side,
-            multi_assets_margin: self.config.multi_assets_margin,
+            dual_position_side: PositionMode::OneWayMode,
+            multi_assets_margin: MarginAssetMode::SingleAsset,
             maint_margin_ratio: 0.1,
             quantity_precision: 8,
             price_precision: 8,
             quote_precision: 8,
-            depth_level: self.config.depth_level,
-            tick_update_speed: self.config.tick_update_speed,
         };
         Ok(symbol_info)
     }

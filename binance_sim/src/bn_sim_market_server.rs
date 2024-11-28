@@ -13,22 +13,16 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-#[derive(Clone)]
-pub struct Config {
-    start_time: u64,
-    end_time: u64,
-    interval: u64,
-    line_per_sec: u64,
-}
+use crate::model::SimMarketConfig;
 
 pub struct BnSimMarketServer {
-    config: Config,
+    config: SimMarketConfig,
     topics: Vec<MarketTopic>,
     subscription: Arc<Mutex<Subscription<MarketData>>>,
 }
 
 impl BnSimMarketServer {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: SimMarketConfig) -> Self {
         BnSimMarketServer {
             config: config,
             topics: Vec::new(),
@@ -107,8 +101,8 @@ impl MarketServer for BnSimMarketServer {
                     }
                 }
                 temp = temp + config.interval;
-                if config.line_per_sec > 0 && 1000 / config.line_per_sec > 0 {
-                    thread::sleep(Duration::from_millis(1000 / config.line_per_sec));
+                if config.lines_per_sec > 0 && 1000 / config.lines_per_sec > 0 {
+                    thread::sleep(Duration::from_millis(1000 / config.lines_per_sec));
                 }
             }
         });

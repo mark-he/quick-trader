@@ -1,5 +1,6 @@
 use std::ffi::CString;
 
+use binance_future_connector::{market_stream::enums::{Level, UpdateSpeed}, trade::enums::{MarginAssetMode, PositionMode}};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -59,4 +60,42 @@ impl <T: Serialize> ServiceResult<T> {
         let json = serde_json::to_string(&self).unwrap();
         Box::new(CString::new(json).unwrap())
     }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+#[serde(rename_all = "camelCase")]
+pub struct BacktestConfig {
+    pub log_utc: bool,
+    pub log_level: String,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub interval: u64,
+    pub lines_per_sec: u64,
+    pub asset: String,
+    pub balance: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+#[serde(rename_all = "camelCase")]
+pub struct RealConfig {
+    pub log_utc: bool,
+    pub log_level: String,
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
+    pub api_key: String, 
+    pub api_secret: String,
+    pub dual_position_side: PositionMode,
+    pub multi_assets_margin: MarginAssetMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+#[serde(rename_all = "camelCase")]
+pub struct SimConfig {
+    pub log_utc: bool,
+    pub log_level: String,
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
+    pub asset: String,
+    pub balance: u64,
 }
