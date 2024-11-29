@@ -7,6 +7,9 @@ pub struct Request {
     pub(crate) params: Vec<(String, String)>,
     pub(crate) credentials: Option<Credentials>,
     pub(crate) sign: bool,
+    pub(crate) body: String,
+    pub(crate) recv_window: u32,
+    
 }
 
 impl Request {
@@ -16,6 +19,9 @@ impl Request {
     pub fn path(&self) -> &str {
         &self.path
     }
+    pub fn body(&self) -> &str {
+        &self.body
+    }
     pub fn params(&self) -> &[(String, String)] {
         &self.params
     }
@@ -24,6 +30,9 @@ impl Request {
     }
     pub fn sign(&self) -> &bool {
         &self.sign
+    }
+    pub fn recv_window(&self) -> &u32 {
+        &self.recv_window
     }
 }
 
@@ -37,6 +46,8 @@ pub struct RequestBuilder {
     params: Vec<(String, String)>,
     credentials: Option<Credentials>,
     sign: bool,
+    body: String,
+    recv_window: u32,
 }
 
 impl RequestBuilder {
@@ -45,8 +56,10 @@ impl RequestBuilder {
             method,
             path: path.to_owned(),
             params: vec![],
+            body: "".to_string(),
             credentials: None,
             sign: false,
+            recv_window: 5000,
         }
     }
 
@@ -74,6 +87,18 @@ impl RequestBuilder {
 
         self
     }
+
+    pub fn recv_window(mut self, recv_window: u32) -> Self {
+        self.recv_window = recv_window;
+
+        self
+    }
+
+    pub fn body(mut self, body: &str) -> Self {
+        self.body = body.to_string();
+
+        self
+    }
 }
 
 impl From<RequestBuilder> for Request {
@@ -84,6 +109,8 @@ impl From<RequestBuilder> for Request {
             params: builder.params,
             credentials: builder.credentials,
             sign: builder.sign,
+            body: builder.body,
+            recv_window: builder.recv_window,
         }
     }
 }

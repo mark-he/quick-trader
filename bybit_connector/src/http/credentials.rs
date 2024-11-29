@@ -8,7 +8,6 @@ pub struct Credentials {
 #[derive(PartialEq, Eq, Clone)]
 pub enum Signature {
     Hmac(HmacSignature),
-    Ed25519(Ed25519Signature),
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -34,13 +33,6 @@ impl Credentials {
             signature: Signature::Hmac(HmacSignature {
                 api_secret: api_secret.into(),
             }),
-        }
-    }
-
-    pub fn from_ed25519(api_key: impl Into<String>, key: impl Into<String>) -> Self {
-        Credentials {
-            api_key: api_key.into(),
-            signature: Signature::Ed25519(Ed25519Signature { key: key.into() }),
         }
     }
 }

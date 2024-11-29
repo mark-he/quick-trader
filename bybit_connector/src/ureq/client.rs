@@ -1,7 +1,7 @@
 use crate::http::{request::Request, Credentials};
 use crate::ureq::{Error, Response};
 use crate::version::VERSION;
-use http::Uri;
+use http::{Method, Uri};
 use std::time::{SystemTime, UNIX_EPOCH};
 use ureq::{Agent, AgentBuilder, Error as UreqError};
 
@@ -51,6 +51,8 @@ impl BybitHttpClient {
             params,
             credentials,
             sign,
+            body,
+            recv_window,
         } = request.into();
 
         // Build URL
@@ -59,7 +61,7 @@ impl BybitHttpClient {
         let mut ureq_request = self.client.request(method.as_ref(), &url.to_string());
 
         // Set User-Agent in header
-        let user_agent = &format!("bybit-connector/{}", VERSION);
+        let user_agent: &String = &format!("bybit-connector/{}", VERSION);
         ureq_request = ureq_request.set("User-Agent", user_agent);
 
         // Map query parameters
@@ -86,19 +88,30 @@ impl BybitHttpClient {
 
             if sign {
                 // Use system clock, panic if system clock is behind `std::time::UNIX_EPOCH`
-               
-                
                 // Stringfy available query parameters and append back to query parameters
-                let signature = crate::utils::sign(
-                    ureq_request
+                let payload;
+                match method {
+                    crate::http::Method::Get => {
+                        //timestamp+api_key+recv_window+queryString
+                        payload = format!("{}{}{}{}", timestamp, api_key, recv_window, ureq_request
                         .request_url()
                         .unwrap()
                         .as_url()
                         .query()
-                        .unwrap(),
+                        .unwrap());
+                    },
+                    crate::http::Method::Post => {
+                        //timestamp+api_key+recv_window+raw_request_body
+                        payload = format!("{}{}{}{}", timestamp, api_key, recv_window, body);
+                    },
+                    _ => {
+                        payload = "".to_string();
+                    },
+                }
+                let signature = crate::utils::sign(
+                    &payload,
                     signature,
-                )
-                .map_err(|_| Error::InvalidApiSecret)?;
+                ).map_err(|_| Error::InvalidApiSecret)?;
                 ureq_request = ureq_request.set("X-BAPI-API-KEY", api_key);
                 ureq_request = ureq_request.set("X-BAPI-TIMESTAMP", &timestamp.to_string());
                 ureq_request = ureq_request.set("X-BAPI-SIGN", &signature);

@@ -10,7 +10,6 @@ use sha2::{digest::InvalidLength, Sha256};
 pub fn sign(payload: &str, signature: &Signature) -> Result<String, InvalidLength> {
     match signature {
         Signature::Hmac(signature) => sign_hmac(payload, &signature.api_secret),
-        Signature::Ed25519(signature) => sign_ed25519(payload, &signature.key),
     }
 }
 
