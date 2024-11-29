@@ -112,6 +112,8 @@ impl BybitHttpClient {
                     &payload,
                     signature,
                 ).map_err(|_| Error::InvalidApiSecret)?;
+
+                println!("payload={}, signature={}", payload, signature);
                 ureq_request = ureq_request.set("X-BAPI-API-KEY", api_key);
                 ureq_request = ureq_request.set("X-BAPI-TIMESTAMP", &timestamp.to_string());
                 ureq_request = ureq_request.set("X-BAPI-SIGN", &signature);
