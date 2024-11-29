@@ -113,7 +113,6 @@ impl BybitHttpClient {
                     signature,
                 ).map_err(|_| Error::InvalidApiSecret)?;
 
-                println!("payload={}, signature={}", payload, signature);
                 ureq_request = ureq_request.set("X-BAPI-API-KEY", api_key);
                 ureq_request = ureq_request.set("X-BAPI-TIMESTAMP", &timestamp.to_string());
                 ureq_request = ureq_request.set("X-BAPI-SIGN", &signature);
@@ -122,11 +121,9 @@ impl BybitHttpClient {
             }
         }
 
-        println!("{:?}", ureq_request);
         let response;
         match method {
             crate::http::Method::Post | crate::http::Method::Put => {
-                println!("SEND JSON!!!! {}", body);
                 response = match ureq_request.send_string(&body) {
                     Ok(response) => Ok(response),
                     Err(UreqError::Status(_, response)) => Ok(response),

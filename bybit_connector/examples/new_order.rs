@@ -9,6 +9,6 @@ fn main() -> Result<(), Box<Error>> {
     let client = BybitHttpClient::default().credentials(credentials);
     let request = trade::new_order(Category::Linear, "BTCUSDT", Side::Buy, trade::enums::OrderType::Limit, "1");
     let data = client.send(request)?.into_body_str()?;
-    print!("======================= {:?}", data);
+    println!("{:?}", data);
     Ok(())
 }

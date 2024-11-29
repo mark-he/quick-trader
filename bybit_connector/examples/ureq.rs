@@ -11,6 +11,6 @@ fn main() -> Result<(), Box<Error>> {
     let client = BybitHttpClient::default().credentials(credentials);
     let request = RequestBuilder::new(Method::Post, "/v5/order/create").body("{}").sign();
     let data = client.send(request)?.into_body_str()?;
-    print!("======================= {:?}", data);
+    println!("{:?}", data);
     Ok(())
 }

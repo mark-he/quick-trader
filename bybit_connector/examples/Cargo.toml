@@ -20,5 +20,5 @@ path="ureq.rs"
 
 
 [[example]]
-name="trade_new_order"
-path="trade/new_order.rs"
+name="new_order"
+path="new_order.rs"
