@@ -41,6 +41,7 @@ impl TradeServer for BnSimTradeServer {
         self.assets.write().unwrap().push(Asset {
             asset: self.config.asset.clone(),
             wallet_balance: self.config.balance as f64,
+            available_balance: self.config.balance as f64,
             ..Default::default()
         });
         Ok(())
@@ -59,6 +60,7 @@ impl TradeServer for BnSimTradeServer {
         }
 
         let mut positions = self.positions.write().unwrap();
+        let mut assets = self.assets.write().unwrap();
         let mut found: Option<Position> = None;
 
         if request.position_side.is_none() {
@@ -203,7 +205,7 @@ impl TradeServer for BnSimTradeServer {
             margin_type: config.margin_type,
             dual_position_side: PositionMode::OneWayMode,
             multi_assets_margin: MarginAssetMode::SingleAsset,
-            maint_margin_ratio: 0.1,
+            maint_margin_ratio: leverage_margin_ratio(config.leverage),
             quantity_precision: 8,
             price_precision: 8,
             quote_precision: 8,
@@ -214,3 +216,9 @@ impl TradeServer for BnSimTradeServer {
     fn close(&self) {
     }
 }
+
+
+fn leverage_margin_ratio(leverage: i32) -> f64 {
+    1.0 as f64 / leverage as f64 / 4.0 as f64
+}
+

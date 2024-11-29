@@ -73,6 +73,7 @@ pub struct BacktestConfig {
     pub lines_per_sec: u64,
     pub asset: String,
     pub balance: u64,
+    pub leverage: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
@@ -95,4 +96,5 @@ pub struct SimConfig {
     pub depth_level: Level,
     pub asset: String,
     pub balance: u64,
+    pub leverage: u64,
 }

@@ -5,7 +5,7 @@ use binance_future_connector::ureq::BinanceHttpClient;
 use binance_future_connector::market as bn_market;
 
 use common::error::AppError;
-use market::market_server::{KLine, MarketData, MarketServer};
+use market::market_server::{KLine, MarketData, MarketServer, Tick};
 use common::msmc::*;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -46,8 +46,23 @@ impl MarketServer for BnSimMarketServer {
         Ok(klines)
     }
 
-    fn subscribe_tick(&mut self, _symbol: String) -> Result<(), AppError>{
-        Err(AppError::new(-200, "subscribe_tick is not support in backtest mode"))
+    fn subscribe_tick(&mut self, symbol: String) -> Result<(), AppError>{
+        let mut found = false;
+        for topic in self.topics.iter() {
+            if topic.symbol == symbol && topic.interval == "" {
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            let topic = MarketTopic {
+                symbol: symbol,
+                interval: "".to_string(),
+            };
+            self.topics.push(topic);
+        }
+        Ok(())
     }
 
     fn subscribe_kline(&mut self, symbol: String, interval: &str) -> Result<(), AppError>{
@@ -94,6 +109,20 @@ impl MarketServer for BnSimMarketServer {
                     if let Ok(kline) = ret {
                         if let Some(v) = kline {
                             let subscrption = subscription_ref.lock().unwrap();
+                            let tick = Tick {
+                                symbol: v.symbol.clone(),
+                                datetime: v.datetime.clone(),
+                                open: 0 as f64,
+                                high: 0 as f64,
+                                low: 0 as f64,
+                                close: v.close,
+                                volume: 0 as f64,
+                                turnover: 0 as f64,
+                                bids: vec![],
+                                asks: vec![],
+                                timestamp: v.timestamp,
+                            };
+                            subscrption.send(&MarketData::Tick(tick));
                             subscrption.send(&MarketData::Kline(v));
                         }
                     } else {
