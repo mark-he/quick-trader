@@ -102,7 +102,12 @@ impl BybitHttpClient {
                     },
                     crate::http::Method::Post => {
                         //timestamp+api_key+recv_window+raw_request_body
-                        payload = format!("{}{}{}{}", timestamp, api_key, recv_window, body);
+                        payload = format!("{}{}{}{}{}", timestamp, api_key, recv_window, ureq_request
+                        .request_url()
+                        .unwrap()
+                        .as_url()
+                        .query()
+                        .unwrap(), body);
                     },
                     _ => {
                         payload = "".to_string();
@@ -121,13 +126,23 @@ impl BybitHttpClient {
         }
 
         println!("{:?}", ureq_request);
-
-        let response = match ureq_request.call() {
-            Ok(response) => Ok(response),
-            Err(UreqError::Status(_, response)) => Ok(response),
-            Err(err) => Err(Error::Send(err)),
-        }?;
-
+        let response;
+        match method {
+            crate::http::Method::Post | crate::http::Method::Put => {
+                response = match ureq_request.send_string(&body) {
+                    Ok(response) => Ok(response),
+                    Err(UreqError::Status(_, response)) => Ok(response),
+                    Err(err) => Err(Error::Send(err)),
+                }?;
+            },
+            _ => {
+                response = match ureq_request.call() {
+                    Ok(response) => Ok(response),
+                    Err(UreqError::Status(_, response)) => Ok(response),
+                    Err(err) => Err(Error::Send(err)),
+                }?;
+            },
+        }
         log::debug!("{}", response.status());
 
         Ok(Response::from(response))
