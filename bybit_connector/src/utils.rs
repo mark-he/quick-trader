@@ -13,6 +13,5 @@ fn sign_hmac(payload: &str, key: &str) -> Result<String, InvalidLength> {
 
     mac.update(payload.to_string().as_bytes());
     let result = mac.finalize();
-    let signature = hex::encode(result.into_bytes());
-    Ok(signature)
+    Ok(format!("{:x}", result.into_bytes()))
 }
