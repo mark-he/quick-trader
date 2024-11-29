@@ -1,17 +1,14 @@
 use std::str::FromStr;
-use strum::Display;
+use strum::{Display, VariantNames,};
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Copy, Clone, Display)]
-#[derive(Serialize)]
+#[derive(Serialize, VariantNames)]
+#[serde(rename_all = "lowercase")]
 pub enum Category {
-    #[strum(serialize = "spot")]
     Spot,
-    #[strum(serialize = "linear")]
     Linear,
-    #[strum(serialize = "inverse")]
     Inverse,
-    #[strum(serialize = "option")]
     Option,
 }
 impl FromStr for Category {
@@ -90,7 +87,6 @@ impl<'de> Deserialize<'de> for OrderType {
 
 #[derive(Debug, Copy, Clone, Display)]
 #[derive(Serialize)]
-#[strum(serialize_all = "UPPERCASE")]
 pub enum TimeInForceType {
     IOC,
     GTC,
