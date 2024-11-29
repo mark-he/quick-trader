@@ -18,6 +18,6 @@ fn main() -> Result<(), Box<Error>> {
         ("price", "320.2"),
     ]);
     let data = client.send(request)?.into_body_str()?;
-    log::info!("{}", data);
+    print!("======================= {:?}", data);
     Ok(())
 }
