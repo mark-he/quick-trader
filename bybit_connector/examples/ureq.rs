@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<Error>> {
         ("type", "LIMIT"),
         ("quantity", "0.1"),
         ("price", "320.2"),
-    ]);
+    ]).sign();
     let data = client.send(request)?.into_body_str()?;
     print!("======================= {:?}", data);
     Ok(())
