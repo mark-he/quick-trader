@@ -105,7 +105,7 @@ impl BybitHttpClient {
             }
         }
 
-        log::debug!("{}", ureq_request.url());
+        println!("{}", ureq_request);
 
         let response = match ureq_request.call() {
             Ok(response) => Ok(response),
