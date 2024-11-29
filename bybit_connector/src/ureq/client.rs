@@ -74,22 +74,20 @@ impl BybitHttpClient {
         let request_credentials = credentials.as_ref();
         if let Some(Credentials { api_key, signature }) = request_credentials.or(client_credentials)
         {
+            let mut timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("Clock may have gone backwards")
+            .as_millis();
+
+            // Append timestamp delta to sync up with server time.
+            timestamp -= self.timestamp_delta as u128;
+
             // Set API-Key in header
-            ureq_request = ureq_request.set("X-MBX-APIKEY", api_key);
 
             if sign {
                 // Use system clock, panic if system clock is behind `std::time::UNIX_EPOCH`
-                let mut timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .expect("Clock may have gone backwards")
-                    .as_millis();
-
-                // Append timestamp delta to sync up with server time.
-                timestamp -= self.timestamp_delta as u128;
-
-                // Append timestamp to query parameters
-                ureq_request = ureq_request.query("timestamp", &timestamp.to_string());
-
+               
+                
                 // Stringfy available query parameters and append back to query parameters
                 let signature = crate::utils::sign(
                     ureq_request
@@ -101,8 +99,10 @@ impl BybitHttpClient {
                     signature,
                 )
                 .map_err(|_| Error::InvalidApiSecret)?;
-
-                ureq_request = ureq_request.query("signature", &signature);
+                ureq_request = ureq_request.set("X-BAPI-API-KEY", api_key);
+                ureq_request = ureq_request.set("X-BAPI-TIMESTAMP", &timestamp.to_string());
+                ureq_request = ureq_request.set("X-BAPI-SIGN", &signature);
+                
             }
         }
 
