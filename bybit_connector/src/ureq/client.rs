@@ -124,6 +124,7 @@ impl BybitHttpClient {
         let response;
         match method {
             crate::http::Method::Post | crate::http::Method::Put => {
+                println!("SEND JSON!!!! {}", body);
                 response = match ureq_request.send_string(&body) {
                     Ok(response) => Ok(response),
                     Err(UreqError::Status(_, response)) => Ok(response),
