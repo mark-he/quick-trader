@@ -105,7 +105,7 @@ impl BybitHttpClient {
             }
         }
 
-        println!("{}", ureq_request);
+        println!("{:?}", ureq_request);
 
         let response = match ureq_request.call() {
             Ok(response) => Ok(response),
