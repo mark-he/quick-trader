@@ -60,7 +60,7 @@ impl TradeServer for BnSimTradeServer {
         }
 
         let mut positions = self.positions.write().unwrap();
-        let mut assets = self.assets.write().unwrap();
+        //let mut assets = self.assets.write().unwrap();
         let mut found: Option<Position> = None;
 
         if request.position_side.is_none() {
@@ -150,8 +150,8 @@ impl TradeServer for BnSimTradeServer {
             side: request.side.to_string(),
             order_type: request.type_.to_string(),
             original_quantity: quantity,
-            original_price: quantity,
-            average_price: quantity,
+            original_price: request.price.unwrap().to_string().parse::<f64>().unwrap(),
+            average_price: request.price.unwrap().to_string().parse::<f64>().unwrap(),
             stop_price: stop_price,
             execution_type: "TRADE".to_string(),
             order_status: OrderStatus::Filled.to_string(),
@@ -216,7 +216,6 @@ impl TradeServer for BnSimTradeServer {
     fn close(&self) {
     }
 }
-
 
 fn leverage_margin_ratio(leverage: i32) -> f64 {
     1.0 as f64 / leverage as f64 / 4.0 as f64

@@ -1,0 +1,18 @@
+[package]
+name = "bybit-connector-examples"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+bybit_connector = { path = ".."}
+log = "0.4.14"
+futures-util = "0.3.21"
+rust_decimal = "1.24.0"
+rust_decimal_macros = "1.24.0"
+serde_json = "*"
+
+
+[[example]]
+name="ureq"
+path="ureq.rs"
