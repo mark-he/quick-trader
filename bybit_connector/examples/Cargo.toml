@@ -16,3 +16,9 @@ serde_json = "*"
 [[example]]
 name="ureq"
 path="ureq.rs"
+
+
+
+[[example]]
+name="trade_new_order"
+path="trade/new_order.rs"

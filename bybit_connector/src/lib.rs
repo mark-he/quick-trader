@@ -3,3 +3,4 @@ pub mod http;
 pub mod version;
 pub mod utils;
 pub mod config;
+pub mod trade;

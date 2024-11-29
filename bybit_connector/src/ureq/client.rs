@@ -1,7 +1,7 @@
 use crate::http::{request::Request, Credentials};
 use crate::ureq::{Error, Response};
 use crate::version::VERSION;
-use http::{Method, Uri};
+use http::Uri;
 use std::time::{SystemTime, UNIX_EPOCH};
 use ureq::{Agent, AgentBuilder, Error as UreqError};
 
