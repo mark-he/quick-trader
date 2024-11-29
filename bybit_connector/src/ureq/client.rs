@@ -102,12 +102,7 @@ impl BybitHttpClient {
                     },
                     crate::http::Method::Post => {
                         //timestamp+api_key+recv_window+raw_request_body
-                        payload = format!("{}{}{}{}{}", timestamp, api_key, recv_window, ureq_request
-                        .request_url()
-                        .unwrap()
-                        .as_url()
-                        .query()
-                        .unwrap(), body);
+                        payload = format!("{}{}{}{}{}", timestamp, api_key, recv_window, body);
                     },
                     _ => {
                         payload = "".to_string();
