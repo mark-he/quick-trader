@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<Error>> {
     let credentials = Credentials::from_hmac("NNkjh5G30XGwYBpTLK".to_owned(), "0vo14u6XlB3WSvDVhY4YuaCXErONIETSQnfV".to_owned());
     let client = BybitHttpClient::default().credentials(credentials);
     let request = RequestBuilder::new(Method::Post, "/v5/order/create").params(vec![
+        ("category", "linear"),
         ("symbol", "BNBUSDT"),
         ("side", "SELL"),
         ("type", "LIMIT"),
