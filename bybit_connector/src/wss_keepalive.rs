@@ -67,20 +67,22 @@ impl WssKeepalive {
                 let conn = self.conn.as_mut().unwrap();
 
                 let mut heartbeat = Instant::now();
+                let mut trigger_time = 20;
                 loop {
                     sleep(Duration::from_millis(10));
-                    if heartbeat.elapsed().as_secs() >= 20 {
+                    if heartbeat.elapsed().as_secs() >= trigger_time {
                         let ret = conn.as_mut().send(Message::Text("{\"op\": \"ping\"}".to_string()));
                         if ret.is_ok() {
-                            heartbeat = Instant::now();
                             println!("Heartbeat sent >>>>");
+                            heartbeat = Instant::now();
+                            trigger_time = 20;
                             break;
                         } else {
+                            trigger_time = trigger_time + 2;
                             println!("Heartbeat Error >>>> {:?}", ret.unwrap_err());
                         }
                     }
                     if conn.as_mut().can_read() {
-                        //conn.as_mut().send(message)
                         let ret = conn.as_mut().read();
                         match ret {
                             Ok(message) => {
