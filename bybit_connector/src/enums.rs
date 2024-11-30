@@ -138,3 +138,57 @@ impl<'de> Deserialize<'de> for TriggerBy {
         Self::from_str(&s).map_err(|e| serde::de::Error::custom(e))
     }
 }
+
+
+#[derive(Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord)]
+pub enum KlineInterval {
+    #[strum(serialize = "1")]
+    Minutes1,
+    #[strum(serialize = "3")]
+    Minutes3,
+    #[strum(serialize = "5")]
+    Minutes5,
+    #[strum(serialize = "15")]
+    Minutes15,
+    #[strum(serialize = "30")]
+    Minutes30,
+    #[strum(serialize = "60")]
+    Hours1,
+    #[strum(serialize = "120")]
+    Hours2,
+    #[strum(serialize = "240")]
+    Hours4,
+    #[strum(serialize = "360")]
+    Hours6,
+    #[strum(serialize = "720")]
+    Hours12,
+    #[strum(serialize = "D")]
+    Days1,
+    #[strum(serialize = "W")]
+    Weeks1,
+    #[strum(serialize = "M")]
+    Months1,
+}
+
+impl FromStr for KlineInterval {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1" => Ok(KlineInterval::Minutes1),
+            "3" => Ok(KlineInterval::Minutes3),
+            "5" => Ok(KlineInterval::Minutes5),
+            "15" => Ok(KlineInterval::Minutes15),
+            "30" => Ok(KlineInterval::Minutes30),
+            "60" => Ok(KlineInterval::Hours1),
+            "120" => Ok(KlineInterval::Hours2),
+            "240" => Ok(KlineInterval::Hours4),
+            "360" => Ok(KlineInterval::Hours6),
+            "720" => Ok(KlineInterval::Hours12),
+            "D" => Ok(KlineInterval::Days1),
+            "W" => Ok(KlineInterval::Weeks1),
+            "M" => Ok(KlineInterval::Months1),
+            _ => Err("Invalid KlineInterval".to_string()),
+        }
+    }
+}

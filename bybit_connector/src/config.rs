@@ -1,10 +1,10 @@
 
 
 pub const TEST_REST_API: &str = "https://api-testnet.bybit.com";
-pub const TEST_WSS_API: &str = "wss://stream-testnet.bybit.com/v5/public/linear";
+pub const TEST_WSS_API: &str = "wss://stream-testnet.bybit.com";
 
 pub const PROD_REST_API: &str = "https://api.bybit.com";
-pub const PROD_WSS_API: &str = "wss://stream.bybit.com/v5/public/linear";
+pub const PROD_WSS_API: &str = "wss://stream.bybit.com";
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 

@@ -1,10 +1,9 @@
 use crate::http::{request::Request, Method};
-use crate::trade::enums::{Side, TimeInForceType, OrderType, TriggerBy};
+use crate::enums::{Category, OrderType, Side, TimeInForceType, TriggerBy};
 use rust_decimal::Decimal;
 use serde::{Serialize, Deserialize};
 use serde_json::Result;
 
-use super::enums::Category;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
