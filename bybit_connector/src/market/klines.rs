@@ -1,4 +1,4 @@
-use crate::{enums::Category, http::{request::Request, Method}};
+use crate::{enums::{Category, KlineInterval}, http::{request::Request, Method}};
 use serde::{Serialize, Deserialize};
 use serde_json::Result;
 
@@ -7,14 +7,14 @@ use serde_json::Result;
 pub struct GetKlinesRequest {
     pub category: Category,
     pub symbol: String,
-    pub interval: String,
+    pub interval: KlineInterval,
     pub start: Option<u64>,
     pub end: Option<u64>,
     pub limit: Option<u64>,
 }
 
 impl GetKlinesRequest {
-    pub fn new(category: Category, symbol: &str, interval: &str) -> Self {
+    pub fn new(category: Category, symbol: &str, interval: KlineInterval) -> Self {
         Self {
             category: category.to_owned(),
             symbol: symbol.to_owned(),

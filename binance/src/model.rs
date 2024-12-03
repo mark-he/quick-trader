@@ -1,7 +1,6 @@
 use binance_future_connector::{http::error::ClientError, market_stream::enums::{Level, UpdateSpeed}, trade::enums::{MarginAssetMode, MarginType, PositionMode}, ureq::{Error, Response}};
 use common::error::AppError;
 use serde::{Deserialize, Deserializer, Serialize};
-use trade::trade_server::SymbolRoute;
 
 pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>) -> Result<String, AppError> {
     let err;
@@ -62,31 +61,6 @@ pub struct SymbolInfo {
     pub quantity_precision: usize,
     pub price_precision: usize,
     pub quote_precision: usize,
-}
-
-#[derive(Clone, Debug)]
-pub enum TradeEvent {
-    AccountUpdate(AccountData),
-    OrderTradeUpdate(OrderData),
-    TradeLite(TradeLiteEvent),
-}
-
-unsafe impl Send for TradeEvent {}
-
-impl SymbolRoute for TradeEvent {
-    fn get_symbol(&self) -> String {
-        match self {
-            TradeEvent::OrderTradeUpdate(event) => {
-                event.symbol.to_string()
-            },
-            TradeEvent::TradeLite(event) => {
-                event.symbol.to_string()
-            },
-            _ => {
-                "".to_string()
-            }
-        }
-    }
 }
 
 
@@ -216,62 +190,6 @@ pub struct BinanceTick {
     pub total_traded_quote_asset_volume: f64,
 }
 
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Order {
-    #[serde(rename = "clientOrderId")]
-    pub client_order_id: String,
-    #[serde(rename = "cumQty", deserialize_with = "string_to_f64")]
-    pub cum_qty: f64,
-    #[serde(rename = "cumQuote", deserialize_with = "string_to_f64")]
-    pub cum_quote: f64,
-    #[serde(rename = "executedQty", deserialize_with = "string_to_f64")]
-    pub executed_qty: f64,
-    #[serde(rename = "orderId")]
-    pub order_id: u64,
-    #[serde(rename = "avgPrice", deserialize_with = "string_to_f64")]
-    pub avg_price: f64,
-    #[serde(rename = "origQty", deserialize_with = "string_to_f64")]
-    pub orig_qty: f64,
-    #[serde(rename = "price", deserialize_with = "string_to_f64")]
-    pub price: f64,
-    #[serde(rename = "reduceOnly")]
-    pub reduce_only: bool,
-    #[serde(rename = "side")]
-    pub side: String,
-    #[serde(rename = "positionSide")]
-    pub position_side: String,
-    #[serde(rename = "status")]
-    pub status: String,
-    #[serde(rename = "stopPrice", deserialize_with = "string_to_f64")]
-    pub stop_price: f64,
-    #[serde(rename = "closePosition")]
-    pub close_position: bool,
-    #[serde(rename = "symbol")]
-    pub symbol: String,
-    #[serde(rename = "timeInForce")]
-    pub time_in_force: String,
-    #[serde(rename = "type")]
-    pub order_type: String,
-    #[serde(rename = "origType")]
-    pub orig_type: String,
-    #[serde(rename = "activatePrice", deserialize_with = "string_to_f64")]
-    pub activate_price: f64,
-    #[serde(rename = "priceRate")]
-    pub price_rate: String,
-    #[serde(rename = "updateTime")]
-    pub update_time: u64,
-    #[serde(rename = "workingType")]
-    pub working_type: String,
-    #[serde(rename = "priceProtect")]
-    pub price_protect: bool,
-    #[serde(rename = "priceMatch")]
-    pub price_match: String,
-    #[serde(rename = "selfTradePreventionMode")]
-    pub self_trade_prevention_mode: String,
-    #[serde(rename = "goodTillDate")]
-    pub good_till_date: u64,
-}
 
 //Account update event.
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -454,7 +372,7 @@ pub struct TradeLiteEvent {
 
 //Account info
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Account {
+pub struct AccountQueryResp {
     #[serde(rename = "feeTier")]
     pub fee_tier: u32,
     #[serde(rename = "feeBurn")]
@@ -493,12 +411,12 @@ pub struct Account {
     pub available_balance: f64,
     #[serde(rename = "maxWithdrawAmount", deserialize_with = "string_to_f64")]
     pub max_withdraw_amount: f64,
-    pub assets: Vec<Asset>,
-    pub positions: Vec<Position>,
+    pub assets: Vec<AssetResp>,
+    pub positions: Vec<PositionResp>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Asset {
+pub struct AssetResp {
     #[serde(rename = "asset")]
     pub asset: String,
     #[serde(rename = "walletBalance", deserialize_with = "string_to_f64")]
@@ -530,7 +448,7 @@ pub struct Asset {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Position {
+pub struct PositionResp {
     #[serde(rename = "symbol")]
     pub symbol: String,
     #[serde(rename = "initialMargin", deserialize_with = "string_to_f64")]
@@ -565,7 +483,7 @@ pub struct Position {
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Bracket {
+pub struct BracketResp {
     #[serde(rename = "bracket")]
     pub bracket: usize,
     #[serde(rename = "initialLeverage")]
@@ -581,11 +499,11 @@ pub struct Bracket {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct LeverageBracket {
+pub struct LeverageBracketQueryResp {
     #[serde(rename = "symbol")]
     pub symbol: String,
     #[serde(rename = "brackets")]
-    pub brackets: Vec<Bracket>,
+    pub brackets: Vec<BracketResp>,
 }
 
 
@@ -692,7 +610,7 @@ pub struct Contract {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ExchangeInfo {
+pub struct ExchangeInfoQueryResp {
     #[serde(rename = "exchangeFilters")]
     pub exchange_filters: Vec<String>,
     #[serde(rename = "rateLimits")]

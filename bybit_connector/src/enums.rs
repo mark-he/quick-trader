@@ -139,7 +139,7 @@ impl<'de> Deserialize<'de> for TriggerBy {
     }
 }
 
-
+#[derive(Debug, Serialize, Deserialize)]
 #[derive(Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord)]
 pub enum KlineInterval {
     #[strum(serialize = "1")]

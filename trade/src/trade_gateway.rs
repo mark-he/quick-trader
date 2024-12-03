@@ -6,10 +6,10 @@ use crossbeam::channel::{self, Receiver, Sender};
 
 pub struct TradeGateway<S: TradeServer> {
     server: Box<S>,
-    subscribers : Vec<(String, Sender<S::Event>)>,
+    subscribers : Vec<(String, Sender<TradeEvent>)>,
     pub handler: Option<JoinHandle<()>>,
     start_ticket: Arc<AtomicUsize>,
-    subscription: Arc<Mutex<Subscription<S::Event>>>,
+    subscription: Arc<Mutex<Subscription<TradeEvent>>>,
 }
 
 impl<S: TradeServer> TradeGateway<S> {
@@ -61,8 +61,8 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.close();
     }
 
-    pub fn register_symbol(&mut self, symbol: S::Symbol) -> Receiver<S::Event> {
-        let (tx, rx) = channel::unbounded::<S::Event>();
+    pub fn register_symbol(&mut self, symbol: S::Symbol) -> Receiver<TradeEvent> {
+        let (tx, rx) = channel::unbounded::<TradeEvent>();
         self.subscribers.push((symbol.to_string(), tx.clone()));
         rx
     }
@@ -83,11 +83,11 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.cancel_orders(symbol)
     }
 
-    pub fn get_positions(&mut self, symbol:S::Symbol) -> Result<Vec<S::Position>, AppError> {
+    pub fn get_positions(&mut self, symbol:S::Symbol) -> Result<Vec<Position>, AppError> {
         self.server.get_positions(symbol)
     }
 
-    pub fn get_account(&mut self, account_id: &str) -> Result<Option<S::Account>, AppError> {
+    pub fn get_account(&mut self, account_id: &str) -> Result<Option<Wallet>, AppError> {
         self.server.get_account(account_id)
     }
 }

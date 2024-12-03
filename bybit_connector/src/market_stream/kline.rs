@@ -9,7 +9,7 @@ pub struct KlineStream {
 impl KlineStream {
     pub fn new(symbol: &str, interval: KlineInterval) -> Self {
         Self {
-            symbol: symbol.to_lowercase(),
+            symbol: symbol.to_owned(),
             interval,
         }
     }

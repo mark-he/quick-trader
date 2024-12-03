@@ -4,7 +4,7 @@ use std::os::raw::*;
 use std::ffi::CString;
 use std::str::FromStr;
 use std::thread;
-use binance::model::{Asset, CancelOrderRequest, Position};
+use binance::model::CancelOrderRequest;
 use binance::bn_market_server::BnMarketServer;
 use binance::bn_trade_server::BnTradeServer;
 use binance::model::*;
@@ -12,10 +12,10 @@ use binance_future_connector::trade::new_order::NewOrderRequest;
 use binance_sim::bn_sim_market_server::BnSimMarketServer;
 use binance_sim::bn_sim_trade_server::BnSimTradeServer;
 use binance_sim::model::{SimMarketConfig, SimTradeConfig};
-use chrono::DateTime;
 use common::c::*;
 use market::market_server::{KLine, MarketData};
-use crate::c_model::{BacktestConfig, OrderEvent, PositionEvent, RealConfig, ServiceResult, SimConfig};
+use trade::trade_server::{Position, TradeEvent, Wallet};
+use crate::c_model::{BacktestConfig, RealConfig, ServiceResult, SimConfig};
 use crate::context;
 use log::*;
 
@@ -362,7 +362,7 @@ pub extern "C" fn get_positions(symbol : *const c_char) -> Box<CString> {
 
 #[no_mangle]
 pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
-    let mut result = ServiceResult::<Option<Asset>>::new(0, "", None);
+    let mut result = ServiceResult::<Option<Wallet>>::new(0, "", None);
     let asset_rust = c_char_to_string(asset);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
@@ -412,60 +412,26 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
             loop {
                 if let Ok(data) = rx.recv() {
                     match data {
-                        TradeEvent::OrderTradeUpdate(order) => {
+                        TradeEvent::OrderUpdate(order) => {
                             if symbol_rust == order.symbol {
-                                let datetime = DateTime::from_timestamp((order.order_trade_time/1000) as i64, 0).unwrap();
-                                let order_event = OrderEvent {
-                                    symbol: order.symbol.clone(),
-                                    client_order_id: order.client_order_id.clone(),
-                                    side: order.side.clone(),
-                                    order_type: order.order_type.clone(),
-                                    original_quantity: order.original_quantity,
-                                    original_price: order.original_price,
-                                    average_price: order.average_price,
-                                    stop_price: order.stop_price,
-                                    execution_type: order.execution_type.clone(),
-                                    order_status: order.order_status.clone(),
-                                    order_last_filled_quantity: order.order_last_filled_quantity,
-                                    order_filled_accumulated_quantity: order.order_filled_accumulated_quantity,
-                                    last_filled_price: order.last_filled_price,
-                                    order_trade_time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                    trade_id: order.trade_id,
-                                    is_reduce_only: order.is_reduce_only,
-                                };
-        
-                                let json = serde_json::to_string(&order_event).unwrap();
+                                let json = serde_json::to_string(&order).unwrap();
                                 let json_rust = CString::new(json).expect("CString failed");
                                 let _type = CString::new("ORDER".to_string()).expect("CString failed");
                                 callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                             }
                         },
-                        TradeEvent::AccountUpdate(ad) => {
-                            let mut positions = vec![];
-                            for p in ad.positions.iter() {
-                                if p.symbol == symbol_rust {
-                                    let position_event = PositionEvent {
-                                        symbol: p.symbol.clone(),
-                                        position_amt: p.position_amount,
-                                        entry_price: p.entry_price,
-                                        breakeven_price: p.breakeven_price,
-                                        accumulated_realized: p.accumulated_realized,
-                                        unrealized_profit: p.unrealized_pnl,
-                                        margin_type: p.margin_type.clone(),
-                                        isolated_wallet: p.isolated_wallet,
-                                        position_side: p.position_side.clone(),
-                                    };
-                                    positions.push(position_event);
-                                }
-                            }
-                            if positions.len() > 0 {
-                                let json = serde_json::to_string(&positions).unwrap();
-                                let json_rust = CString::new(json).expect("CString failed");
-                                let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                                callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
-                            }
+                        TradeEvent::PositionUpdate(position) => {
+                            let json = serde_json::to_string(&position).unwrap();
+                            let json_rust = CString::new(json).expect("CString failed");
+                            let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                         }
-                        _ => {},
+                        TradeEvent::AccountUpdate(wallet) => {
+                            let json = serde_json::to_string(&wallet).unwrap();
+                            let json_rust = CString::new(json).expect("CString failed");
+                            let _type = CString::new("ACCOUNT".to_string()).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                        },
                     }
                 }
             }

@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 
-use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{Asset, CancelOrderRequest, Position, SymbolConfig, SymbolInfo, TradeEvent}};
+use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{CancelOrderRequest, SymbolConfig, SymbolInfo}};
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use binance_sim::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer};
 
 use common::{error::AppError, msmc::Subscription};
 use crossbeam::channel::Receiver;
 use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}};
-use trade::trade_gateway::TradeGateway;
+use trade::{trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
 
 pub static mut MARKET_GATEWAY: Option<Arc<Mutex<MarketGatewayDelegate>>> = None;
 pub static mut TRADE_GATEWAY: Option<Arc<Mutex<TradeGatewayDelegate>>> = None;
@@ -183,7 +183,7 @@ impl TradeGatewayDelegate {
         }
     }
 
-    pub fn get_account(&mut self, account_id: &str) -> Result<Option<Asset>, AppError> {
+    pub fn get_account(&mut self, account_id: &str) -> Result<Option<Wallet>, AppError> {
         match self.mode {
             Mode::Real => {
                 self.real.as_mut().unwrap().get_account(account_id)

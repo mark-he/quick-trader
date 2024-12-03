@@ -4,10 +4,11 @@ use std::str::FromStr;
 use std::thread;
 use ctp::ctp_market_server::CtpMarketServer;
 use ctp::ctp_trade_server::CtpTradeServer;
-use ctp::model::{Account, CancelOrderRequest, Config, NewOrderRequest, Position, Symbol, SymbolInfo, TradeEvent};
+use ctp::model::{CancelOrderRequest, Config, NewOrderRequest, Symbol, SymbolInfo};
 use common::c::*;
 use market::market_server::{KLine, MarketData};
-use crate::c_model::{OrderEvent, PositionEvent, ServiceResult};
+use trade::trade_server::{Position, TradeEvent, Wallet};
+use crate::c_model::ServiceResult;
 use crate::context;
 use log::*;
 
@@ -301,7 +302,7 @@ pub extern "C" fn get_positions(symbol : *const c_char) -> Box<CString> {
 
 #[no_mangle]
 pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
-    let mut result = ServiceResult::<Option<Account>>::new(0, "", None);
+    let mut result = ServiceResult::<Option<Wallet>>::new(0, "", None);
     let asset_rust = c_char_to_string(asset);
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
@@ -340,67 +341,27 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
                 let rx = gateway.register_symbol(symbol.clone());
                 let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
                 thread::spawn(move || {
-                    let mut last_position = vec![];
                     loop {
                         if let Ok(data) = rx.recv() {
                             match data {
-                                TradeEvent::OnOrder(order) => {
-
-                                    let order_event = OrderEvent {
-                                        order_ref: order.order_ref.clone(),
-                                        direction: order.direction.clone(),
-                                        offset: order.offset.clone(),
-                                        price: order.price,
-                                        volume_total_original: order.volume_total_original,   
-                                        submit_status: order.submit_status.clone(),
-                                        order_type: order.order_type.clone(),
-                                        sys_id: order.sys_id.clone(),
-                                        status: order.status.clone(),
-                                        volume_traded: order.volume_traded,
-                                        volume_total: order.volume_total,
-                                        status_msg: order.status_msg.clone(),
-                                        symbol: order.symbol.clone(),
-                                        request_id: order.request_id,
-                                        invest_unit_id : order.invest_unit_id.clone(),
-                                        datetime: order.datetime.clone(),
-                                    };
-
-                                    let json = serde_json::to_string(&order_event).unwrap();
+                                TradeEvent::OrderUpdate(order) => {
+                                    let json = serde_json::to_string(&order).unwrap();
                                     let json_rust = CString::new(json).expect("CString failed");
                                     let _type = CString::new("ORDER".to_string()).expect("CString failed");
                                     callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                                 },
-                                TradeEvent::PositionQuery(positions) => {
-                                    if positions.len() > 0 || last_position.len() > 0 {
-                                        let mut position_event = vec![];
-                                        for p in positions.iter() {
-                                            let mut price = 0 as f64;
-                                            if p.position != 0 {
-                                                price = p.cost / p.position as f64;
-                                            }
-                                            if p.symbol == symbol.symbol {
-                                                let op = PositionEvent {
-                                                    symbol : p.symbol.clone(),
-                                                    position: p.position,
-                                                    today_position: p.today_position,
-                                                    direction: p.direction.clone(),
-                                                    cost: p.cost,
-                                                    price,
-                                                    invest_unit_id : p.invest_unit_id.clone(),
-                                                };
-                                                position_event.push(op);
-                                            }
-                                        }
-                                        if !are_vecs_equal::<PositionEvent>(&position_event, &last_position) {
-                                            let json = serde_json::to_string(&position_event).unwrap();
-                                            let json_rust = CString::new(json).expect("CString failed");
-                                            let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
-                                        }
-                                        last_position = position_event;
-                                    } 
+                                TradeEvent::PositionUpdate(position) => {
+                                    let json = serde_json::to_string(&position).unwrap();
+                                    let json_rust = CString::new(json).expect("CString failed");
+                                    let _type = CString::new("POSITION".to_string()).expect("CString failed");
+                                    callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                                 },
-                                _ => {},
+                                TradeEvent::AccountUpdate(wallet) => {
+                                    let json = serde_json::to_string(&wallet).unwrap();
+                                    let json_rust = CString::new(json).expect("CString failed");
+                                    let _type = CString::new("ACCOUNT".to_string()).expect("CString failed");
+                                    callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                },
                             }
                         }
                     }
@@ -413,18 +374,4 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
         }
     }
     result.to_c_json()
-}
-
-fn are_vecs_equal<T: PartialEq + Eq + Clone>(vec1: &Vec<T>, vec2: &Vec<T>) -> bool {
-    if vec1.len()!= vec2.len() {
-        return false;
-    }
-
-    for (i, item) in vec1.iter().enumerate() {
-        if item!= &vec2[i] {
-            return false;
-        }
-    }
-
-    true
 }

@@ -11,3 +11,4 @@ pub mod websocket;
 pub mod user_stream;
 pub mod wss_keepalive;
 pub mod tungstenite;
+pub mod account;

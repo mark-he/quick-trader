@@ -2,8 +2,6 @@ use crate::websocket::Stream;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use tungstenite::{connect, stream::MaybeTlsStream, Error, Message, WebSocket};
-
-/// Binance websocket client using Tungstenite.
 pub struct BybitWebSocketClient;
 
 impl BybitWebSocketClient {
@@ -47,7 +45,7 @@ impl<T: Read + Write> WebSocketState<T> {
         };
 
         let s = format!(
-            "{{\"method\":\"{method}\",{params}\"id\":{id}}}",
+            "{{\"op\":\"{method}\",{params}\"id\":{id}}}",
             method = method,
             params = params_str,
             id = self.id
@@ -61,78 +59,18 @@ impl<T: Read + Write> WebSocketState<T> {
         self.id
     }
 
-    /// Sends `SUBSCRIBE` message for the given `streams`.
-    ///
-    /// `streams` are not validated. Invalid streams will be
-    /// accepted by the server, but no data will be sent.
-    /// Requests to subscribe an existing stream will be ignored
-    /// by the server.
-    ///
-    /// Returns the message `id`. This should be used to match
-    /// the request with a future response. Sent messages should
-    /// not share the same message `id`.
-    ///
-    /// You should expect the server to respond with a similar
-    /// message.
-    /// ```json
-    /// { "method": "SUBSCRIBE", "params": [ <streams> ], "id": <id> }
-    /// ```
     pub fn subscribe<'a>(&mut self, streams: impl IntoIterator<Item = &'a Stream>) -> u64 {
-        self.send("SUBSCRIBE", streams.into_iter().map(|s| s.as_str()))
+        self.send("subscribe", streams.into_iter().map(|s| s.as_str()))
     }
 
-    /// Sends `SUBSCRIBE` message for the given `streams` slice.
-    ///
-    /// `streams` are not validated. Invalid streams will be
-    /// accepted by the server, but no data will be sent.
-    /// Requests to subscribe an existing stream will be ignored
-    /// by the server.
-    ///
-    /// Returns the message `id`. This should be used to match
-    /// the request with a future response. Sent messages should
-    /// not share the same message `id`.
-    ///
-    /// You should expect the server to respond with a similar
-    /// message.
-    /// ```json
-    /// { "method": "SUBSCRIBE", "params": [ <streams> ], "id": <id> }
-    /// ```
     pub fn subscribe_from_slice(&mut self, streams: &[Stream]) -> u64 {
-        self.send("SUBSCRIBE", streams.iter().map(|s| s.as_str()))
+        self.send("subscribe", streams.iter().map(|s| s.as_str()))
     }
 
-    /// Sends `UNSUBSCRIBE` message for the given `streams`.
-    ///
-    /// `streams` are not validated. Non-existing streams will be
-    /// ignored by the server.
-    ///
-    /// Returns the message `id`. This should be used to match
-    /// the request with a future response. Sent messages should
-    /// not share the same message `id`.
-    ///
-    /// You should expect the server to respond with a similar
-    /// message.
-    /// ```json
-    /// { "method": "UNSUBSCRIBE", "params": [ <streams> ], "id": <id> }
-    /// ```
     pub fn unsubscribe<'a>(&mut self, streams: impl IntoIterator<Item = &'a Stream>) -> u64 {
-        self.send("UNSUBSCRIBE", streams.into_iter().map(|s| s.as_str()))
+        self.send("unsubscribe", streams.into_iter().map(|s| s.as_str()))
     }
 
-    /// Sends `LIST_SUBSCRIPTIONS` message.
-    ///
-    /// Returns the message `id`. This should be used to match
-    /// the request with a future response. Sent messages should
-    /// not share the same message `id`.
-    ///
-    /// You should expect the server to respond with a similar
-    /// message.
-    /// ```json
-    /// { "method": "LIST_SUBSCRIPTIONS", "params": [ <streams> ], "id": <id> }
-    /// ```
-    pub fn subscriptions(&mut self) -> u64 {
-        self.send("LIST_SUBSCRIPTIONS", vec![])
-    }
 
     pub fn close(&mut self) -> Result<(), Error> {
         self.socket.close(None)

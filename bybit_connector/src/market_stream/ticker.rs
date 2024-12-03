@@ -8,7 +8,7 @@ pub struct TickerStream {
 impl TickerStream {
     pub fn new(symbol: &str) -> Self {
         Self {
-            symbol: symbol.to_lowercase(),
+            symbol: symbol.to_owned(),
         }
     }
 }

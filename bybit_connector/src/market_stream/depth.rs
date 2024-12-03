@@ -3,14 +3,14 @@ use crate::websocket::Stream;
 
 pub struct DepthStream {
     symbol: String,
-    depth: String,
+    depth: u32,
 }
 
 impl DepthStream {
-    pub fn new(symbol: &str, depth: &str) -> Self {
+    pub fn new(symbol: &str, depth: u32) -> Self {
         Self {
-            symbol: symbol.to_lowercase(),
-            depth: depth.to_lowercase(),
+            symbol: symbol.to_owned(),
+            depth: depth,
         }
     }
 }

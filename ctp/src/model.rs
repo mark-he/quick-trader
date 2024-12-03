@@ -1,16 +1,13 @@
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use trade::trade_server::SymbolRoute;
+use trade::trade_server::{Order, Position, SymbolRoute, Wallet};
 
 
-impl SymbolRoute for TradeEvent {
+impl SymbolRoute for ServerEvent {
     fn get_symbol(&self) -> String {
         match self {
-            TradeEvent::OnOrder(event) => {
-                event.symbol.to_string()
-            },
-            TradeEvent::OnTrade(event) => {
+            ServerEvent::OnOrder(event) => {
                 event.symbol.to_string()
             },
             _ => {
@@ -62,23 +59,21 @@ pub struct Session {
 }
 
 #[derive(Debug, Clone)]
-pub enum TradeEvent {
+pub enum ServerEvent {
     Connected,
     UserLogin(Session),
     UserLogout,
     SettlementConfirmed,
     OnOrder(Order),
-    OnTrade(Trade),
     OrderQuery(Vec<Order>),
-    TradeQuery(Vec<Trade>),
     PositionQuery(Vec<Position>),
-    AccountQuery(Account),
+    AccountQuery(Wallet),
     SymbolQuery(SymbolInfo),
     HeartBeatWarning(i32),
     Disconnected(i32),
     Error(i32, String),
 }
-unsafe impl Send for TradeEvent {}
+unsafe impl Send for ServerEvent {}
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -124,61 +119,4 @@ pub struct OrderAction {
     pub action_ref: i32,
     pub exchange_id: String,
     pub sys_id: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Order {
-    pub order_ref: String,
-    pub direction: String,
-    pub offset: String,
-    pub price: f64,
-    pub volume_total_original: u32,   
-    pub submit_status: String,
-    pub order_type: String,
-    pub sys_id: String,
-    pub status: String,
-    pub volume_traded: u32,
-    pub volume_total: u32,
-    pub status_msg: String,
-    pub symbol: String,
-    pub request_id: i32,
-    pub invest_unit_id : String,
-    pub datetime: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct Trade {
-    pub order_ref: String,
-    pub trade_id: String,
-    pub sys_id: String,
-    pub direction: String,
-    pub offset: String,
-    pub price: f64,
-    pub volume: u32,
-    pub datetime: String,
-    pub symbol: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Position {
-    pub symbol : String,
-    pub position: u32,
-    pub today_position: u32,
-    pub direction: String,
-    pub cost: f64,
-    pub invest_unit_id : String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct Account {
-    pub account_id : String,
-    pub interest: f64,
-    pub balance: f64,
-    pub available: f64,
-}
-
-impl Account {
-    pub fn new(account_id : String, balance : f64) -> Self {
-        Account {account_id, balance, interest: balance, available: balance}
-    }
 }
