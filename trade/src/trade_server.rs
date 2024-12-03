@@ -27,6 +27,7 @@ impl SymbolRoute for TradeEvent {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Position {
     pub symbol: String,
     pub position_side: String,
@@ -50,6 +51,7 @@ impl PartialEq for Position {
 impl Eq for Position {}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Wallet {
     pub asset: String,
     pub balance: f64,
@@ -67,6 +69,7 @@ impl PartialEq for Wallet {
 impl Eq for Wallet {}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Order {
     pub order_id: String,
     pub client_order_id: String,

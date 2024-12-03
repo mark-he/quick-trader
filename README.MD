@@ -3,7 +3,7 @@
 # SSH
 ssh -i C:\Users\mingh\.ssh\PC01.pem root@43.156.20.92
 
-
+ssh -i C:\Users\mingh\.ssh\PC01.pem  -o ServerAliveInterval=30 -g -Nf -D 7890 root@43.156.20.92
 =======================
 # DOCKER
 FROM python:3.10-slim
