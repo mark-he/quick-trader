@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 use common::{error::AppError, msmc::Subscription};
-use binance_future_connector::trade::{enums::{MarginAssetMode, OrderType, PositionMode, PositionSide, Side}, new_order::NewOrderRequest};
+use binance_future_connector::trade::{enums::{MarginAssetMode, OrderType, PositionMode, PositionSide}, new_order::NewOrderRequest};
+use log::info;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use trade::trade_server::{Order, Position, TradeEvent, TradeServer, Wallet};
 use binance::{bn_trade_server::BnTradeServerTrait, model::*};
@@ -56,7 +57,6 @@ impl TradeServer for BnSimTradeServer {
         }
 
         let mut positions = self.positions.write().unwrap();
-        //let mut assets = self.assets.write().unwrap();
         let mut found: Option<Position> = None;
 
         if request.position_side.is_none() {
@@ -83,10 +83,7 @@ impl TradeServer for BnSimTradeServer {
         }
 
         if found.is_none() {
-            let mut quantity = request.quantity.unwrap().to_string().parse::<f64>().unwrap();
-            if request.side.to_string() == Side::Sell.to_string() {
-                quantity = 0.0 - quantity;
-            } 
+            let quantity = request.quantity.unwrap().to_string().parse::<f64>().unwrap();
             let p = Position {
                 symbol: request.symbol.clone(),
                 cost: request.price.unwrap().to_string().parse::<f64>().unwrap(),
@@ -97,6 +94,12 @@ impl TradeServer for BnSimTradeServer {
             };
             positions.push(p.clone());
             found = Some(p);
+        } else {
+            let p = found.as_ref().unwrap();
+            if p.amount == 0.0 {
+                let idx = positions.iter().position(|x| x == p);
+                positions.remove(idx.unwrap());
+            }
         }
 
         let sub = self.subscription.lock().unwrap();
@@ -116,9 +119,12 @@ impl TradeServer for BnSimTradeServer {
             price,
             total: quantity,
             traded: quantity,
+            status: "COMPLETED".to_string(),
             ..Default::default()
         };
         sub.send(&TradeEvent::OrderUpdate(order_data));
+
+        info!("{:?}", positions);
         Ok(())
     }
 

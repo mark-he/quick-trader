@@ -19,7 +19,7 @@ base64 = "0.22.1"
 ed25519-dalek = { version = "2.1.0", features = ["serde", "zeroize", "rand_core", "digest", "pkcs8", "pem"] }
 
 # enable-ureq
-ureq = { version = "2.4.0"}
+ureq = { version = "2.4.0", features = [ "socks-proxy" ]}
 
 serde_json = { version = "1.0.78"}
 

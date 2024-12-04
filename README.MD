@@ -4,11 +4,15 @@
 ssh -i C:\Users\mingh\.ssh\PC01.pem root@43.156.20.92
 
 ssh -i C:\Users\mingh\.ssh\PC01.pem  -o ServerAliveInterval=30 -g -Nf -D 7890 root@43.156.20.92
+set http_proxy=http://127.0.0.1:7890
+set https_proxy=https://127.0.0.1:7890
+
+set https_proxy=socks5://127.0.0.1:7890
 =======================
 # DOCKER
 FROM python:3.10-slim
 
-ENV PYTHON_PATH /usr/local/bin/python
+ENV PYTHON_PATH /usr/local/bin/pythonc
 ENV PIP_PATH /usr/local/bin/pip
 
 RUN apt update && apt install procps build-essential wget git gcc curl libssl-dev pkg-config -y && cd ~/ && wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz && tar -xzf ta-lib-0.4.0-src.tar.gz && cd ta-lib && ./configure -prefix=/usr && make && make install  && pip install numpy==1.23.1 && pip install ta-lib && pip install pandas==1.5

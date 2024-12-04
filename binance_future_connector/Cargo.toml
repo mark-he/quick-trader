@@ -35,7 +35,8 @@ base64 = "0.22.1"
 ed25519-dalek = { version = "2.1.0", features = ["serde", "zeroize", "rand_core", "digest", "pkcs8", "pem"] }
 
 # enable-ureq
-ureq = { version = "2.4.0", optional = true }
+ureq = { version = "2.4.0", features = [ "socks-proxy" ], optional = true}
+tokio-socks = "*"
 
 # enable-hyper
 hyper = { version = "0.14.16", features = ["full"], optional = true }

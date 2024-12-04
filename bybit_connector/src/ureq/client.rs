@@ -1,9 +1,10 @@
+use crate::config;
 use crate::http::{request::Request, Credentials};
 use crate::ureq::{Error, Response};
 use crate::version::VERSION;
 use http::Uri;
 use std::time::{SystemTime, UNIX_EPOCH};
-use ureq::{Agent, AgentBuilder, Error as UreqError};
+use ureq::{Agent, AgentBuilder, Error as UreqError, Proxy};
 
 #[derive(Clone)]
 pub struct BybitHttpClient {
@@ -124,7 +125,6 @@ impl BybitHttpClient {
         let response;
         match method {
             crate::http::Method::Post | crate::http::Method::Put => {
-                println!("SEND JSON!!!! {}", body);
                 response = match ureq_request.send_string(&body) {
                     Ok(response) => Ok(response),
                     Err(UreqError::Status(_, response)) => Ok(response),
@@ -147,6 +147,11 @@ impl BybitHttpClient {
 
 impl Default for BybitHttpClient {
     fn default() -> Self {
-        Self::new(AgentBuilder::new().build(), &crate::config::rest_api(),)
+        if config::is_proxy() {
+            let proxy = Proxy::new(&config::get_proxy()).unwrap();
+            Self::new(AgentBuilder::new().proxy(proxy).build(), &crate::config::rest_api())
+        } else {
+            Self::new(AgentBuilder::new().build(), &crate::config::rest_api())
+        }
     }
 }
