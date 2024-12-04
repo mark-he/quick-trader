@@ -2,7 +2,7 @@
 pub mod error {
     use std::{error::Error, fmt};
     use std::backtrace::Backtrace;
-
+    use log::error;
     #[derive(Debug)]
     pub struct AppError {
         pub code: i32,
@@ -12,16 +12,17 @@ pub mod error {
     
     impl fmt::Display for AppError {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{:?}", self.trace)
+            write!(f, "{} - {} \n {}", self.code, self.message, self.trace)
         }
     }
 
     impl AppError {
         pub fn new(code: i32, message: &str) -> Self {
+            error!("{}", message);
             AppError {
                 code,
                 message: message.to_string(),
-                trace: format!("{}", Backtrace::force_capture()),
+                trace: Backtrace::force_capture().to_string(),
             }
         }
     }

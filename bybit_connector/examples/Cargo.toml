@@ -17,8 +17,10 @@ serde_json = "*"
 name="ureq"
 path="ureq.rs"
 
-
-
 [[example]]
 name="new_order"
 path="new_order.rs"
+
+[[example]]
+name="position_side"
+path="position_side.rs"

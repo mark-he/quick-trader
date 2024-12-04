@@ -109,6 +109,7 @@ impl BybitHttpClient {
                         payload = "".to_string();
                     },
                 }
+                println!("JSON:{}", payload);
                 let signature = crate::utils::sign(
                     &payload,
                     signature,

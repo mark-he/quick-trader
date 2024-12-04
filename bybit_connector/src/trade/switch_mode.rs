@@ -16,8 +16,8 @@ impl SwitchModeRequest {
         Self {
             category: category.to_owned(),
             mode,
-            symbol: None,
-            coin: None,
+            symbol: Some("".to_string()),
+            coin: Some("".to_string()),
         }
     }
     

@@ -222,6 +222,7 @@ impl BbTradeServer {
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
         let data = get_resp_result(client.send(account::account(account::account::AccountType::Unified)), vec![])?;
+        info!("{}", data);
         let account_resp: AccountQueryResp = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
 
         for a in account_resp.list {

@@ -1,22 +1,31 @@
-use bybit_connector::{http::error::ClientError, ureq::Response};
+use bybit_connector::ureq::{Error, Response};
 use common::error::AppError;
-use bybit_connector::ureq::Error;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct BbMarketConfig {
     pub depth_level: u32,
 }
 
-pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>) -> Result<String, AppError> {
+pub fn get_resp_result(ret: Result<Response, Box<Error>>, _skipped_code: Vec<i16>) -> Result<String, AppError> {
     let err;
     match ret {
         Ok(resp) => {
             let ret2 = resp.into_body_str();
             match ret2 {
                 Ok(data) => {
-                    return Ok(data);
+                    let json_value: Value = serde_json::from_str(&data).unwrap();
+                    if let Some(v) = json_value.get("retCode") {
+                        if v == 0 {
+                            return Ok(data)
+                        } else {
+                            return Err(AppError::new(-200, json_value.get("retMsg").unwrap().as_str().unwrap()));
+                        }
+                    } else {
+                        return Err(AppError::new(-200, "Incorrect response structure"));
+                    }
                 },
                 Err(e) => {
                     err = *e;
@@ -27,18 +36,7 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>
             err = *e;
         },
     }
-    match err {
-        Error::Client(ClientError::Structured(http)) => {
-            if skipped_code.contains(&http.data.code) {
-                Ok("".to_string())
-            } else {
-                Err(AppError::new(-200, format!("{:?}", &http.data.message).as_str()))
-            }
-        },
-        _ => {
-            Err(AppError::new(-200, format!("{:?}", err).as_str()))
-        }
-    }
+    Err(AppError::new(-200, format!("{:?}", err).as_str()))
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

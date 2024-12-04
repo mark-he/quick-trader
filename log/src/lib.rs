@@ -1,6 +1,5 @@
-use std::{fmt, str::FromStr};
+use std::{backtrace::Backtrace, fmt, io::{self, Write}, str::FromStr};
 use chrono::{Local, Utc};
-use backtrace;
 
 #[macro_export]
 macro_rules! trace {
@@ -125,10 +124,7 @@ impl Logger {
             output.push_str(&format!("{}\n", message));
             match level {
                 Level::Error => {
-                    let backtrace = backtrace::Backtrace::new();
-                    for frame in backtrace.frames() {
-                        output.push_str(&format!("{:?}\n", frame));
-                    }
+                    output.push_str(Backtrace::force_capture().to_string().as_str());
                 },
                 _ => {},
             }
