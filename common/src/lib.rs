@@ -1,38 +1,34 @@
 
 pub mod error {
-    use std::error::Error;
-    use std::fmt;
-    
+    use std::{error::Error, fmt};
+    use std::backtrace::Backtrace;
+
     #[derive(Debug)]
     pub struct AppError {
         pub code: i32,
         pub message: String,
-        pub source: Option<Box<dyn Error>>,
+        pub trace: String,
     }
     
     impl fmt::Display for AppError {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "{}", self.message)
+            write!(f, "{:?}", self.trace)
         }
     }
-    
+
     impl AppError {
         pub fn new(code: i32, message: &str) -> Self {
             AppError {
                 code,
                 message: message.to_string(),
-                source: None,
+                trace: format!("{}", Backtrace::force_capture()),
             }
-        }
-        
-        pub fn cause(mut self, error: Box<dyn Error>) -> Self {
-            self.source = Some(error);
-            self
         }
     }
     
     impl Error for AppError {
     }
+    
 
 }
 
