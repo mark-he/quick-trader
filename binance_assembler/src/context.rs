@@ -1,286 +1,532 @@
-use std::sync::{Arc, Mutex};
+use std::{str::FromStr, sync::{Arc, Mutex}};
 
-use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{CancelOrderRequest, SymbolConfig, SymbolInfo}};
+use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{BnMarketConfig, BnTradeConfig, SymbolConfig}};
 use binance_future_connector::trade::new_order::NewOrderRequest;
-use binance_sim::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer};
+use binance_sim::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer, model::{SimMarketConfig, SimTradeConfig}};
 
+use bybit::{bb_market_server::BbMarketServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
+use bybit::model::SymbolConfig as BbSymbolConfig;
+use bybit_connector::trade::new_order::NewOrderRequest as BbNewOrderRequest;
 use common::{error::AppError, msmc::Subscription};
 use crossbeam::channel::Receiver;
 use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}};
+use serde_json::Value;
 use trade::{trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
 
-pub static mut MARKET_GATEWAY: Option<Arc<Mutex<MarketGatewayDelegate>>> = None;
-pub static mut TRADE_GATEWAY: Option<Arc<Mutex<TradeGatewayDelegate>>> = None;
+use crate::c_model::{BacktestConfig, BbRealConfig, BnRealConfig, BnSimConfig};
 
-pub fn get_market_gateway() -> Arc<Mutex<MarketGatewayDelegate>> {
-    unsafe {
-        MARKET_GATEWAY.as_ref().unwrap().clone()
-    }
+pub enum MarketGateways {
+    BnSim(MarketGateway<BnMarketServer>),
+    BnBacktest(MarketGateway<BnSimMarketServer>),
+    BnReal(MarketGateway<BnMarketServer>),
+
+    BbReal(MarketGateway<BbMarketServer>),
+    BbSim(MarketGateway<BbMarketServer>),
 }
 
-pub fn get_trade_gateway() -> Arc<Mutex<TradeGatewayDelegate>> {
-    unsafe {
-        TRADE_GATEWAY.as_ref().unwrap().clone()
-    }
+pub enum TradeGateways {
+    BnSim(TradeGateway<BnSimTradeServer>),
+    BnBacktest(TradeGateway<BnSimTradeServer>),
+    BnReal(TradeGateway<BnTradeServer>),
+
+    BbReal(TradeGateway<BbTradeServer>),
+    BbSim(TradeGateway<BbTradeServer>),
 }
 
-pub fn init_real(market_server: BnMarketServer, trade_server: BnTradeServer) {
-    let market_gateway = MarketGateway::new(Box::new(market_server));
-    let trade_gateway= TradeGateway::new(Box::new(trade_server));
-    let market_delegate = Arc::new(Mutex::new(MarketGatewayDelegate {mode: Mode::Real, real: Some(market_gateway), sim: None}));
-    let trade_delegate = Arc::new(Mutex::new(TradeGatewayDelegate {mode: Mode::Real, real: Some(trade_gateway), sim: None}));
-    
-    unsafe {
-        if TRADE_GATEWAY.is_some() || MARKET_GATEWAY.is_some() {
-            panic!("Duplicated initialization.")
-        }
-        MARKET_GATEWAY = Some(market_delegate);
-        TRADE_GATEWAY = Some(trade_delegate);
-    }
-}
-
-pub fn init_backtest(market_server: BnSimMarketServer, trade_server: BnSimTradeServer) {
-    let market_gateway = MarketGateway::new(Box::new(market_server));
-    let trade_gateway= TradeGateway::new(Box::new(trade_server));
-    let market_delegate = Arc::new(Mutex::new(MarketGatewayDelegate {mode: Mode::Backtest, real: None, sim: Some(market_gateway)}));
-    let trade_delegate = Arc::new(Mutex::new(TradeGatewayDelegate {mode: Mode::Backtest, real: None, sim: Some(trade_gateway)}));
-    
-    unsafe {
-        if TRADE_GATEWAY.is_some() || MARKET_GATEWAY.is_some() {
-            panic!("Duplicated initialization.")
-        }
-        MARKET_GATEWAY = Some(market_delegate);
-        TRADE_GATEWAY = Some(trade_delegate);
-    }
-}
-
-pub fn init_sim(market_server: BnMarketServer, trade_server: BnSimTradeServer) {
-    let market_gateway = MarketGateway::new(Box::new(market_server));
-    let trade_gateway= TradeGateway::new(Box::new(trade_server));
-    let market_delegate = Arc::new(Mutex::new(MarketGatewayDelegate {mode: Mode::Sim, real: Some(market_gateway), sim: None}));
-    let trade_delegate = Arc::new(Mutex::new(TradeGatewayDelegate {mode: Mode::Sim, real: None, sim: Some(trade_gateway)}));
-    
-    unsafe {
-        if TRADE_GATEWAY.is_some() || MARKET_GATEWAY.is_some() {
-            panic!("Duplicated initialization.")
-        }
-        MARKET_GATEWAY = Some(market_delegate);
-        TRADE_GATEWAY = Some(trade_delegate);
-    }
-}
-
-pub enum Mode {
-    Sim,
-    Real,
-    Backtest,
-}
-
-
-pub struct TradeGatewayDelegate {
-    pub mode: Mode,
-    pub real: Option<TradeGateway<BnTradeServer>>,
-    pub sim: Option<TradeGateway<BnSimTradeServer>>,
-}
-
-impl TradeGatewayDelegate {
-    
+impl MarketGateways {
     pub fn init(&mut self) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().init()
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.init();
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().init()
+            MarketGateways::BnBacktest(s) => {
+                return s.init();
+            },
+            MarketGateways::BnReal(s) => {
+                return s.init();
+            },
+            MarketGateways::BbReal(s) => {
+                return s.init();
+            },
+            MarketGateways::BbSim(s) => {
+                return s.init();
+            },
+        }
+    }
+    pub fn get_tick_sub(&mut self) -> Subscription<MarketData> {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.get_tick_sub();
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.get_tick_sub();
+            },
+            MarketGateways::BnReal(s) => {
+                return s.get_tick_sub();
+            },
+            MarketGateways::BbReal(s) => {
+                return s.get_tick_sub();
+            },
+            MarketGateways::BbSim(s) => {
+                return s.get_tick_sub();
+            },
+        }
+    }
+    pub fn load_kline(&mut self, symbol: String, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.load_kline(symbol, interval, count);
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.load_kline(symbol, interval, count);
+            },
+            MarketGateways::BnReal(s) => {
+                return s.load_kline(symbol, interval, count);
+            },
+            MarketGateways::BbReal(s) => {
+                return s.load_kline(symbol, interval, count);
+            },
+            MarketGateways::BbSim(s) => {
+                return s.load_kline(symbol, interval, count);
+            },
+        }
+    }
+    pub fn subscribe_kline(&mut self, symbol: String, interval: &str) -> Receiver<MarketData> {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.subscribe_kline(symbol, interval)
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.subscribe_kline(symbol, interval)
+            },
+            MarketGateways::BnReal(s) => {
+                return s.subscribe_kline(symbol, interval)
+            },
+            MarketGateways::BbReal(s) => {
+                return s.subscribe_kline(symbol, interval)
+            },
+            MarketGateways::BbSim(s) => {
+                return s.subscribe_kline(symbol, interval)
+            },
+        }
+    }
+    pub fn subscribe_tick(&mut self, symbol: String) -> Receiver<MarketData> {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.subscribe_tick(symbol)
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.subscribe_tick(symbol)
+            },
+            MarketGateways::BnReal(s) => {
+                return s.subscribe_tick(symbol)
+            },
+            MarketGateways::BbReal(s) => {
+                return s.subscribe_tick(symbol)
+            },
+            MarketGateways::BbSim(s) => {
+                return s.subscribe_tick(symbol)
+            },
+        }
+    }
+    pub fn start(&mut self) -> Result<(), AppError> {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.start()
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.start()
+            },
+            MarketGateways::BnReal(s) => {
+                return s.start()
+            },
+            MarketGateways::BbReal(s) => {
+                return s.start()
+            },
+            MarketGateways::BbSim(s) => {
+                return s.start()
+            },
+        }
+    }
+    pub fn close(&self) {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.close()
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.close()
+            },
+            MarketGateways::BnReal(s) => {
+                return s.close()
+            },
+            MarketGateways::BbReal(s) => {
+                return s.close()
+            },
+            MarketGateways::BbSim(s) => {
+                return s.close()
+            },
+        }
+    }
+    pub fn get_server_ping(&self) -> usize {
+        match self {
+            MarketGateways::BnSim(s) => {
+                return s.get_server_ping()
+            },
+            MarketGateways::BnBacktest(s) => {
+                return s.get_server_ping()
+            },
+            MarketGateways::BnReal(s) => {
+                return s.get_server_ping()
+            },
+            MarketGateways::BbReal(s) => {
+                return s.get_server_ping()
+            },
+            MarketGateways::BbSim(s) => {
+                return s.get_server_ping()
+            },
+        }
+    }
+}
+
+impl TradeGateways {
+    pub fn init(&mut self) -> Result<(), AppError> {
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.init()
+            },
+            TradeGateways::BnBacktest(s) => {
+                return s.init()
+            },
+            TradeGateways::BnReal(s) => {
+                return s.init()
+            },
+            TradeGateways::BbReal(s) => {
+                return s.init()
+            },
+            TradeGateways::BbSim(s) => {
+                return s.init()
             },
         }
     }
 
     pub fn start(&mut self) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().start()
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.start()
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().start()
+            TradeGateways::BnBacktest(s) => {
+                return s.start()
+            },
+            TradeGateways::BnReal(s) => {
+                return s.start()
+            },
+            TradeGateways::BbReal(s) => {
+                return s.start()
+            },
+            TradeGateways::BbSim(s) => {
+                return s.start()
             },
         }
     }
 
     pub fn close(&self) {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_ref().unwrap().close()
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.close()
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_ref().unwrap().close()
+            TradeGateways::BnBacktest(s) => {
+                return s.close()
+            },
+            TradeGateways::BnReal(s) => {
+                return s.close()
+            },
+            TradeGateways::BbReal(s) => {
+                return s.close()
+            },
+            TradeGateways::BbSim(s) => {
+                return s.close()
             },
         }
     }
 
     pub fn register_symbol(&mut self, symbol: String) -> Receiver<TradeEvent> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().register_symbol(symbol)
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.register_symbol(symbol)
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().register_symbol(symbol)
+            TradeGateways::BnBacktest(s) => {
+                return s.register_symbol(symbol)
             },
-        }
-    }
-
-    pub fn init_symbol(&mut self, symbol: String, config: SymbolConfig) -> Result<SymbolInfo, AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().init_symbol(symbol, config)
+            TradeGateways::BnReal(s) => {
+                return s.register_symbol(symbol)
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().init_symbol(symbol, config)
+            TradeGateways::BbReal(s) => {
+                return s.register_symbol(symbol)
+            },
+            TradeGateways::BbSim(s) => {
+                return s.register_symbol(symbol)
             },
         }
     }
 
-    pub fn new_order(&mut self, symbol: String, request : NewOrderRequest) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().new_order(symbol, request)
+    pub fn init_symbol(&mut self, symbol: String, config: &str) -> Result<Value, AppError> {
+        match self {
+            TradeGateways::BnSim(s) => {
+                let ret = serde_json::from_str::<SymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().new_order(symbol, request)
+            TradeGateways::BnBacktest(s) => {
+                let ret = serde_json::from_str::<SymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
+            },
+            TradeGateways::BnReal(s) => {
+                let ret = serde_json::from_str::<SymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
+            },
+            TradeGateways::BbReal(s) => {
+                let ret = serde_json::from_str::<BbSymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
+            },
+            TradeGateways::BbSim(s) => {
+                let ret = serde_json::from_str::<BbSymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
             },
         }
     }
 
-    pub fn cancel_order(&mut self,  symbol: String, request: CancelOrderRequest) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().cancel_order(symbol, request)
+    pub fn new_order(&mut self, symbol: String, request : &str) -> Result<(), AppError> {
+        match self {
+            TradeGateways::BnSim(s) => {
+                let ret = serde_json::from_str::<NewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                return s.new_order(symbol, ret)
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().cancel_order(symbol, request)
+            TradeGateways::BnBacktest(s) => {
+                let ret = serde_json::from_str::<NewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                return s.new_order(symbol, ret)
+            },
+            TradeGateways::BnReal(s) => {
+                let ret = serde_json::from_str::<NewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                return s.new_order(symbol, ret)
+            },
+            TradeGateways::BbReal(s) => {
+                let ret = serde_json::from_str::<BbNewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                return s.new_order(symbol, ret)
+            },
+            TradeGateways::BbSim(s) => {
+                let ret = serde_json::from_str::<BbNewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                return s.new_order(symbol, ret)
+            },
+        }
+    }
+
+    pub fn cancel_order(&mut self,  symbol: String, request: &str) -> Result<(), AppError> {
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.cancel_order(symbol, request.to_string())
+            },
+            TradeGateways::BnBacktest(s) => {
+                return s.cancel_order(symbol, request.to_string())
+            },
+            TradeGateways::BnReal(s) => {
+                return s.cancel_order(symbol, request.to_string())
+            },
+            TradeGateways::BbReal(s) => {
+                return s.cancel_order(symbol, request.to_string())
+            },
+            TradeGateways::BbSim(s) => {
+                return s.cancel_order(symbol, request.to_string())
             },
         }
     }
 
     pub fn cancel_orders(&mut self, symbol: String) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().cancel_orders(symbol)
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.cancel_orders(symbol)
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().cancel_orders(symbol)
+            TradeGateways::BnBacktest(s) => {
+                return s.cancel_orders(symbol)
+            },
+            TradeGateways::BnReal(s) => {
+                return s.cancel_orders(symbol)
+            },
+            TradeGateways::BbReal(s) => {
+                return s.cancel_orders(symbol)
+            },
+            TradeGateways::BbSim(s) => {
+                return s.cancel_orders(symbol)
             },
         }
     }
 
     pub fn get_positions(&mut self, symbol: String) -> Result<Vec<Position>, AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().get_positions(symbol)
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.get_positions(symbol)
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().get_positions(symbol)
+            TradeGateways::BnBacktest(s) => {
+                return s.get_positions(symbol)
+            },
+            TradeGateways::BnReal(s) => {
+                return s.get_positions(symbol)
+            },
+            TradeGateways::BbReal(s) => {
+                return s.get_positions(symbol)
+            },
+            TradeGateways::BbSim(s) => {
+                return s.get_positions(symbol)
             },
         }
     }
 
     pub fn get_account(&mut self, account_id: &str) -> Result<Option<Wallet>, AppError> {
-        match self.mode {
-            Mode::Real => {
-                self.real.as_mut().unwrap().get_account(account_id)
+        match self {
+            TradeGateways::BnSim(s) => {
+                return s.get_account(account_id)
             },
-            Mode::Backtest | Mode::Sim => {
-                self.sim.as_mut().unwrap().get_account(account_id)
+            TradeGateways::BnBacktest(s) => {
+                return s.get_account(account_id)
             },
-        }
-    }
-}
-
-pub struct MarketGatewayDelegate {
-    pub mode: Mode,
-    pub real: Option<MarketGateway<BnMarketServer>>,
-    pub sim: Option<MarketGateway<BnSimMarketServer>>,
-}
-
-impl MarketGatewayDelegate {
-    pub fn init(&mut self) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_mut().unwrap().init()
+            TradeGateways::BnReal(s) => {
+                return s.get_account(account_id)
             },
-            Mode::Backtest => {
-                self.sim.as_mut().unwrap().init()
+            TradeGateways::BbReal(s) => {
+                return s.get_account(account_id)
             },
-        }
-    }
-    pub fn get_tick_sub(&mut self) -> Subscription<MarketData> {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_mut().unwrap().get_tick_sub()
-            },
-            Mode::Backtest => {
-                self.sim.as_mut().unwrap().get_tick_sub()
-            },
-        }
-    }
-    pub fn load_kline(&mut self, symbol: String, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_mut().unwrap().load_kline(symbol, interval, count)
-            },
-            Mode::Backtest => {
-                self.sim.as_mut().unwrap().load_kline(symbol, interval, count)
-            },
-        }
-    }
-    pub fn subscribe_kline(&mut self, symbol: String, interval: &str) -> Receiver<MarketData> {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_mut().unwrap().subscribe_kline(symbol, interval)
-            },
-            Mode::Backtest => {
-                self.sim.as_mut().unwrap().subscribe_kline(symbol, interval)
-            },
-        }
-    }
-    pub fn subscribe_tick(&mut self, symbol: String) -> Receiver<MarketData> {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_mut().unwrap().subscribe_tick(symbol)
-            },
-            Mode::Backtest => {
-                self.sim.as_mut().unwrap().subscribe_tick(symbol)
-            },
-        }
-    }
-    pub fn start(&mut self) -> Result<(), AppError> {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_mut().unwrap().start()
-            },
-            Mode::Backtest => {
-                self.sim.as_mut().unwrap().start()
-            },
-        }
-    }
-    pub fn close(&self) {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_ref().unwrap().close()
-            },
-            Mode::Backtest => {
-                self.sim.as_ref().unwrap().close()
-            },
-        }
-    }
-    pub fn get_server_ping(&self) -> usize {
-        match self.mode {
-            Mode::Real | Mode::Sim=> {
-                self.real.as_ref().unwrap().get_server_ping()
-            },
-            Mode::Backtest => {
-                self.sim.as_ref().unwrap().get_server_ping()
+            TradeGateways::BbSim(s) => {
+                return s.get_account(account_id)
             },
         }
     }
 }
 
+
+pub static mut MARKET_GATEWAY: Option<Arc<Mutex<MarketGateways>>> = None;
+pub static mut TRADE_GATEWAY: Option<Arc<Mutex<TradeGateways>>> = None;
+
+pub fn get_market_gateway() -> Arc<Mutex<MarketGateways>> {
+    unsafe {
+        MARKET_GATEWAY.as_ref().unwrap().clone()
+    }
+}
+
+pub fn get_trade_gateway() -> Arc<Mutex<TradeGateways>> {
+    unsafe {
+        TRADE_GATEWAY.as_ref().unwrap().clone()
+    }
+}
+
+pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
+    match exchange {
+        "binance" => {
+            match mode {
+                "real" => {
+                    let config = serde_json::from_str::<BnRealConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
+                    binance::enable_prod(true);
+                    let market_server = BnMarketServer::new(BnMarketConfig {
+                        tick_update_speed: config.tick_update_speed.clone(),
+                        depth_level: config.depth_level.clone(),
+                    });
+                    let trade_server = BnTradeServer::new(BnTradeConfig {       
+                        api_key: config.api_key.clone(), 
+                        api_secret: config.api_secret.clone(),
+                        dual_position_side: config.dual_position_side.clone(),
+                        multi_assets_margin: config.multi_assets_margin.clone(),
+                    });
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BnReal(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BnReal(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                "sim" => {
+                    let config = serde_json::from_str::<BnSimConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
+                    binance::enable_prod(true);
+                    let market_server = BnMarketServer::new(BnMarketConfig {
+                        tick_update_speed: config.tick_update_speed.clone(),
+                        depth_level: config.depth_level.clone(),
+                    });
+                    let trade_server = BnSimTradeServer::new(SimTradeConfig {
+                        asset: config.asset,
+                        balance: config.balance,
+                        order_completed_status: config.order_completed_status.clone(),
+                    });
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BnSim(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BnSim(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                "backtest" => {
+                    let config = serde_json::from_str::<BacktestConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
+                    binance::enable_prod(true);
+
+                    let market_server = BnSimMarketServer::new(SimMarketConfig {
+                        start_time: config.start_time,
+                        end_time: config.end_time,
+                        interval: config.interval,
+                        lines_per_sec: config.lines_per_sec,
+                    });
+                    let trade_server = BnSimTradeServer::new(SimTradeConfig {
+                        asset: config.asset,
+                        balance: config.balance,
+                        order_completed_status: config.order_completed_status.clone(),
+                    });
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BnBacktest(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BnBacktest(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                _ => {
+                    return Err(AppError::new(-200, "Not supported mode"));
+                }
+            }
+        },
+        "bybit" => {
+            match mode {
+                "real" => {
+                    let config = serde_json::from_str::<BbRealConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
+                    binance::enable_prod(true);
+                    let market_server = BbMarketServer::new(BbMarketConfig {
+                        depth_level: config.depth_level.clone(),
+                    });
+                    let trade_server = BbTradeServer::new(BbTradeConfig {       
+                        api_key: config.api_key.clone(), 
+                        api_secret: config.api_secret.clone(),
+                        position_side: config.position_side,
+                    });
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbReal(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbReal(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                "sim" => {
+                    let config = serde_json::from_str::<BbRealConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
+                    binance::enable_prod(false);
+                    let market_server = BbMarketServer::new(BbMarketConfig {
+                        depth_level: config.depth_level.clone(),
+                    });
+                    let trade_server = BbTradeServer::new(BbTradeConfig {       
+                        api_key: config.api_key.clone(), 
+                        api_secret: config.api_secret.clone(),
+                        position_side: config.position_side,
+                    });
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbReal(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbReal(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                _ => {
+                    return Err(AppError::new(-200, "Not supported mode"));
+                }
+            }
+        },
+        _ => {
+            return Err(AppError::new(-200, "Not supported exchange"));
+        }
+    }
+    Ok(())
+}

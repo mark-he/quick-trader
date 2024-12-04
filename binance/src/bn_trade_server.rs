@@ -147,7 +147,7 @@ impl WssStream {
 
 pub trait BnTradeServerTrait : TradeServer<
         OrderRequest = NewOrderRequest,
-        CancelOrderRequest = CancelOrderRequest,
+        CancelOrderRequest = String,
         SymbolConfig = SymbolConfig,
         SymbolInfo = SymbolInfo,
         Symbol = String,
@@ -156,7 +156,7 @@ pub trait BnTradeServerTrait : TradeServer<
 impl BnTradeServerTrait for BnTradeServer {}
 
 pub struct BnTradeServer {
-    pub config: TradeConfig,
+    pub config: BnTradeConfig,
     pub credentials: Credentials,
     pub wss_stream: WssStream,
     pub positions: Arc<RwLock<Vec<Position>>>,
@@ -167,7 +167,7 @@ pub struct BnTradeServer {
 }
 
 impl BnTradeServer {
-    pub fn new(config: TradeConfig) -> Self {
+    pub fn new(config: BnTradeConfig) -> Self {
         BnTradeServer {
             credentials: Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone()),
             config,
@@ -273,7 +273,7 @@ impl BnTradeServer {
 
 pub type BnTradeServerType = dyn TradeServer<
             OrderRequest = NewOrderRequest,
-            CancelOrderRequest = CancelOrderRequest,
+            CancelOrderRequest = String,
             SymbolConfig = SymbolConfig,
             SymbolInfo = SymbolInfo,
             Symbol = String,
@@ -281,7 +281,7 @@ pub type BnTradeServerType = dyn TradeServer<
 
 impl TradeServer for BnTradeServer {
     type OrderRequest = NewOrderRequest;
-    type CancelOrderRequest = CancelOrderRequest;
+    type CancelOrderRequest = String;
     type SymbolConfig = SymbolConfig;
     type SymbolInfo = SymbolInfo;
     type Symbol = String;
@@ -312,9 +312,9 @@ impl TradeServer for BnTradeServer {
         Ok(())
     }
 
-    fn cancel_order(&mut self, symbol: String, request: CancelOrderRequest) -> Result<(), AppError> {
+    fn cancel_order(&mut self, symbol: String, request: String) -> Result<(), AppError> {
         let client = BinanceHttpClient::default().credentials(self.credentials.clone());
-        let request = bn_trade::cancel_order(&symbol).orig_client_order_id(&request.order_id);
+        let request = bn_trade::cancel_order(&symbol).orig_client_order_id(&request);
         info!("Cancel Order {:?}", request);
         let _ = get_resp_result(client.send(request), vec![])?;
         Ok(())

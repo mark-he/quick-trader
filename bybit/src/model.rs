@@ -5,7 +5,7 @@ use bybit_connector::ureq::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct MarketConfig {
+pub struct BbMarketConfig {
     pub depth_level: u32,
 }
 
@@ -332,18 +332,11 @@ where
     Ok(parsed_f64s)
 }
 
-
-#[derive(Debug, Clone)]
-pub struct CancelOrderRequest {
-    pub order_id: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct TradeConfig {
+pub struct BbTradeConfig {
     pub api_key: String, 
     pub api_secret: String,
     pub position_side: u32,
-    pub multi_assets_margin: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]

@@ -65,14 +65,14 @@ pub struct SymbolInfo {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct MarketConfig {
+pub struct BnMarketConfig {
     pub tick_update_speed: Option<UpdateSpeed>,
     pub depth_level: Level,
 }
 
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct TradeConfig {
+pub struct BnTradeConfig {
     pub api_key: String, 
     pub api_secret: String,
     pub dual_position_side: PositionMode,
@@ -645,11 +645,6 @@ pub struct BinanceDepthUpdate {
     pub bids: Vec<Vec<f64>>,
     #[serde(rename = "a", deserialize_with = "parse_vec_f64")]
     pub asks: Vec<Vec<f64>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct CancelOrderRequest {
-    pub order_id: String,
 }
 
 fn parse_vec_f64<'de, D>(deserializer: D) -> Result<Vec<Vec<f64>>, D::Error>

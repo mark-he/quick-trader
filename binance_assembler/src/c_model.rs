@@ -74,10 +74,11 @@ pub struct BacktestConfig {
     pub asset: String,
     pub balance: u64,
     pub leverage: u64,
+    pub order_completed_status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct RealConfig {
+pub struct BnRealConfig {
     pub log_utc: bool,
     pub log_level: String,
     pub tick_update_speed: Option<UpdateSpeed>,
@@ -89,7 +90,17 @@ pub struct RealConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct SimConfig {
+pub struct BbRealConfig {
+    pub log_utc: bool,
+    pub log_level: String,
+    pub depth_level: u32,
+    pub api_key: String, 
+    pub api_secret: String,
+    pub position_side: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct BnSimConfig {
     pub log_utc: bool,
     pub log_level: String,
     pub tick_update_speed: Option<UpdateSpeed>,
@@ -97,4 +108,5 @@ pub struct SimConfig {
     pub asset: String,
     pub balance: u64,
     pub leverage: u64,
+    pub order_completed_status: String,
 }

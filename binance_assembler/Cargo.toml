@@ -9,6 +9,7 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+bybit = { path = "../bybit"}
 binance = { path = "../binance"}
 market = { path = "../market"}
 trade = { path = "../trade"}
@@ -16,6 +17,7 @@ common = { path = "../common"}
 log = { path = "../log"}
 binance_sim = { path = "../binance_sim"}
 binance_future_connector = { path = "../binance_future_connector", features = ["enable-tungstenite"]}
+bybit_connector = { path = "../bybit_connector"}
 rust_decimal_macros = "1.24.0"
 rust_decimal = "*"
 serde = { version = "1.0", features = ["derive"] }

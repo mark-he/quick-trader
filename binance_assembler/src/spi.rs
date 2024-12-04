@@ -1,152 +1,28 @@
-
-
 use std::os::raw::*;
 use std::ffi::CString;
-use std::str::FromStr;
 use std::thread;
-use binance::model::CancelOrderRequest;
-use binance::bn_market_server::BnMarketServer;
-use binance::bn_trade_server::BnTradeServer;
-use binance::model::*;
-use binance_future_connector::trade::new_order::NewOrderRequest;
-use binance_sim::bn_sim_market_server::BnSimMarketServer;
-use binance_sim::bn_sim_trade_server::BnSimTradeServer;
-use binance_sim::model::{SimMarketConfig, SimTradeConfig};
 use common::c::*;
 use market::market_server::{KLine, MarketData};
+use serde_json::Value;
 use trade::trade_server::{Position, TradeEvent, Wallet};
-use crate::c_model::{BacktestConfig, RealConfig, ServiceResult, SimConfig};
+use crate::c_model::ServiceResult;
 use crate::context;
 use log::*;
 
 
 #[no_mangle]
-pub extern "C" fn init_backtest(env: *const c_char, config: *const c_char) -> Box<CString> {
+pub extern "C" fn init(exchange: *const c_char, mode: *const c_char, config: *const c_char) -> Box<CString> {
     let mut result = ServiceResult::<String>::new(0, "", None);
 
-    let env_rust = c_char_to_string(env);
+    let exchange_rust = c_char_to_string(exchange);
+    let mode_rust = c_char_to_string(mode);
     let config_rust = c_char_to_string(config);
-    let ret = serde_json::from_str::<BacktestConfig>(&config_rust);
-    match ret {
-        Ok(config) => {
-            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
-            binance::enable_prod(env_rust == "PROD");
 
-            let market_server = BnSimMarketServer::new(SimMarketConfig {
-                start_time: config.start_time,
-                end_time: config.end_time,
-                interval: config.interval,
-                lines_per_sec: config.lines_per_sec,
-            });
-            let trade_server = BnSimTradeServer::new(SimTradeConfig {
-                asset: config.asset,
-                balance: config.balance,
-            });
-            context::init_backtest(market_server, trade_server);
-        },
-        Err(e) => {
-            result.error_code = -1;
-            result.message = format!("{:?}", e);
-        },
-    }
-    if result.error_code == 0 {
-        let market_gateway_ref = context::get_market_gateway();
-        let mut market_gateway = market_gateway_ref.lock().unwrap();
-        let ret = market_gateway.init();
-        if ret.is_err() {
-            result.error_code = -1;
-            result.message = format!("{:?}", &ret.unwrap_err());
-        }
-    }
-    if result.error_code == 0 {
-        let trade_gateway_ref = context::get_trade_gateway();
-        let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-        let ret = trade_gateway.init();
-
-        if ret.is_err() {
-            result.error_code = -1;
-            result.message = format!("{:?}", ret.unwrap_err());
-        }
-    }
-    result.to_c_json()
-}
-
-#[no_mangle]
-pub extern "C" fn init_sim(env: *const c_char, config: *const c_char) -> Box<CString> {
-    let mut result = ServiceResult::<String>::new(0, "", None);
-
-    let env_rust = c_char_to_string(env);
-    let config_rust = c_char_to_string(config);
-    let ret = serde_json::from_str::<SimConfig>(&config_rust);
-    match ret {
-        Ok(config) => {
-            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
-            binance::enable_prod(env_rust == "PROD");
-            let market_server = BnMarketServer::new(MarketConfig {
-                tick_update_speed: config.tick_update_speed.clone(),
-                depth_level: config.depth_level.clone(),
-            });
-            let trade_server = BnSimTradeServer::new(SimTradeConfig {
-                asset: config.asset,
-                balance: config.balance,
-            });
-            context::init_sim(market_server, trade_server);
-        },
-        Err(e) => {
-            result.error_code = -1;
-            result.message = format!("{:?}", e);
-        },
-    }
-    if result.error_code == 0 {
-        let market_gateway_ref = context::get_market_gateway();
-        let mut market_gateway = market_gateway_ref.lock().unwrap();
-        let ret = market_gateway.init();
-        if ret.is_err() {
-            result.error_code = -1;
-            result.message = format!("{:?}", &ret.unwrap_err());
-        }
-    }
-    if result.error_code == 0 {
-        let trade_gateway_ref = context::get_trade_gateway();
-        let mut trade_gateway = trade_gateway_ref.lock().unwrap();
-        let ret = trade_gateway.init();
-
-        if ret.is_err() {
-            result.error_code = -1;
-            result.message = format!("{:?}", ret.unwrap_err());
-        }
-    }
-    result.to_c_json()
-}
-
-#[no_mangle]
-pub extern "C" fn init(env: *const c_char, config: *const c_char) -> Box<CString> {
-    let mut result = ServiceResult::<String>::new(0, "", None);
-
-    let env_rust = c_char_to_string(env);
-    let config_rust = c_char_to_string(config);
-    let ret = serde_json::from_str::<RealConfig>(&config_rust);
-    match ret {
-        Ok(config) => {
-            log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
-            binance::enable_prod(env_rust == "PROD");
-            let market_server = BnMarketServer::new(MarketConfig {
-                tick_update_speed: config.tick_update_speed.clone(),
-                depth_level: config.depth_level.clone(),
-            });
-            let trade_server = BnTradeServer::new(TradeConfig {       
-                api_key: config.api_key.clone(), 
-                api_secret: config.api_secret.clone(),
-                dual_position_side: config.dual_position_side.clone(),
-                multi_assets_margin: config.multi_assets_margin.clone(),
-            });
-            context::init_real(market_server, trade_server);
-        },
-        Err(e) => {
-            result.error_code = -1;
-            result.message = format!("{:?}", e);
-        },
-    }
+    let ret = context::init(&exchange_rust, &mode_rust, &config_rust);
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    } 
     if result.error_code == 0 {
         let market_gateway_ref = context::get_market_gateway();
         let mut market_gateway = market_gateway_ref.lock().unwrap();
@@ -290,21 +166,13 @@ pub extern "C" fn new_order(symbol : *const c_char, order_request: *const c_char
     let mut result = ServiceResult::<String>::new(0, "", None);
     let symbol_rust = c_char_to_string(symbol);
     let order_request_rust = c_char_to_string(order_request);
+
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    let ret = serde_json::from_str::<NewOrderRequest>(&order_request_rust);
-    match ret {
-        Ok(order) => {
-            let ret = gateway.new_order(symbol_rust, order);
-            if ret.is_err() {
-                result.error_code = -1;
-                result.message = format!("{:?}", ret.unwrap_err());
-            }
-        },
-        Err(e) => {
-            result.error_code = -1;
-            result.message = format!("{:?}", e);
-        },
+    let ret = gateway.new_order(symbol_rust, &order_request_rust);
+    if ret.is_err() {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
     }
     result.to_c_json()
 }
@@ -318,7 +186,7 @@ pub extern "C" fn cancel_order(symbol : *const c_char, order_id : *const c_char)
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let ret = gateway.cancel_order(symbol_rust, CancelOrderRequest{order_id: order_id_rust});
+    let ret = gateway.cancel_order(symbol_rust, &order_id_rust);
     if ret.is_err() {
         result.error_code = -1;
         result.message = format!("{:?}", ret.unwrap_err());
@@ -378,27 +246,18 @@ pub extern "C" fn get_account(asset : *const c_char) -> Box<CString> {
 
 #[no_mangle]
 pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char, config: *const c_char, callback: extern "C" fn(*const c_char, *const c_char, *const c_char)) -> Box<CString> {
-    let mut result = ServiceResult::<SymbolInfo>::new(0, "", None);
+    let mut result = ServiceResult::<Value>::new(0, "", None);
 
     let gateway_ref = context::get_trade_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
     let symbol_rust = c_char_to_string(symbol);
     let config_rust = c_char_to_string(config);
-    let ret = serde_json::from_str::<SymbolConfig>(&config_rust);
 
+    let ret = gateway.init_symbol(symbol_rust.clone(), &config_rust);
     match ret {
-        Ok(config) => {
-            let ret = gateway.init_symbol(symbol_rust.clone(), config);
-            match ret {
-                Ok(symbol_info) => {
-                    result.data = Some(symbol_info);
-                },
-                Err(e) => {
-                    result.error_code = -1;
-                    result.message = format!("{:?}", e);
-                },
-            }
+        Ok(symbol_info) => {
+            result.data = Some(symbol_info);
         },
         Err(e) => {
             result.error_code = -1;

@@ -11,6 +11,7 @@ pub struct SimMarketConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct SimTradeConfig {
+    pub order_completed_status: String,
     pub asset: String,
     pub balance: u64,
 }

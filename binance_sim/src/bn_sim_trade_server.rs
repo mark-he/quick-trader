@@ -29,7 +29,7 @@ impl BnSimTradeServer {
 
 impl TradeServer for BnSimTradeServer {
     type OrderRequest = NewOrderRequest;
-    type CancelOrderRequest = CancelOrderRequest;
+    type CancelOrderRequest = String;
     type SymbolConfig = SymbolConfig;
     type SymbolInfo = SymbolInfo;
     type Symbol = String;
@@ -119,7 +119,7 @@ impl TradeServer for BnSimTradeServer {
             price,
             total: quantity,
             traded: quantity,
-            status: "COMPLETED".to_string(),
+            status: self.config.order_completed_status.clone(),
             ..Default::default()
         };
         sub.send(&TradeEvent::OrderUpdate(order_data));
@@ -128,7 +128,7 @@ impl TradeServer for BnSimTradeServer {
         Ok(())
     }
 
-    fn cancel_order(&mut self, _symbol: String, _request: CancelOrderRequest) -> Result<(), AppError> {
+    fn cancel_order(&mut self, _symbol: String, _request: String) -> Result<(), AppError> {
         Ok(())
     }
 

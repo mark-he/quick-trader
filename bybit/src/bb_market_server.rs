@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 use chrono::DateTime;
 use log::*;
 
-use crate::model::{self, KlineDetail, MarketConfig};
+use crate::model::{self, KlineDetail, BbMarketConfig};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MarketTopic {
@@ -232,13 +232,13 @@ impl WssStream {
 pub type BbMarketServerType = dyn MarketServer<Symbol = String>;
 
 pub struct BbMarketServer {
-    pub config: MarketConfig,
+    pub config: BbMarketConfig,
     pub wss_stream: WssStream,
     topics: Vec<MarketTopic>,
 }
 
 impl BbMarketServer {
-    pub fn new(config: MarketConfig) -> Self {
+    pub fn new(config: BbMarketConfig) -> Self {
         let depth_level = config.depth_level;
         BbMarketServer {
             config: config,
