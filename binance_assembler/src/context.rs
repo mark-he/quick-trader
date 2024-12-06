@@ -13,7 +13,7 @@ use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}};
 use serde_json::Value;
 use trade::{trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
 
-use crate::c_model::{BacktestConfig, BbRealConfig, BnRealConfig, BnSimConfig};
+use crate::model::{BacktestConfig, BbRealConfig, BnRealConfig, BnSimConfig};
 
 pub enum MarketGateways {
     BnSim(MarketGateway<BnMarketServer>),
@@ -496,6 +496,8 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                         api_key: config.api_key.clone(), 
                         api_secret: config.api_secret.clone(),
                         position_side: config.position_side,
+                        settle_coin: config.settle_coin.clone(),
+                        margin_mode: config.margin_mode.clone(),
                     });
                     unsafe {
                         MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbReal(MarketGateway::new(Box::new(market_server))))));
@@ -513,10 +515,12 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                         api_key: config.api_key.clone(), 
                         api_secret: config.api_secret.clone(),
                         position_side: config.position_side,
+                        settle_coin: config.settle_coin.clone(),
+                        margin_mode: config.margin_mode.clone(),
                     });
                     unsafe {
-                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbReal(MarketGateway::new(Box::new(market_server))))));
-                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbReal(TradeGateway::new(Box::new(trade_server))))));
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbSim(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbSim(TradeGateway::new(Box::new(trade_server))))));
                     }
                 },
                 _ => {

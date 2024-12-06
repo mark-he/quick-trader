@@ -24,3 +24,16 @@ path="new_order.rs"
 [[example]]
 name="position_side"
 path="position_side.rs"
+
+[[example]]
+name="account_info"
+path="account_info.rs"
+
+[[example]]
+name="account"
+path="account.rs"
+
+
+[[example]]
+name="klines"
+path="klines.rs"

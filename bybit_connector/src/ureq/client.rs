@@ -94,12 +94,14 @@ impl BybitHttpClient {
                 match method {
                     crate::http::Method::Get => {
                         //timestamp+api_key+recv_window+queryString
-                        payload = format!("{}{}{}{}", timestamp, api_key, recv_window, ureq_request
+                        let mut query = "";
+                        let request_url = ureq_request
                         .request_url()
-                        .unwrap()
-                        .as_url()
-                        .query()
-                        .unwrap());
+                        .unwrap();
+                        if let Some(q) = request_url.as_url().query() {
+                            query = q;
+                        }
+                        payload = format!("{}{}{}{}", timestamp, api_key, recv_window, query);
                     },
                     crate::http::Method::Post => {
                         //timestamp+api_key+recv_window+raw_request_body
@@ -109,7 +111,6 @@ impl BybitHttpClient {
                         payload = "".to_string();
                     },
                 }
-                println!("JSON:{}", payload);
                 let signature = crate::utils::sign(
                     &payload,
                     signature,

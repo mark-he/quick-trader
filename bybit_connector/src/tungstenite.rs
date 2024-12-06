@@ -41,7 +41,7 @@ impl<T: Read + Write> WebSocketState<T> {
             .join(",");
 
         if !params_str.is_empty() {
-            params_str = format!("\"params\": [{params}],", params = params_str)
+            params_str = format!("\"args\": [{params}],", params = params_str)
         };
 
         let s = format!(
@@ -51,8 +51,6 @@ impl<T: Read + Write> WebSocketState<T> {
             id = self.id
         );
         let message = Message::Text(s);
-        log::debug!("Sent {}", message);
-
         self.socket.send(message).unwrap();
 
         self.id += 1;

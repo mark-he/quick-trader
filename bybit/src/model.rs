@@ -1,7 +1,8 @@
 use bybit_connector::ureq::{Error, Response};
 use common::error::AppError;
 
-use serde::{Deserialize, Deserializer, Serialize};
+use log::info;
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
@@ -9,19 +10,36 @@ pub struct BbMarketConfig {
     pub depth_level: u32,
 }
 
-pub fn get_resp_result(ret: Result<Response, Box<Error>>, _skipped_code: Vec<i16>) -> Result<String, AppError> {
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct Ignore {
+
+}
+
+
+pub fn get_resp_result<T: DeserializeOwned>(ret: Result<Response, Box<Error>>, skipped_code: Vec<i64>, ignore_result: bool) -> Result<Option<T>, AppError> {
     let err;
     match ret {
         Ok(resp) => {
             let ret2 = resp.into_body_str();
             match ret2 {
                 Ok(data) => {
-                    let json_value: Value = serde_json::from_str(&data).unwrap();
+                    info!("{}", data);
+                    let mut json_value: Value = serde_json::from_str(&data).unwrap();
                     if let Some(v) = json_value.get("retCode") {
-                        if v == 0 {
-                            return Ok(data)
+                        if v.as_i64().unwrap() == 0 {
+                            if ignore_result {
+                                return Ok(None)
+                            } else {
+                                let result = json_value.get_mut("result");
+                                let obj = serde_json::from_value::<T>(result.unwrap().take()).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                                return Ok(Some(obj))
+                            }
                         } else {
-                            return Err(AppError::new(-200, json_value.get("retMsg").unwrap().as_str().unwrap()));
+                            if skipped_code.contains(&v.as_i64().unwrap()) {
+                                return Ok(None)
+                            } else {
+                                return Err(AppError::new(-200, json_value.get("retMsg").unwrap().as_str().unwrap()));
+                            }
                         }
                     } else {
                         return Err(AppError::new(-200, "Incorrect response structure"));
@@ -40,6 +58,7 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, _skipped_code: Vec<i16
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct BybitOrderbook {
     #[serde(rename = "topic")]
     pub topic_name: String,
@@ -54,6 +73,7 @@ pub struct BybitOrderbook {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct OrderbookDataDetails {
     #[serde(rename = "s")]
     pub symbol: String,
@@ -69,6 +89,7 @@ pub struct OrderbookDataDetails {
 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BybitKline {
     pub topic: String,
     #[serde(rename = "type")]
@@ -79,6 +100,7 @@ pub struct BybitKline {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KlineDetail {
     pub start: i64,
     pub end: i64,
@@ -100,7 +122,34 @@ pub struct KlineDetail {
 }
 
 
+
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BybitDeltaTicker {
+    pub topic: String,
+    #[serde(rename = "type")]
+    pub data_type: String,
+    pub data: DeltaTickerDetail,
+    #[serde(rename = "cs")]
+    pub matching_version: u64,
+    #[serde(rename = "ts")]
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeltaTickerDetail {
+    pub symbol: String,
+    #[serde(deserialize_with = "string_to_f64")]
+    pub mark_price: f64,
+    #[serde(deserialize_with = "string_to_f64")]
+    pub index_price: f64,
+    #[serde(deserialize_with = "string_to_f64")]
+    pub open_interest_value: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BybitTicker {
     pub topic: String,
     #[serde(rename = "type")]
@@ -113,6 +162,7 @@ pub struct BybitTicker {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TickerDetail {
     pub symbol: String,
     pub tick_direction: String,
@@ -155,6 +205,7 @@ pub struct TickerDetail {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PositionData {
     pub id: String,
     pub topic: String,
@@ -163,6 +214,7 @@ pub struct PositionData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PositionDetail {
     pub position_idx: usize,
     pub trade_mode: usize,
@@ -203,6 +255,7 @@ pub struct PositionDetail {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OrderData {
     pub id: String,
     pub topic: String,
@@ -211,6 +264,7 @@ pub struct OrderData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OrderDetail {
     pub symbol: String,
     pub order_id: String,
@@ -263,6 +317,7 @@ pub struct OrderDetail {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WalletData {
     pub id: String,
     pub topic: String,
@@ -271,6 +326,7 @@ pub struct WalletData {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WalletDetail {
     pub account_im_rate: String,
     pub account_mm_rate: String,
@@ -287,6 +343,7 @@ pub struct WalletDetail {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CoinDetail {
     pub coin: String,
     pub equity: String,
@@ -314,6 +371,16 @@ pub struct CoinDetail {
     pub spot_hedging_qty: String,
 }
 
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerTime {
+    #[serde(deserialize_with = "string_to_f64")]
+    pub time_second: f64,
+    #[serde(deserialize_with = "string_to_f64")]
+    pub time_nano: f64,
+}
+
 fn parse_vec_f64<'de, D>(deserializer: D) -> Result<Vec<Vec<f64>>, D::Error>
 where
     D: Deserializer<'de>,
@@ -334,7 +401,9 @@ where
 pub struct BbTradeConfig {
     pub api_key: String, 
     pub api_secret: String,
+    pub settle_coin: String,
     pub position_side: u32,
+    pub margin_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
@@ -350,11 +419,6 @@ pub struct SymbolInfo {
     pub leverage: i32,
     pub margin_type: String,
     pub dual_position_side: String,
-    pub multi_assets_margin: String,
-    pub maint_margin_ratio: f64,
-    pub quantity_precision: usize,
-    pub price_precision: usize,
-    pub quote_precision: usize,
 }
 
 fn string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
@@ -366,21 +430,37 @@ fn string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
 }
 
 
+
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KlineQueryResp {
+    pub category: String,
+    pub symbol: String,
+    pub list: Vec<Vec<String>>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AccountQueryResp {
     pub list: Vec<AccountInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AccountInfo {
     pub account_type: String,
+    #[serde(rename = "accountLTV")]
     pub account_ltv: String,
+    #[serde(rename = "accountIMRate")]
     pub account_im_rate: String,
+    #[serde(rename = "accountMMRate")]
     pub account_mm_rate: String,
     pub total_equity: String,
     pub total_wallet_balance: String,
     pub total_margin_balance: String,
     pub total_available_balance: String,
+    #[serde(rename = "totalPerpUPL")]
     pub total_perp_upl: String,
     pub total_initial_margin: String,
     pub total_maintenance_margin: String,
@@ -388,21 +468,25 @@ pub struct AccountInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CoinInfo {
     pub coin: String,
     pub equity: String,
     pub usd_value: String,
     #[serde(deserialize_with = "string_to_f64")]
     pub wallet_balance: f64,
-    pub free: String,
+    // pub free: String,
     pub locked: String,
     pub spot_hedging_qty: String,
     pub borrow_amount: String,
     #[serde(deserialize_with = "string_to_f64")]
     pub available_to_withdraw: f64,
     pub accrued_interest: String,
+    #[serde(rename = "totalOrderIM")]
     pub total_order_im: String,
+    #[serde(rename = "totalPositionIM")]
     pub total_position_im: String,
+    #[serde(rename = "totalPositionMM")]
     pub total_position_mm: String,
     pub unrealised_pnl: String,
     pub cum_realised_pnl: String,
@@ -413,13 +497,15 @@ pub struct CoinInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PositionQueryResponse {
+#[serde(rename_all = "camelCase")]
+pub struct PositionQueryResp {
     pub category: String,
     pub list: Vec<PositionInfo>,
     pub next_page_cursor: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PositionInfo {
     pub position_idx: usize,
     pub risk_id: usize,

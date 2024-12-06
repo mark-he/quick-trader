@@ -5,7 +5,7 @@ use common::c::*;
 use market::market_server::{KLine, MarketData};
 use serde_json::Value;
 use trade::trade_server::{Position, TradeEvent, Wallet};
-use crate::c_model::ServiceResult;
+use crate::model::ServiceResult;
 use crate::context;
 use log::*;
 

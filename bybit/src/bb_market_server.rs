@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex};
 use chrono::DateTime;
 use log::*;
 
-use crate::model::{self, KlineDetail, BbMarketConfig};
+use crate::model::{self, BbMarketConfig, KlineDetail, KlineQueryResp, ServerTime};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MarketTopic {
@@ -82,7 +82,7 @@ impl WssStream {
         let depth_level = self.depth_level.clone();
         let closure = move |_rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
-            let mut keepalive: WssKeepalive = WssKeepalive::new(&config::wss_api()).prepare(move |conn| {
+            let mut keepalive: WssKeepalive = WssKeepalive::new(&format!("{}/v5/public/linear", &config::wss_api())).prepare(move |conn| {
                 let mut tick_set = HashSet::new();
                 for topic in topics.iter() {
                     if topic.interval == "" {
@@ -128,10 +128,10 @@ impl WssStream {
                     Message::Text(string_data) => {
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
                         let topic = json_value.get("topic");
+                        let _type = json_value.get("type");
                         if let Some(topic_value) = topic {
                             let vs: Vec<&str> = topic_value.as_str().unwrap().split('.').collect();
                             let event = vs[0];
-                            debug!("Received event: {}", string_data);
                             match event {
                                 "orderbook" => {
                                     match serde_json::from_str::<model::BybitOrderbook>(&string_data) {
@@ -168,33 +168,40 @@ impl WssStream {
                                     }
                                 },
                                 "tickers" => {
-                                    match serde_json::from_str::<model::BybitTicker>(&string_data) {
-                                        Ok(tick) => {
-                                            let datetime = DateTime::from_timestamp((tick.timestamp/1000) as i64, 0).unwrap();
-                                            let t = Tick {
-                                                symbol: tick.data.symbol.clone(),
-                                                datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                                                open: tick.data.prev_price24h,
-                                                high: tick.data.high_price24h,
-                                                low: tick.data.low_price24h,
-                                                close: tick.data.last_price,
-                                                volume: tick.data.volume24h,
-                                                turnover: tick.data.turnover24h,
-                                                timestamp: tick.timestamp as u64,
-                                                ..Default::default()
-                                            };
-
-                                            let prev_tick = last_ticks.get(&t.symbol);
-                                            if let Some(prev) = prev_tick {
-                                                if t.timestamp > prev.timestamp {
-                                                    last_ticks.insert(t.symbol.to_string(), t);
-                                                }
-                                            } else {
-                                                last_ticks.insert(t.symbol.to_string(), t);
+                                    let _type = _type.unwrap().as_str().unwrap();
+                                    match _type {
+                                        "snapshot" => {
+                                            match serde_json::from_str::<model::BybitTicker>(&string_data) {
+                                                Ok(tick) => {
+                                                    let datetime = DateTime::from_timestamp((tick.timestamp/1000) as i64, 0).unwrap();
+                                                    let t = Tick {
+                                                        symbol: tick.data.symbol.clone(),
+                                                        datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                                                        open: tick.data.prev_price24h,
+                                                        high: tick.data.high_price24h,
+                                                        low: tick.data.low_price24h,
+                                                        close: tick.data.last_price,
+                                                        volume: tick.data.volume24h,
+                                                        turnover: tick.data.turnover24h,
+                                                        timestamp: tick.timestamp as u64,
+                                                        ..Default::default()
+                                                    };
+        
+                                                    let prev_tick = last_ticks.get(&t.symbol);
+                                                    if let Some(prev) = prev_tick {
+                                                        if t.timestamp > prev.timestamp {
+                                                            last_ticks.insert(t.symbol.to_string(), t);
+                                                        }
+                                                    } else {
+                                                        last_ticks.insert(t.symbol.to_string(), t);
+                                                    }
+                                                },
+                                                Err(e) => {
+                                                    error!("{:?}", e);
+                                                },
                                             }
                                         },
-                                        Err(e) => {
-                                            error!("{:?}", e);
+                                        _ => {
                                         },
                                     }
                                 },
@@ -250,10 +257,10 @@ impl BbMarketServer {
     pub fn get_server_timestamp(&self) -> Result<u64, AppError> {
         let client = BybitHttpClient::default();
         let request = bb_market::time();
-        let data = model::get_resp_result(client.send(request), vec![])?;
-        let json_value: Value = serde_json::from_str(&data).unwrap();
-        if let Some(key) = json_value.get("timeNano") {
-            return Ok(key.as_u64().unwrap())   
+        let data = model::get_resp_result::<ServerTime>(client.send(request), vec![], false)?;
+
+        if let Some(time) = data {
+            return Ok(time.time_nano as u64)   
         }
         Err(AppError::new(-200, "Can not get servertime"))
     }
@@ -265,17 +272,14 @@ impl MarketServer for BbMarketServer {
         let client = BybitHttpClient::default();
         let kline_interval = KlineInterval::from_str(interval).map_err(|e| {AppError::new(-200, &e)})?;
         let request = bb_market::klines(Category::Linear, &symbol, kline_interval).limit(count as u64);
-        let data = model::get_resp_result(client.send(request), vec![])?;
-        let mut klines = convert_json_to_k_lines(&symbol, interval, &data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
 
-        let server_time = self.get_server_timestamp()?;
-        if let Some(v) = klines.last() {
-            if v.timestamp > server_time {
-                warn!("Remove the last kline of {} as it has not closed yet.", symbol);
-                klines.pop();
-            }
+        let data = model::get_resp_result::<KlineQueryResp>(client.send(request), vec![], false)?;
+        if let Some(kline_resp) = data {
+            let klines = convert_json_to_k_lines(&symbol, interval, kline_resp).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
+            Ok(klines)
+        } else {
+            Ok(vec![])
         }
-        Ok(klines)
     }
 
     fn subscribe_tick(&mut self, symbol: String) -> Result<(), AppError>{
@@ -357,26 +361,25 @@ pub fn convert_bb_kline(symbol: &str, kline: &KlineDetail) -> KLine {
     k
 }
 
-pub fn convert_json_to_k_lines(symbol: &str, interval: &str, json_str: &str) -> Result<Vec<KLine>, Box<dyn std::error::Error>> {
-    let data: Vec<Vec<serde_json::Value>> = serde_json::from_str(json_str)?;
+pub fn convert_json_to_k_lines(symbol: &str, interval: &str, kline_resp: KlineQueryResp) -> Result<Vec<KLine>, Box<dyn std::error::Error>> {
     let mut k_lines = Vec::new();
 
-    for line in data {
-        let datetime = DateTime::from_timestamp((line[0].as_u64().unwrap()/1000) as i64, 0).unwrap();
+    for line in kline_resp.list {
+        let datetime = DateTime::from_timestamp((line[0].as_str().parse::<i64>()?/1000) as i64, 0).unwrap();
 
         let k_line = KLine {
             symbol: symbol.to_string(),
             interval: interval.to_string(),
             datetime: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-            open: line[1].as_str().unwrap().parse::<f64>()?,
-            high: line[2].as_str().unwrap().parse::<f64>()?,
-            low: line[3].as_str().unwrap().parse::<f64>()?,
-            close: line[4].as_str().unwrap().parse::<f64>()?,
-            volume: line[5].as_str().unwrap().parse::<f64>()?,
-            turnover: line[7].as_str().unwrap().parse::<f64>()?,
-            taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
-            taker_buy_turnover: line[10].as_str().unwrap().parse::<f64>()?,
-            timestamp: line[6].as_u64().unwrap(),
+            open: line[1].as_str().parse::<f64>()?,
+            high: line[2].as_str().parse::<f64>()?,
+            low: line[3].as_str().parse::<f64>()?,
+            close: line[4].as_str().parse::<f64>()?,
+            volume: line[5].as_str().parse::<f64>()?,
+            turnover: line[6].as_str().parse::<f64>()?,
+            taker_buy_volume: 0 as f64,
+            taker_buy_turnover: 0 as f64,
+            timestamp: line[0].as_str().parse::<u64>()?,
         };
         k_lines.push(k_line);
     }

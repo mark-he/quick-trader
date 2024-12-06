@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex, RwLock}, thread::J
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use serde_json::Value;
 use bybit_connector::{
-    account::{self, account::AccountType}, enums::Category, http::Credentials, trade::{self as bb_trade, new_order::NewOrderRequest}, ureq::BybitHttpClient, wss_keepalive::WssKeepalive
+    account, enums::Category, http::Credentials, trade::{self as bb_trade, new_order::NewOrderRequest}, ureq::BybitHttpClient, wss_keepalive::WssKeepalive
 };
 use trade::trade_server::{Order, Position, TradeEvent, TradeServer, Wallet};
 use tungstenite::Message;
@@ -14,15 +14,17 @@ pub struct WssStream {
     handler: Option<Handler<()>>,
     connect_ticket: Arc<AtomicUsize>,
     server_ping: Arc<AtomicUsize>,
+    pub credentials: Credentials,
 }
 
 impl WssStream {
-    pub fn new() -> Self {
+    pub fn new(credentials: Credentials) -> Self {
         WssStream {
             subscription: Arc::new(Mutex::new(Subscription::top())),
             handler : None,
             connect_ticket: Arc::new(AtomicUsize::new(0)),
             server_ping: Arc::new(AtomicUsize::new(0)),
+            credentials,
         }
     }
 
@@ -41,10 +43,10 @@ impl WssStream {
         let connect_ticket_ref = self.connect_ticket.clone();
         let server_ping_ref = self.server_ping.clone();
         let subscription_ref = self.subscription.clone();
-
+        let credentials = self.credentials.clone();
         let closure = move |_rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
-            let mut keepalive = WssKeepalive::new(&bybit_connector::config::wss_api());
+            let mut keepalive = WssKeepalive::new(&format!("{}/v5/private", bybit_connector::config::wss_api())).credentials(credentials);
 
             let _ = keepalive.stream(&mut |message| {
                 if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
@@ -156,10 +158,11 @@ pub struct BbTradeServer {
 
 impl BbTradeServer {
     pub fn new(config: BbTradeConfig) -> Self {
+        let credentials = Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone());
         BbTradeServer {
-            credentials: Credentials::from_hmac(config.api_key.clone(), config.api_secret.clone()),
+            credentials: credentials.clone(),
             config,
-            wss_stream: WssStream::new(),
+            wss_stream: WssStream::new(credentials.clone()),
             positions: Arc::new(RwLock::new(Vec::new())),
             wallets: Arc::new(RwLock::new(Vec::new())),
             handler: None,
@@ -215,18 +218,18 @@ impl BbTradeServer {
 
     fn init_account(&self) -> Result<(), AppError> {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
-        let _ = get_resp_result(client.send(bb_trade::position_side(Category::Linear, self.config.position_side)), vec![])?;
+        let request = bb_trade::set_margin_mode(&self.config.margin_mode);
+        let _ = get_resp_result::<Ignore>(client.send(request), vec![], true)?;
+        let _ = get_resp_result::<Ignore>(client.send(bb_trade::position_side(Category::Linear, self.config.position_side).coin(&self.config.settle_coin)), vec![], true)?;
+        
         Ok(())
     }
 
     fn init_account_positions(&self) -> Result<(), AppError> {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
-        let data = get_resp_result(client.send(account::account(account::account::AccountType::Unified)), vec![])?;
-        info!("{}", data);
-        let account_resp: AccountQueryResp = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
-
-        for a in account_resp.list {
-            if a.account_type == AccountType::Unified.to_string() {
+        let data = get_resp_result::<AccountQueryResp>(client.send(account::account(account::account::AccountType::Unified)), vec![], false)?;
+        if let Some(account_resp) = data {
+            for a in account_resp.list {
                 for w in a.coin {
                     let wallet = Wallet {
                         asset: w.coin.clone(),
@@ -237,22 +240,22 @@ impl BbTradeServer {
                 }
             }
         }
-
-
-        let data = get_resp_result(client.send(account::position(Category::Linear)), vec![])?;
-        let position_resp: PositionQueryResponse = serde_json::from_str(&data).map_err(|e| AppError::new(-200, format!("{:?}", e).as_str()))?;
-
-        for a in position_resp.list {
-            let position = Position {
-                symbol: a.symbol.clone(),
-                position_side: a.position_idx.to_string(),
-                side: a.side.to_string(),
-                amount: a.size,
-                cost: a.avg_price,
-                ..Default::default()
-            };
-            self.positions.write().unwrap().push(position);
+        
+        let data = get_resp_result::<PositionQueryResp>(client.send(account::position(Category::Linear).settle_coin(&self.config.settle_coin)), vec![], false)?;
+        if let Some(position_resp) = data {
+            for a in position_resp.list {
+                let position = Position {
+                    symbol: a.symbol.clone(),
+                    position_side: a.position_idx.to_string(),
+                    side: a.side.to_string(),
+                    amount: a.size,
+                    cost: a.avg_price,
+                    ..Default::default()
+                };
+                self.positions.write().unwrap().push(position);
+            }
         }
+        
         Ok(())
     }
 }
@@ -293,7 +296,7 @@ impl TradeServer for BbTradeServer {
 
     fn new_order(&mut self, _symbol: String, request : NewOrderRequest) -> Result<(), AppError> {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
-        let _ = get_resp_result(client.send(request), vec![])?;
+        let _ = get_resp_result::<Ignore>(client.send(request), vec![], true)?;
         Ok(())
     }
 
@@ -301,14 +304,14 @@ impl TradeServer for BbTradeServer {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
         let request = bb_trade::cancel_order(Category::Linear, &symbol).order_link_id(&request);
         info!("Cancel Order {:?}", request);
-        let _ = get_resp_result(client.send(request), vec![])?;
+        let _ = get_resp_result::<Ignore>(client.send(request), vec![], true)?;
         Ok(())
     }
 
     fn cancel_orders(&mut self, symbol: String) -> Result<(), AppError> {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
         let request = bb_trade::cancel_orders(Category::Linear, &symbol);
-        let _ = get_resp_result(client.send(request), vec![])?;
+        let _ = get_resp_result::<Ignore>(client.send(request), vec![], true)?;
         Ok(())
     }
 
@@ -338,11 +341,8 @@ impl TradeServer for BbTradeServer {
     fn init_symbol(&self, symbol: String, config: Self::SymbolConfig) -> Result<SymbolInfo, AppError> {
         let client = BybitHttpClient::default().credentials(self.credentials.clone());
 
-        let request = bb_trade::set_margin_type(Category::Linear, &symbol, config.margin_type, &config.leverage.to_string(), &config.leverage.to_string());
-        let _ = get_resp_result(client.send(request), vec![])?;
-
         let request = bb_trade::leverage(Category::Linear, &symbol, &config.leverage.to_string(), &config.leverage.to_string());
-        let _ = get_resp_result(client.send(request), vec![])?;
+        let _ = get_resp_result::<Ignore>(client.send(request), vec![110043], true)?;
 
         
         let symbol_info = SymbolInfo {
@@ -350,11 +350,6 @@ impl TradeServer for BbTradeServer {
             leverage: config.leverage,
             margin_type: config.margin_type.to_string(),
             dual_position_side: self.config.position_side.to_string(),
-            multi_assets_margin: "true".to_string(),
-            maint_margin_ratio: 0.0,
-            quantity_precision: 0,
-            price_precision: 0,
-            quote_precision: 0,
         };
 
         Ok(symbol_info)

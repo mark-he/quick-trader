@@ -1,6 +1,5 @@
 use crate::{enums::{Category, KlineInterval}, http::{request::Request, Method}};
 use serde::{Serialize, Deserialize};
-use serde_json::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,20 +39,38 @@ impl GetKlinesRequest {
         self
     }
 
-    pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string(&self)
+
+    pub fn get_params(&self) -> Vec<(String, String)> {
+        let mut params = Vec::new();
+        params.push(("category".to_owned(), self.category.to_string()));
+        params.push(("symbol".to_owned(), self.symbol.clone()));
+        params.push(("interval".to_owned(), self.interval.to_string()));
+
+        if let Some(start) = &self.start {
+            params.push(("start".to_owned(), start.to_string()));
+        }
+
+        if let Some(end) = &self.end {
+            params.push(("end".to_owned(), end.to_string()));
+        }
+
+        if let Some(limit) = self.limit {
+            params.push(("limit".to_owned(), limit.to_string()));
+        }
+        params
     }
 }
 
 impl From<GetKlinesRequest> for Request {
     fn from(request: GetKlinesRequest) -> Request {
+        let params = request.get_params();
         Request {
             path: "/v5/market/kline".to_owned(),
-            method: Method::Post,
-            params: vec![],
+            method: Method::Get,
+            params,
             credentials: None,
             sign: true,
-            body: request.to_json().unwrap(),
+            body: "".to_string(),
             recv_window: 5000
         }
     }

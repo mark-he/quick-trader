@@ -1,4 +1,4 @@
-use std::{backtrace::Backtrace, fmt, io::{self, Write}, str::FromStr};
+use std::{backtrace::Backtrace, fmt, str::FromStr};
 use chrono::{Local, Utc};
 
 #[macro_export]

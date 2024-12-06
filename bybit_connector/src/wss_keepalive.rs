@@ -1,6 +1,6 @@
-use std::{net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread::{self, sleep}, time::{Duration, Instant}};
+use std::{net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread::{self, sleep}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
 use tungstenite::{stream::MaybeTlsStream, Message};
-use crate::tungstenite::{BybitWebSocketClient, WebSocketState};
+use crate::{http::Credentials, tungstenite::{BybitWebSocketClient, WebSocketState}};
 use std::error::Error;
 
 type Conn = WebSocketState<MaybeTlsStream<TcpStream>>;
@@ -9,6 +9,8 @@ pub struct WssKeepalive {
     prepare_block: Option<Box<dyn Fn(&mut Conn)>>,
     conn: Option<Conn>,
     stream_ticket: Arc<AtomicUsize>,
+    credentials: Option<Credentials>,
+    timestamp_delta: i64,
 }
 
 impl WssKeepalive {
@@ -17,8 +19,20 @@ impl WssKeepalive {
             url: url.to_string(),
             prepare_block: None,
             conn: None,
+            timestamp_delta: 0,
             stream_ticket: Arc::new(AtomicUsize::new(0)),
+            credentials: None,
         }
+    }
+
+    pub fn credentials(mut self, credentials: Credentials) -> Self {
+        self.credentials = Some(credentials);
+        self
+    }
+
+    pub fn timestamp_delta(mut self, timestamp_delta: i64) -> Self {
+        self.timestamp_delta = timestamp_delta;
+        self
     }
 
     fn connect(&mut self) -> &Self {
@@ -57,8 +71,24 @@ impl WssKeepalive {
             if self.conn.is_none() {
                 self.connect();
                 if self.conn.is_some() {
+                    let mut_conn = self.conn.as_mut().unwrap();
+                    if let Some(Credentials { api_key, signature }) = &self.credentials {
+                        let mut timestamp = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .expect("Clock may have gone backwards")
+                        .as_millis();
+                        timestamp -= self.timestamp_delta as u128;
+                        let payload = format!("GET/realtime{}", timestamp + 24 * 3600);
+                        let signature = crate::utils::sign(
+                            &payload,
+                            signature,
+                        )?;
+            
+                        let message = format!("{{\"op\": \"auth\",\"args\": [\"{}\",{},\"{}\"]}}", api_key, timestamp, signature);
+                        mut_conn.as_mut().send(Message::Text(message))?;
+                    }
                     if let Some(b) = self.prepare_block.as_ref() {
-                        b(self.conn.as_mut().unwrap());
+                        b(mut_conn);
                     }
                 } else {
                     thread::sleep(Duration::from_secs(1));

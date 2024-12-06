@@ -1,5 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{enums::Category, http::{request::Request, Method}};
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PositionQueryRequest {
     pub category: Category,
     pub symbol: Option<String>,
@@ -12,7 +17,7 @@ pub struct PositionQueryRequest {
 impl PositionQueryRequest {
     pub fn new(category: Category) -> Self {
         Self {
-            category,
+            category: category.to_owned(),
             symbol: None,
             base_coin: None,
             settle_coin: None,

@@ -97,6 +97,8 @@ pub struct BbRealConfig {
     pub api_key: String, 
     pub api_secret: String,
     pub position_side: u32,
+    pub settle_coin: String,
+    pub margin_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
@@ -109,4 +111,6 @@ pub struct BnSimConfig {
     pub balance: u64,
     pub leverage: u64,
     pub order_completed_status: String,
+    pub settle_coin: String,
+    pub margin_mode: String,
 }

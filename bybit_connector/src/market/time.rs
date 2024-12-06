@@ -23,7 +23,7 @@ impl From<GetServerTimeRequest> for Request {
     fn from(request: GetServerTimeRequest) -> Request {
         Request {
             path: "/v5/market/time".to_owned(),
-            method: Method::Post,
+            method: Method::Get,
             params: vec![],
             credentials: None,
             sign: true,

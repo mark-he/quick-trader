@@ -2,13 +2,17 @@ use std::str::FromStr;
 use strum::{Display, VariantNames,};
 use serde::{Deserialize, Deserializer, Serialize};
 
-#[derive(Debug, Copy, Clone, Display)]
-#[derive(Serialize, VariantNames)]
+#[derive(Debug, Copy, Clone)]
+#[derive(Serialize, Display, VariantNames)]
 #[serde(rename_all = "lowercase")]
 pub enum Category {
+    #[strum(serialize = "spot")]
     Spot,
+    #[strum(serialize = "linear")]
     Linear,
+    #[strum(serialize = "inverse")]
     Inverse,
+    #[strum(serialize = "option")]
     Option,
 }
 impl FromStr for Category {
@@ -23,6 +27,7 @@ impl FromStr for Category {
         }
     }
 }
+
 impl<'de> Deserialize<'de> for Category {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
