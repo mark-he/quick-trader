@@ -1,4 +1,5 @@
 use std::{net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread::{self, sleep}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
+use log::info;
 use tungstenite::{stream::MaybeTlsStream, Message};
 use crate::{http::Credentials, tungstenite::{BybitWebSocketClient, WebSocketState}};
 use std::error::Error;
@@ -78,13 +79,15 @@ impl WssKeepalive {
                         .expect("Clock may have gone backwards")
                         .as_millis();
                         timestamp -= self.timestamp_delta as u128;
-                        let payload = format!("GET/realtime{}", timestamp + 24 * 3600);
+                        let payload = format!("GET/realtime{}", timestamp + 24 * 3600 * 1000);
+                        
                         let signature = crate::utils::sign(
                             &payload,
                             signature,
                         )?;
             
                         let message = format!("{{\"op\": \"auth\",\"args\": [\"{}\",{},\"{}\"]}}", api_key, timestamp, signature);
+                        info!("payload = {}, message = {}", payload, message);
                         mut_conn.as_mut().send(Message::Text(message))?;
                     }
                     if let Some(b) = self.prepare_block.as_ref() {
