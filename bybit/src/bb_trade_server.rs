@@ -187,7 +187,6 @@ impl BbTradeServer {
                         let mut positions = positions_ref.write().unwrap();
                         let mut found = false;
                         let mut changed = false;
-                        info!("POSITION UPDATE {:?}", a);
                         for p in positions.iter_mut() {
                             if p.symbol == a.symbol && p.position_side == a.position_side {
                                 found = true;
@@ -197,7 +196,6 @@ impl BbTradeServer {
                                     p.symbol = a.symbol.clone();
                                     p.amount = a.amount;
                                     p.side = a.side.clone();
-                                    info!("POSITION UPDATE FOUND !!! {:?}", a);
                                 }
                                 break;
                             }
@@ -208,7 +206,6 @@ impl BbTradeServer {
                                 changed = true;
                             }
                         }
-                        info!("POSITION UPDATE AFTER !!! {:?}", positions);
                         return Ok(changed);
                     },
                     TradeEvent::AccountUpdate(a) => {
