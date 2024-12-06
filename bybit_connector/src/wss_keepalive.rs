@@ -79,7 +79,8 @@ impl WssKeepalive {
                         .expect("Clock may have gone backwards")
                         .as_millis();
                         timestamp -= self.timestamp_delta as u128;
-                        let payload = format!("GET/realtime{}", timestamp + 24 * 3600 * 1000);
+                        timestamp = timestamp / 1000 * 1000 + 24 * 3600 * 1000;
+                        let payload = format!("GET/realtime{}", timestamp);
                         
                         let signature = crate::utils::sign(
                             &payload,
@@ -87,7 +88,6 @@ impl WssKeepalive {
                         )?;
             
                         let message = format!("{{\"op\": \"auth\",\"args\": [\"{}\",{},\"{}\"]}}", api_key, timestamp, signature);
-                        info!("payload = {}, message = {}", payload, message);
                         mut_conn.as_mut().send(Message::Text(message))?;
                     }
                     if let Some(b) = self.prepare_block.as_ref() {
