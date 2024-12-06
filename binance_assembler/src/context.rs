@@ -4,7 +4,7 @@ use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, 
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use binance::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer};
 
-use bybit::{bb_market_server::BbMarketServer, bb_sim_trade_server::BbSimTradeServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
+use bybit::{bb_market_server::BbMarketServer, bb_sim_market_server::BbSimMarketServer, bb_sim_trade_server::BbSimTradeServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
 use bybit::model::SymbolConfig as BbSymbolConfig;
 use bybit_connector::trade::new_order::NewOrderRequest as BbNewOrderRequest;
 use common::{error::AppError, msmc::Subscription};
@@ -20,8 +20,9 @@ pub enum MarketGateways {
     BnBacktest(MarketGateway<BnSimMarketServer>),
     BnReal(MarketGateway<BnMarketServer>),
 
-    BbReal(MarketGateway<BbMarketServer>),
     BbSim(MarketGateway<BbMarketServer>),
+    BbBacktest(MarketGateway<BbSimMarketServer>),
+    BbReal(MarketGateway<BbMarketServer>),
 }
 
 pub enum TradeGateways {
@@ -29,8 +30,9 @@ pub enum TradeGateways {
     BnBacktest(TradeGateway<BnSimTradeServer>),
     BnReal(TradeGateway<BnTradeServer>),
 
-    BbReal(TradeGateway<BbTradeServer>),
     BbSim(TradeGateway<BbSimTradeServer>),
+    BbBacktest(TradeGateway<BbSimTradeServer>),
+    BbReal(TradeGateway<BbTradeServer>),
 }
 
 impl MarketGateways {
@@ -49,6 +51,9 @@ impl MarketGateways {
                 return s.init();
             },
             MarketGateways::BbSim(s) => {
+                return s.init();
+            },
+            MarketGateways::BbBacktest(s) => {
                 return s.init();
             },
         }
@@ -70,6 +75,9 @@ impl MarketGateways {
             MarketGateways::BbSim(s) => {
                 return s.get_tick_sub();
             },
+            MarketGateways::BbBacktest(s) => {
+                return s.get_tick_sub();
+            },
         }
     }
     pub fn load_kline(&mut self, symbol: String, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
@@ -87,6 +95,9 @@ impl MarketGateways {
                 return s.load_kline(symbol, interval, count);
             },
             MarketGateways::BbSim(s) => {
+                return s.load_kline(symbol, interval, count);
+            },
+            MarketGateways::BbBacktest(s) => {
                 return s.load_kline(symbol, interval, count);
             },
         }
@@ -108,6 +119,9 @@ impl MarketGateways {
             MarketGateways::BbSim(s) => {
                 return s.subscribe_kline(symbol, interval)
             },
+            MarketGateways::BbBacktest(s) => {
+                return s.subscribe_kline(symbol, interval)
+            },
         }
     }
     pub fn subscribe_tick(&mut self, symbol: String) -> Receiver<MarketData> {
@@ -125,6 +139,9 @@ impl MarketGateways {
                 return s.subscribe_tick(symbol)
             },
             MarketGateways::BbSim(s) => {
+                return s.subscribe_tick(symbol)
+            },
+            MarketGateways::BbBacktest(s) => {
                 return s.subscribe_tick(symbol)
             },
         }
@@ -146,6 +163,9 @@ impl MarketGateways {
             MarketGateways::BbSim(s) => {
                 return s.start()
             },
+            MarketGateways::BbBacktest(s) => {
+                return s.start()
+            },
         }
     }
     pub fn close(&self) {
@@ -165,6 +185,9 @@ impl MarketGateways {
             MarketGateways::BbSim(s) => {
                 return s.close()
             },
+            MarketGateways::BbBacktest(s) => {
+                return s.close()
+            },
         }
     }
     pub fn get_server_ping(&self) -> usize {
@@ -182,6 +205,9 @@ impl MarketGateways {
                 return s.get_server_ping()
             },
             MarketGateways::BbSim(s) => {
+                return s.get_server_ping()
+            },
+            MarketGateways::BbBacktest(s) => {
                 return s.get_server_ping()
             },
         }
@@ -206,6 +232,9 @@ impl TradeGateways {
             TradeGateways::BbSim(s) => {
                 return s.init()
             },
+            TradeGateways::BbBacktest(s) => {
+                return s.init()
+            },
         }
     }
 
@@ -224,6 +253,9 @@ impl TradeGateways {
                 return s.start()
             },
             TradeGateways::BbSim(s) => {
+                return s.start()
+            },
+            TradeGateways::BbBacktest(s) => {
                 return s.start()
             },
         }
@@ -246,6 +278,9 @@ impl TradeGateways {
             TradeGateways::BbSim(s) => {
                 return s.close()
             },
+            TradeGateways::BbBacktest(s) => {
+                return s.close()
+            },
         }
     }
 
@@ -264,6 +299,9 @@ impl TradeGateways {
                 return s.register_symbol(symbol)
             },
             TradeGateways::BbSim(s) => {
+                return s.register_symbol(symbol)
+            },
+            TradeGateways::BbBacktest(s) => {
                 return s.register_symbol(symbol)
             },
         }
@@ -288,6 +326,10 @@ impl TradeGateways {
                 serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
             },
             TradeGateways::BbSim(s) => {
+                let ret = serde_json::from_str::<BbSymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
+            },
+            TradeGateways::BbBacktest(s) => {
                 let ret = serde_json::from_str::<BbSymbolConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
                 serde_json::to_value(s.init_symbol(symbol, ret)?).map_err(|e| AppError::new(-200, &e.to_string()))
             },
@@ -316,6 +358,10 @@ impl TradeGateways {
                 let ret = serde_json::from_str::<BbNewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
                 return s.new_order(symbol, ret)
             },
+            TradeGateways::BbBacktest(s) => {
+                let ret = serde_json::from_str::<BbNewOrderRequest>(request).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                return s.new_order(symbol, ret)
+            },
         }
     }
 
@@ -334,6 +380,9 @@ impl TradeGateways {
                 return s.cancel_order(symbol, request.to_string())
             },
             TradeGateways::BbSim(s) => {
+                return s.cancel_order(symbol, request.to_string())
+            },
+            TradeGateways::BbBacktest(s) => {
                 return s.cancel_order(symbol, request.to_string())
             },
         }
@@ -356,6 +405,9 @@ impl TradeGateways {
             TradeGateways::BbSim(s) => {
                 return s.cancel_orders(symbol)
             },
+            TradeGateways::BbBacktest(s) => {
+                return s.cancel_orders(symbol)
+            },
         }
     }
 
@@ -376,6 +428,9 @@ impl TradeGateways {
             TradeGateways::BbSim(s) => {
                 return s.get_positions(symbol)
             },
+            TradeGateways::BbBacktest(s) => {
+                return s.get_positions(symbol)
+            },
         }
     }
 
@@ -394,6 +449,9 @@ impl TradeGateways {
                 return s.get_account(account_id)
             },
             TradeGateways::BbSim(s) => {
+                return s.get_account(account_id)
+            },
+            TradeGateways::BbBacktest(s) => {
                 return s.get_account(account_id)
             },
         }
@@ -519,6 +577,26 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                     unsafe {
                         MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbSim(MarketGateway::new(Box::new(market_server))))));
                         TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbSim(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                "backtest" => {
+                    let config = serde_json::from_str::<BacktestConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
+                    binance::enable_prod(false);
+                    let market_server = BbSimMarketServer::new(SimMarketConfig {
+                        start_time: config.start_time,
+                        end_time: config.end_time,
+                        interval: config.interval,
+                        lines_per_sec: config.lines_per_sec,
+                    });
+                    let trade_server = BbSimTradeServer::new(SimTradeConfig {       
+                        order_completed_status: config.order_completed_status.clone(),
+                        asset: config.asset.clone(),
+                        balance: config.balance,
+                    });  
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbBacktest(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbBacktest(TradeGateway::new(Box::new(trade_server))))));
                     }
                 },
                 _ => {
