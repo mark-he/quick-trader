@@ -127,7 +127,6 @@ impl WssStream {
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        info!("Trade server ping: {}", string_data);
                     },
                     _ => {
                         warn!("Unexpected message: {:?}", message);
@@ -297,15 +296,15 @@ impl TradeServer for BnTradeServer {
     }
 
     fn start(&mut self) -> Result<Subscription<TradeEvent>, AppError> {
-        let sub = self.wss_stream.subscribe();
+        let mut sub = self.wss_stream.subscribe();
+        let ext_sub = sub.subscribe();
         self.subscription = Arc::new(Mutex::new(sub));
 
         self.monitor_account_positions();
 
         let credentials = self.credentials.clone();
         self.wss_stream.connect(credentials);
-        let sub = self.wss_stream.subscribe();
-        Ok(sub)
+        Ok(ext_sub)
     }
 
     fn new_order(&mut self, _symbol: String, request : NewOrderRequest) -> Result<(), AppError> {

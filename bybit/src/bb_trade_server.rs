@@ -60,7 +60,6 @@ impl WssStream {
                 }
                 match message {
                     Message::Text(string_data) => {
-                        info!("Trade server: {}", string_data);
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
                         let topic = json_value.get("topic");
                         if let Some(topic_value) = topic {
@@ -187,19 +186,30 @@ impl BbTradeServer {
                     TradeEvent::PositionUpdate(a) => {
                         let mut positions = positions_ref.write().unwrap();
                         let mut found = false;
+                        let mut changed = false;
+                        info!("POSITION UPDATE {:?}", a);
                         for p in positions.iter_mut() {
                             if p.symbol == a.symbol && p.position_side == a.position_side {
-                                p.cost = a.cost;
-                                p.symbol = a.symbol.clone();
-                                p.side = a.side.clone();
-                                p.amount = a.amount;
                                 found = true;
+                                if p != a {
+                                    changed = true;
+                                    p.cost = a.cost;
+                                    p.symbol = a.symbol.clone();
+                                    p.amount = a.amount;
+                                    p.side = a.side.clone();
+                                    info!("POSITION UPDATE FOUND !!! {:?}", a);
+                                }
                                 break;
                             }
                         }
                         if !found {
-                            positions.push(a.clone());
+                            if a.side != "" {
+                                positions.push(a.clone());
+                                changed = true;
+                            }
                         }
+                        info!("POSITION UPDATE AFTER !!! {:?}", positions);
+                        return Ok(changed);
                     },
                     TradeEvent::AccountUpdate(a) => {
                         let mut wallets = wallets_ref.write().unwrap();
@@ -263,7 +273,6 @@ impl BbTradeServer {
                 self.positions.write().unwrap().push(position);
             }
         }
-        
         Ok(())
     }
 }
@@ -291,15 +300,15 @@ impl TradeServer for BbTradeServer {
     }
 
     fn start(&mut self) -> Result<Subscription<TradeEvent>, AppError> {
-        let sub = self.wss_stream.subscribe();
+        let mut sub = self.wss_stream.subscribe();
+        let ext_sub = sub.subscribe();
         self.subscription = Arc::new(Mutex::new(sub));
 
         self.monitor_account_positions();
 
         let credentials = self.credentials.clone();
         self.wss_stream.connect(credentials);
-        let sub = self.wss_stream.subscribe();
-        Ok(sub)
+        Ok(ext_sub)
     }
 
     fn new_order(&mut self, _symbol: String, request : NewOrderRequest) -> Result<(), AppError> {

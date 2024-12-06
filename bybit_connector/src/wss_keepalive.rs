@@ -1,5 +1,4 @@
 use std::{net::TcpStream, sync::{atomic::{AtomicUsize, Ordering}, Arc}, thread::{self, sleep}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
-use log::info;
 use tungstenite::{stream::MaybeTlsStream, Message};
 use crate::{http::Credentials, tungstenite::{BybitWebSocketClient, WebSocketState}};
 use std::error::Error;

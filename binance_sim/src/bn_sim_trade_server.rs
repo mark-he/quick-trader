@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex, RwLock};
 use common::{error::AppError, msmc::Subscription};
 use binance_future_connector::trade::{enums::{MarginAssetMode, OrderType, PositionMode, PositionSide}, new_order::NewOrderRequest};
-use log::info;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use trade::trade_server::{Order, Position, TradeEvent, TradeServer, Wallet};
 use binance::{bn_trade_server::BnTradeServerTrait, model::*};
@@ -123,8 +122,6 @@ impl TradeServer for BnSimTradeServer {
             ..Default::default()
         };
         sub.send(&TradeEvent::OrderUpdate(order_data));
-
-        info!("{:?}", positions);
         Ok(())
     }
 

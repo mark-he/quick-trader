@@ -1,7 +1,5 @@
 use bybit_connector::ureq::{Error, Response};
 use common::error::AppError;
-
-use log::info;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
@@ -23,7 +21,6 @@ pub fn get_resp_result<T: DeserializeOwned>(ret: Result<Response, Box<Error>>, s
             let ret2 = resp.into_body_str();
             match ret2 {
                 Ok(data) => {
-                    info!("{}", data);
                     let mut json_value: Value = serde_json::from_str(&data).unwrap();
                     if let Some(v) = json_value.get("retCode") {
                         if v.as_i64().unwrap() == 0 {
