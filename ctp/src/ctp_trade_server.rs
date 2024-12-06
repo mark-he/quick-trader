@@ -535,7 +535,7 @@ impl TradeServer for CtpTradeServer {
 
             for p in v.iter() {
                 if p.side != request.direction {
-                    last_day = (last_day as f64 + (p.amount - p.ext1)) as u32;
+                    last_day = (last_day as f64 + (p.amount - p.today_amount)) as u32;
                 }
             }
 

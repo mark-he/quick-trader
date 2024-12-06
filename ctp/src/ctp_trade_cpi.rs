@@ -61,7 +61,7 @@ impl Spi {
         let position = Position {
             symbol : c_char_to_string(pRspInfo.InstrumentID.as_ptr()),
             amount: pRspInfo.Position as f64,
-            ext1: pRspInfo.TodayPosition as f64,
+            today_amount: pRspInfo.TodayPosition as f64,
             side: POSITION_DIRECTION_REV.as_ref().get(&(pRspInfo.PosiDirection as u8)).unwrap().to_string(),
             cost: pRspInfo.PositionCost,
             position_side: POSITION_DIRECTION_REV.as_ref().get(&(pRspInfo.PosiDirection as u8)).unwrap().to_string(),

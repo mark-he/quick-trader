@@ -34,7 +34,7 @@ pub struct Position {
     pub side: String,
     pub amount: f64,
     pub cost: f64,
-    pub ext1: f64,
+    pub today_amount: f64,
 }
 
 impl PartialEq for Position {
@@ -44,7 +44,7 @@ impl PartialEq for Position {
         self.side == other.side &&
         self.amount == other.amount &&
         self.cost == other.cost &&
-        self.ext1 == other.ext1
+        self.today_amount == other.today_amount
     }
 }
 
