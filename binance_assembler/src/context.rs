@@ -2,7 +2,7 @@ use std::{str::FromStr, sync::{Arc, Mutex}};
 
 use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{BnMarketConfig, BnTradeConfig, SymbolConfig}};
 use binance_future_connector::trade::new_order::NewOrderRequest;
-use binance_sim::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer, model::{SimMarketConfig, SimTradeConfig}};
+use binance::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer, model::{SimMarketConfig, SimTradeConfig}};
 
 use bybit::{bb_market_server::BbMarketServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
 use bybit::model::SymbolConfig as BbSymbolConfig;

@@ -145,16 +145,6 @@ impl WssStream {
     }
 }
 
-pub trait BnTradeServerTrait : TradeServer<
-        OrderRequest = NewOrderRequest,
-        CancelOrderRequest = String,
-        SymbolConfig = SymbolConfig,
-        SymbolInfo = SymbolInfo,
-        Symbol = String,
-        > {}
-
-impl BnTradeServerTrait for BnTradeServer {}
-
 pub struct BnTradeServer {
     pub config: BnTradeConfig,
     pub credentials: Credentials,
@@ -271,14 +261,6 @@ impl BnTradeServer {
     }
 
 }
-
-pub type BnTradeServerType = dyn TradeServer<
-            OrderRequest = NewOrderRequest,
-            CancelOrderRequest = String,
-            SymbolConfig = SymbolConfig,
-            SymbolInfo = SymbolInfo,
-            Symbol = String,
-            >;
 
 impl TradeServer for BnTradeServer {
     type OrderRequest = NewOrderRequest;

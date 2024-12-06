@@ -1,5 +1,5 @@
-use binance::bn_market_server::{convert_json_to_k_lines, MarketTopic};
-use binance::model;
+use crate::bn_market_server::{convert_json_to_k_lines, MarketTopic};
+use crate::model;
 use binance_future_connector::market::klines::KlineInterval;
 use binance_future_connector::ureq::BinanceHttpClient;
 use binance_future_connector::market as bn_market;

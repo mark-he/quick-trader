@@ -3,11 +3,9 @@ use common::{error::AppError, msmc::Subscription};
 use binance_future_connector::trade::{enums::{MarginAssetMode, OrderType, PositionMode, PositionSide}, new_order::NewOrderRequest};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use trade::trade_server::{Order, Position, TradeEvent, TradeServer, Wallet};
-use binance::{bn_trade_server::BnTradeServerTrait, model::*};
+use crate::model::*;
 
 use crate::model::SimTradeConfig;
-
-impl BnTradeServerTrait for BnSimTradeServer {}
 pub struct BnSimTradeServer {
     pub config: SimTradeConfig,
     pub positions: Arc<RwLock<Vec<Position>>>,
@@ -57,10 +55,6 @@ impl TradeServer for BnSimTradeServer {
 
         let mut positions = self.positions.write().unwrap();
         let mut found: Option<Position> = None;
-
-        if request.position_side.is_none() {
-            request.position_side = Some(PositionSide::Both);
-        }
 
         for p in positions.iter_mut() {
             if p.symbol == request.symbol && p.position_side == request.position_side.unwrap().to_string() {

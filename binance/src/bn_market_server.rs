@@ -239,8 +239,6 @@ impl WssStream {
     }
 }
 
-pub type BnMarketServerType = dyn MarketServer<Symbol = String>;
-
 pub struct BnMarketServer {
     pub config: BnMarketConfig,
     pub wss_stream: WssStream,
