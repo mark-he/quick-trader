@@ -88,7 +88,12 @@ impl WssKeepalive {
                         )?;
             
                         let message = format!("{{\"op\": \"auth\",\"args\": [\"{}\",{},\"{}\"]}}", api_key, timestamp, signature);
-                        mut_conn.as_mut().send(Message::Text(message))?;
+                        let ret = mut_conn.as_mut().send(Message::Text(message));
+                        if ret.is_err() {
+                            self.conn = None;
+                            thread::sleep(Duration::from_secs(1));
+                            break;
+                        }
                     }
                     if let Some(b) = self.prepare_block.as_ref() {
                         b(mut_conn);
