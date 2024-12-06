@@ -230,7 +230,9 @@ pub struct PositionDetail {
     pub position_value: String,
     pub position_balance: String,
     pub mark_price: String,
+    #[serde(rename = "positionIM")]
     pub position_im: String,
+    #[serde(rename = "positionMM")]
     pub position_mm: String,
     pub take_profit: String,
     pub stop_loss: String,
@@ -328,16 +330,20 @@ pub struct WalletData {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WalletDetail {
+    #[serde(rename = "accountIMRate")]
     pub account_im_rate: String,
+    #[serde(rename = "accountMMRate")]
     pub account_mm_rate: String,
     pub total_equity: String,
     pub total_wallet_balance: String,
     pub total_margin_balance: String,
     pub total_available_balance: String,
+    #[serde(rename = "totalPerpUPL")]
     pub total_perp_upl: String,
     pub total_initial_margin: String,
     pub total_maintenance_margin: String,
     pub coin: Vec<CoinDetail>,
+    #[serde(rename = "accountLTV")]
     pub account_ltv: String,
     pub account_type: String,
 }
@@ -357,8 +363,11 @@ pub struct CoinDetail {
     #[serde(deserialize_with = "string_to_f64")]
     pub borrow_amount: f64,
     pub accrued_interest: String,
+    #[serde(rename = "totalOrderIM")]
     pub total_order_im: String,
+    #[serde(rename = "totalPositionIM")]
     pub total_position_im: String,
+    #[serde(rename = "totalPositionMM")]
     pub total_position_mm: String,
     #[serde(deserialize_with = "string_to_f64")]
     pub unrealised_pnl: f64,
@@ -426,7 +435,11 @@ fn string_to_f64<'de, D>(deserializer: D) -> Result<f64, D::Error>
        D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    s.parse::<f64>().map_err(serde::de::Error::custom)
+    if s == "" {
+        Ok(0 as f64)
+    } else  {
+        s.parse::<f64>().map_err(serde::de::Error::custom)
+    }
 }
 
 
@@ -524,7 +537,9 @@ pub struct PositionInfo {
     pub mark_price: String,
     pub liq_price: String,
     pub bust_price: String,
+    #[serde(rename = "positionIM")]
     pub position_im: String,
+    #[serde(rename = "positionMM")]
     pub position_mm: String,
     #[serde(deserialize_with = "string_to_f64")]
     pub position_balance: f64,
@@ -532,10 +547,10 @@ pub struct PositionInfo {
     pub stop_loss: String,
     pub trailing_stop: String,
     pub session_avg_price: String,
-    pub delta: String,
-    pub gamma: String,
-    pub vega: String,
-    pub theta: String,
+    //pub delta: String,
+    //pub gamma: String,
+    //pub vega: String,
+    //pub theta: String,
     pub unrealised_pnl: String,
     pub cur_realised_pnl: String,
     pub cum_realised_pnl: String,

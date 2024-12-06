@@ -109,6 +109,7 @@ impl WssStream {
                                             total: order_trade_update_event.order.original_quantity,
                                             side: order_trade_update_event.order.side.clone(),
                                             timestamp: order_trade_update_event.order.order_trade_time,
+                                            offset: if order_trade_update_event.order.is_reduce_only { "CLOSE".to_string() } else { "OPEN".to_string() },
                                             ..Default::default()
                                         };
                                         subscription.send(&TradeEvent::OrderUpdate(order));
@@ -195,6 +196,7 @@ impl BnTradeServer {
                                 p.cost = a.cost;
                                 p.symbol = a.symbol.clone();
                                 p.side = a.side.clone();
+                                p.amount = a.amount;
                                 found = true;
                                 break;
                             }

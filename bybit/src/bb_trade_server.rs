@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicUsize, Ordering}, Arc, Mutex, RwLock}, thread::J
 use common::{error::AppError, msmc::Subscription, thread::{Handler, InteractiveThread, Rx}};
 use serde_json::Value;
 use bybit_connector::{
-    account, enums::Category, http::Credentials, trade::{self as bb_trade, new_order::NewOrderRequest}, ureq::BybitHttpClient, wss_keepalive::WssKeepalive
+    account, enums::Category, http::Credentials, trade::{self as bb_trade, new_order::NewOrderRequest}, ureq::BybitHttpClient, websocket::Stream, wss_keepalive::WssKeepalive
 };
 use trade::trade_server::{Order, Position, TradeEvent, TradeServer, Wallet};
 use tungstenite::Message;
@@ -46,7 +46,13 @@ impl WssStream {
         let credentials = self.credentials.clone();
         let closure = move |_rx: Rx<String>| {
             let subscription = subscription_ref.lock().unwrap();
-            let mut keepalive = WssKeepalive::new(&format!("{}/v5/private", bybit_connector::config::wss_api())).credentials(credentials);
+            let mut keepalive = WssKeepalive::new(&format!("{}/v5/private", bybit_connector::config::wss_api())).credentials(credentials).prepare(|conn| {
+                conn.subscribe(vec![
+                    &Stream::new("order"), 
+                    &Stream::new("position"), 
+                    &Stream::new("wallet")
+                    ]);
+            });
 
             let _ = keepalive.stream(&mut |message| {
                 if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
@@ -54,8 +60,8 @@ impl WssStream {
                 }
                 match message {
                     Message::Text(string_data) => {
+                        info!("Trade server: {}", string_data);
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
-
                         let topic = json_value.get("topic");
                         if let Some(topic_value) = topic {
                             let vs: Vec<&str> = topic_value.as_str().unwrap().split('.').collect();
@@ -94,6 +100,7 @@ impl WssStream {
                                         let order = Order {
                                             order_id: o.order_id.clone(),
                                             client_order_id: o.order_link_id.clone(),
+                                            order_type: o.order_type,
                                             symbol: o.symbol.clone(),
                                             status: o.order_status.clone(),
                                             traded: o.cum_exec_qty,
@@ -101,6 +108,7 @@ impl WssStream {
                                             side: o.side.clone(),
                                             message: o.reject_reason.clone(),
                                             timestamp: o.created_time as u64,
+                                            offset: if o.reduce_only { "CLOSE".to_string() } else {"OPEN".to_string()},
                                             ..Default::default()
                                         };
                                         subscription.send(&TradeEvent::OrderUpdate(order));
@@ -117,7 +125,6 @@ impl WssStream {
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
                         server_ping_ref.store(string_data.parse::<usize>()?, Ordering::SeqCst);
-                        info!("Trade server ping: {}", string_data);
                     },
                     _ => {
                         warn!("Unexpected message: {:?}", message);
@@ -185,6 +192,7 @@ impl BbTradeServer {
                                 p.cost = a.cost;
                                 p.symbol = a.symbol.clone();
                                 p.side = a.side.clone();
+                                p.amount = a.amount;
                                 found = true;
                                 break;
                             }

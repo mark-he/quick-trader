@@ -111,6 +111,4 @@ pub struct BnSimConfig {
     pub balance: u64,
     pub leverage: u64,
     pub order_completed_status: String,
-    pub settle_coin: String,
-    pub margin_mode: String,
 }
