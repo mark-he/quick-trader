@@ -99,7 +99,7 @@ pub trait TradeServer {
     fn init(&mut self) -> Result<(), AppError>;
     fn start(&mut self) -> Result<Subscription<TradeEvent>, AppError>;
     fn new_order(&mut self, symbol: Self::Symbol, request: Self::OrderRequest) -> Result<(), AppError>;
-    fn cancel_order(&mut self, symbol: Self::Symbol, requset: Self::CancelOrderRequest) -> Result<(), AppError>;
+    fn cancel_order(&mut self, symbol: Self::Symbol, request: Self::CancelOrderRequest) -> Result<(), AppError>;
     fn cancel_orders(&mut self, symbol: Self::Symbol) -> Result<(), AppError>;
     fn init_symbol(&self, symbol: Self::Symbol, config: Self::SymbolConfig)-> Result<Self::SymbolInfo, AppError>;
     fn get_positions(&self, symbol: Self::Symbol) -> Result<Vec<Position>, AppError>;

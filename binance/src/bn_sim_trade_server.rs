@@ -1,25 +1,16 @@
-use std::sync::{Arc, Mutex, RwLock};
 use common::{error::AppError, msmc::Subscription};
-use binance_future_connector::trade::{enums::{MarginAssetMode, OrderType, PositionMode, PositionSide}, new_order::NewOrderRequest};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-use trade::trade_server::{Order, Position, TradeEvent, TradeServer, Wallet};
+use binance_future_connector::trade::{enums::{MarginAssetMode, PositionMode}, new_order::NewOrderRequest};
+use trade::{sim_trade_server::{SimTradeConfig, SimTradeServer, NewOrderRequest as SimNewOrderRequest}, trade_server::{Position, TradeEvent, TradeServer, Wallet}};
 use crate::model::*;
-
-use crate::model::SimTradeConfig;
 pub struct BnSimTradeServer {
-    pub config: SimTradeConfig,
-    pub positions: Arc<RwLock<Vec<Position>>>,
-    pub assets: Arc<RwLock<Vec<Wallet>>>,
-    pub subscription: Arc<Mutex<Subscription<TradeEvent>>>,
+    pub inner: SimTradeServer,
 }
 
 impl BnSimTradeServer {
     pub fn new(config: SimTradeConfig) -> Self {
+        let inner = SimTradeServer::new(config);
         BnSimTradeServer {
-            config,
-            positions: Arc::new(RwLock::new(Vec::new())),
-            assets: Arc::new(RwLock::new(Vec::new())),
-            subscription: Arc::new(Mutex::new(Subscription::top())),
+            inner,
         }
     }
 }
@@ -32,122 +23,41 @@ impl TradeServer for BnSimTradeServer {
     type Symbol = String;
     
     fn init(&mut self) -> Result<(), AppError> {
-        self.assets.write().unwrap().push(Wallet {
-            asset: self.config.asset.clone(),
-            balance: self.config.balance as f64,
-            available_balance: self.config.balance as f64,
-            ..Default::default()
-        });
-        Ok(())
+       self.inner.init()
     }
 
     fn start(&mut self) -> Result<Subscription<TradeEvent>, AppError> {
-        let mut top = Subscription::<TradeEvent>::top();
-        let sub = top.subscribe();
-        self.subscription = Arc::new(Mutex::new(top));
-        Ok(sub)
+        self.inner.start()
     }
 
-    fn new_order(&mut self, _symbol: String, mut request : NewOrderRequest) -> Result<(), AppError> {
-        if request.type_.to_string() == OrderType::Market.to_string() {
-            return Err(AppError::new(-200, "Sim Trade Server does not support MARKET order type"));
-        }
-
-        let mut positions = self.positions.write().unwrap();
-        let mut found: Option<Position> = None;
-
-        for p in positions.iter_mut() {
-            if p.symbol == request.symbol && p.position_side == request.position_side.unwrap().to_string() {
-                let quantity: f64;
-                if let Some(v) = request.quantity {
-                    quantity = v.to_string().parse::<f64>().unwrap();
-                } else {
-                    quantity = p.amount;
-                }
-                request.quantity = Decimal::from_f64(quantity);
-                if p.side != request.side.to_string() {
-                    p.amount = p.amount - quantity;
-                } else {
-                    p.amount = p.amount + quantity;
-                }
-                found = Some(p.clone());
-                break;
-            }
-        }
-
-        if found.is_none() {
-            let quantity = request.quantity.unwrap().to_string().parse::<f64>().unwrap();
-            let p = Position {
-                symbol: request.symbol.clone(),
-                cost: request.price.unwrap().to_string().parse::<f64>().unwrap(),
-                position_side: "BOTH".to_string(),
-                side: request.side.to_string(),
-                amount: quantity,
-                ..Default::default()
-            };
-            positions.push(p.clone());
-            found = Some(p);
-        } else {
-            let p = found.as_ref().unwrap();
-            if p.amount == 0.0 {
-                let idx = positions.iter().position(|x| x == p);
-                positions.remove(idx.unwrap());
-            }
-        }
-
-        let sub = self.subscription.lock().unwrap();
-        let p = found.take().unwrap();
-        sub.send(&TradeEvent::PositionUpdate(p));
-
-        let quantity = request.quantity.unwrap().to_string().parse::<f64>().unwrap();
-        let mut price = 0 as f64;
-        if let Some(v) = request.price {
-            price = v.to_string().parse::<f64>().unwrap();
-        }
-        let order_data = Order {
+    fn new_order(&mut self, symbol: String, request : NewOrderRequest) -> Result<(), AppError> {
+        let sim_order = SimNewOrderRequest{
             symbol: request.symbol.clone(),
-            client_order_id: request.new_client_order_id.unwrap().clone(),
             side: request.side.to_string(),
+            position_side: request.position_side.unwrap().to_string(),
             order_type: request.type_.to_string(),
-            price,
-            total: quantity,
-            traded: quantity,
-            status: self.config.order_completed_status.clone(),
-            ..Default::default()
+            reduce_only: if request.reduce_only.is_some() {"true" == request.reduce_only.unwrap()} else { false},
+            quantity: request.quantity,
+            price: request.price,
+            new_client_order_id: request.new_client_order_id,
         };
-        sub.send(&TradeEvent::OrderUpdate(order_data));
-        Ok(())
+        self.inner.new_order(symbol, sim_order)
     }
 
-    fn cancel_order(&mut self, _symbol: String, _request: String) -> Result<(), AppError> {
-        Ok(())
+    fn cancel_order(&mut self, symbol: String, request: String) -> Result<(), AppError> {
+        self.inner.cancel_order(symbol, request)
     }
 
-    fn cancel_orders(&mut self, _symbol: String) -> Result<(), AppError> {
-        Ok(())
+    fn cancel_orders(&mut self, symbol: String) -> Result<(), AppError> {
+        self.inner.cancel_orders(symbol)
     }
 
     fn get_positions(&self, symbol: String) -> Result<Vec<Position>, AppError> {
-        let positions = self.positions.read().unwrap();
-        let mut ret = vec![];
-        for position in positions.iter() {
-            if position.symbol == symbol && position.amount > 0.0 {
-                ret.push(position.clone());
-            }
-        }
-        Ok(ret)
+        self.inner.get_positions(symbol)
     }
 
     fn get_account(&self, account_id: &str) -> Result<Option<Wallet>, AppError>{
-        let assets = self.assets.read().unwrap();
-        let mut ret = None;
-        for asset in assets.iter() {
-            if account_id == asset.asset && asset.balance > 0.0 {
-                ret = Some(asset.clone());
-                break;
-            }
-        }
-        Ok(ret)
+        self.inner.get_account(account_id)
     }
     
     fn init_symbol(&self, symbol: String, config: Self::SymbolConfig) -> Result<SymbolInfo, AppError> {

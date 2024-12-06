@@ -2,16 +2,16 @@ use std::{str::FromStr, sync::{Arc, Mutex}};
 
 use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, model::{BnMarketConfig, BnTradeConfig, SymbolConfig}};
 use binance_future_connector::trade::new_order::NewOrderRequest;
-use binance::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer, model::{SimMarketConfig, SimTradeConfig}};
+use binance::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer};
 
 use bybit::{bb_market_server::BbMarketServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
 use bybit::model::SymbolConfig as BbSymbolConfig;
 use bybit_connector::trade::new_order::NewOrderRequest as BbNewOrderRequest;
 use common::{error::AppError, msmc::Subscription};
 use crossbeam::channel::Receiver;
-use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}};
+use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}, sim_market_server::SimMarketConfig};
 use serde_json::Value;
-use trade::{trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
+use trade::{sim_trade_server::SimTradeConfig, trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
 
 use crate::model::{BacktestConfig, BbRealConfig, BnRealConfig, BnSimConfig};
 

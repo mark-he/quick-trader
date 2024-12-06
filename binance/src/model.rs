@@ -35,22 +35,6 @@ pub fn get_resp_result(ret: Result<Response, Box<Error>>, skipped_code: Vec<i16>
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct SimMarketConfig {
-    pub start_time: u64,
-    pub end_time: u64,
-    pub interval: u64,
-    pub lines_per_sec: u64,
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct SimTradeConfig {
-    pub order_completed_status: String,
-    pub asset: String,
-    pub balance: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct SymbolConfig {
     pub margin_type: MarginType, 
     pub leverage: i32,
