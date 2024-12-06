@@ -4,7 +4,7 @@ use binance::{bn_market_server::BnMarketServer, bn_trade_server::BnTradeServer, 
 use binance_future_connector::trade::new_order::NewOrderRequest;
 use binance::{bn_sim_market_server::BnSimMarketServer, bn_sim_trade_server::BnSimTradeServer};
 
-use bybit::{bb_market_server::BbMarketServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
+use bybit::{bb_market_server::BbMarketServer, bb_sim_trade_server::BbSimTradeServer, bb_trade_server::BbTradeServer, model::{BbMarketConfig, BbTradeConfig}};
 use bybit::model::SymbolConfig as BbSymbolConfig;
 use bybit_connector::trade::new_order::NewOrderRequest as BbNewOrderRequest;
 use common::{error::AppError, msmc::Subscription};
@@ -13,7 +13,7 @@ use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}, 
 use serde_json::Value;
 use trade::{sim_trade_server::SimTradeConfig, trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
 
-use crate::model::{BacktestConfig, BbRealConfig, BnRealConfig, BnSimConfig};
+use crate::model::{BacktestConfig, BbRealConfig, BbSimConfig, BnRealConfig, BnSimConfig};
 
 pub enum MarketGateways {
     BnSim(MarketGateway<BnMarketServer>),
@@ -30,7 +30,7 @@ pub enum TradeGateways {
     BnReal(TradeGateway<BnTradeServer>),
 
     BbReal(TradeGateway<BbTradeServer>),
-    BbSim(TradeGateway<BbTradeServer>),
+    BbSim(TradeGateway<BbSimTradeServer>),
 }
 
 impl MarketGateways {
@@ -505,19 +505,17 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                     }
                 },
                 "sim" => {
-                    let config = serde_json::from_str::<BbRealConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    let config = serde_json::from_str::<BbSimConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
                     log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
                     binance::enable_prod(false);
                     let market_server = BbMarketServer::new(BbMarketConfig {
                         depth_level: config.depth_level.clone(),
                     });
-                    let trade_server = BbTradeServer::new(BbTradeConfig {       
-                        api_key: config.api_key.clone(), 
-                        api_secret: config.api_secret.clone(),
-                        position_side: config.position_side,
-                        settle_coin: config.settle_coin.clone(),
-                        margin_mode: config.margin_mode.clone(),
-                    });
+                    let trade_server = BbSimTradeServer::new(SimTradeConfig {       
+                        order_completed_status: config.order_completed_status.clone(),
+                        asset: config.asset.clone(),
+                        balance: config.balance,
+                    });  
                     unsafe {
                         MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbSim(MarketGateway::new(Box::new(market_server))))));
                         TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbSim(TradeGateway::new(Box::new(trade_server))))));

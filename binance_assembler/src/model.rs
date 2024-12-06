@@ -89,6 +89,19 @@ pub struct BnRealConfig {
     pub multi_assets_margin: MarginAssetMode,
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct BnSimConfig {
+    pub log_utc: bool,
+    pub log_level: String,
+    pub tick_update_speed: Option<UpdateSpeed>,
+    pub depth_level: Level,
+    pub asset: String,
+    pub balance: u64,
+    pub leverage: u64,
+    pub order_completed_status: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize,)]
 pub struct BbRealConfig {
     pub log_utc: bool,
@@ -102,13 +115,11 @@ pub struct BbRealConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct BnSimConfig {
+pub struct BbSimConfig {
     pub log_utc: bool,
     pub log_level: String,
-    pub tick_update_speed: Option<UpdateSpeed>,
-    pub depth_level: Level,
+    pub depth_level: u32,
     pub asset: String,
     pub balance: u64,
-    pub leverage: u64,
     pub order_completed_status: String,
 }
