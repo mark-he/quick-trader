@@ -106,30 +106,39 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
     let gateway_ref = context::get_market_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
 
-    let rx  = gateway.subscribe_kline(symbol_rust.clone(), interval_rust.as_str());
-    let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
-    thread::spawn(move || {
-        loop {
-            if let Ok(data) = rx.recv() {
-                match data {
-                    MarketData::Kline(k) => {
-                        let json = serde_json::to_string(&k).unwrap();
-                        let json_rust = CString::new(json).expect("CString failed");
-                        callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
-                    },
-                    _ => {},
+    let ret = gateway.subscribe_kline(symbol_rust.clone(), interval_rust.as_str());
+    if ret.is_ok() {
+        let rx  = ret.unwrap();
+        let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
+        thread::spawn(move || {
+            loop {
+                if let Ok(data) = rx.recv() {
+                    match data {
+                        MarketData::Kline(k) => {
+                            let json = serde_json::to_string(&k).unwrap();
+                            let json_rust = CString::new(json).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
+                        },
+                        _ => {},
+                    }
                 }
             }
-        }
-    });
-    let ret = gateway.load_kline(symbol_rust, &interval_rust, count as u32);
-    match ret {
-        Ok(klines) => {
-            result.data = Some(klines);
-        },
-        Err(e) => {
-            result.error_code = -1;
-            result.message = format!("{:?}", e);
+        });
+    } else {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    }
+    
+    if result.error_code == 0 {
+        let ret = gateway.load_kline(symbol_rust, &interval_rust, count as u32);
+        match ret {
+            Ok(klines) => {
+                result.data = Some(klines);
+            },
+            Err(e) => {
+                result.error_code = -1;
+                result.message = format!("{:?}", e);
+            }
         }
     }
     result.to_c_json()
@@ -137,27 +146,34 @@ pub extern "C" fn subscribe_kline(sub_id : *const c_char, symbol : *const c_char
 
 #[no_mangle]
 pub extern "C" fn subscribe_tick(sub_id : *const c_char, symbol : *const c_char, callback: extern "C" fn(*const c_char, *const c_char)) -> Box<CString> {
-    let result = ServiceResult::<String>::new(0, "", None);
+    let mut result = ServiceResult::<String>::new(0, "", None);
 
     let symbol_rust = c_char_to_string(symbol);
     let gateway_ref = context::get_market_gateway();
     let mut gateway = gateway_ref.lock().unwrap();
-    let rx  = gateway.subscribe_tick(symbol_rust);
-    let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
-    thread::spawn(move || {
-        loop {
-            if let Ok(data) = rx.recv() {
-                match data {
-                    MarketData::Tick(tick) => {
-                        let json = serde_json::to_string(&tick).unwrap();
-                        let json_rust = CString::new(json).expect("CString failed");
-                        callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
-                    },
-                    _ => {},
+    let ret = gateway.subscribe_tick(symbol_rust);
+    if ret.is_ok() {
+        let rx  = ret.unwrap();
+        let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
+        thread::spawn(move || {
+            loop {
+                if let Ok(data) = rx.recv() {
+                    match data {
+                        MarketData::Tick(tick) => {
+                            let json = serde_json::to_string(&tick).unwrap();
+                            let json_rust = CString::new(json).expect("CString failed");
+                            callback(sub_id_rust.as_ptr(), json_rust.as_ptr());
+                        },
+                        _ => {},
+                    }
                 }
             }
-        }
-    });
+        });
+    } else {
+        result.error_code = -1;
+        result.message = format!("{:?}", ret.unwrap_err());
+    }
+    
     result.to_c_json()
 }
 
@@ -265,36 +281,43 @@ pub extern "C" fn init_symbol_trade(sub_id: *const c_char, symbol: *const c_char
         },
     }
     if result.error_code == 0 {
-        let rx = gateway.register_symbol(symbol_rust.clone());
-        let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
-        thread::spawn(move || {
-            loop {
-                if let Ok(data) = rx.recv() {
-                    match data {
-                        TradeEvent::OrderUpdate(order) => {
-                            if symbol_rust == order.symbol {
-                                let json = serde_json::to_string(&order).unwrap();
+        let ret = gateway.register_symbol(symbol_rust.clone());
+        if ret.is_ok() {
+            let rx = ret.unwrap();
+            let sub_id_rust = CString::new(c_char_to_string(sub_id)).expect("CString failed");
+            thread::spawn(move || {
+                loop {
+                    if let Ok(data) = rx.recv() {
+                        match data {
+                            TradeEvent::OrderUpdate(order) => {
+                                if symbol_rust == order.symbol {
+                                    let json = serde_json::to_string(&order).unwrap();
+                                    let json_rust = CString::new(json).expect("CString failed");
+                                    let _type = CString::new("ORDER".to_string()).expect("CString failed");
+                                    callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                                }
+                            },
+                            TradeEvent::PositionUpdate(position) => {
+                                let json = serde_json::to_string(&position).unwrap();
                                 let json_rust = CString::new(json).expect("CString failed");
-                                let _type = CString::new("ORDER".to_string()).expect("CString failed");
+                                let _type = CString::new("POSITION".to_string()).expect("CString failed");
                                 callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
                             }
-                        },
-                        TradeEvent::PositionUpdate(position) => {
-                            let json = serde_json::to_string(&position).unwrap();
-                            let json_rust = CString::new(json).expect("CString failed");
-                            let _type = CString::new("POSITION".to_string()).expect("CString failed");
-                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            TradeEvent::AccountUpdate(wallet) => {
+                                let json = serde_json::to_string(&wallet).unwrap();
+                                let json_rust = CString::new(json).expect("CString failed");
+                                let _type = CString::new("ACCOUNT".to_string()).expect("CString failed");
+                                callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
+                            },
                         }
-                        TradeEvent::AccountUpdate(wallet) => {
-                            let json = serde_json::to_string(&wallet).unwrap();
-                            let json_rust = CString::new(json).expect("CString failed");
-                            let _type = CString::new("ACCOUNT".to_string()).expect("CString failed");
-                            callback(sub_id_rust.as_ptr(), _type.as_ptr(), json_rust.as_ptr());
-                        },
                     }
                 }
-            }
-        });
+            });
+        }
+        else {
+            result.error_code = -1;
+            result.message = format!("{:?}", ret.unwrap_err());
+        }
     }
     result.to_c_json()
 }

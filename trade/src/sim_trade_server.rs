@@ -13,7 +13,7 @@ pub struct SimTradeConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize,)]
-pub struct NewOrderRequest {
+pub struct SimNewOrderRequest {
     pub symbol: String,
     pub side: String,
     pub position_side: String,
@@ -43,7 +43,7 @@ impl SimTradeServer {
 }
 
 impl TradeServer for SimTradeServer {
-    type OrderRequest = NewOrderRequest;
+    type OrderRequest = SimNewOrderRequest;
     type CancelOrderRequest = String;
     type SymbolConfig = String;
     type SymbolInfo = String;
@@ -66,7 +66,7 @@ impl TradeServer for SimTradeServer {
         Ok(sub)
     }
 
-    fn new_order(&mut self, _symbol: String, mut request : NewOrderRequest) -> Result<(), AppError> {
+    fn new_order(&mut self, _symbol: String, mut request : SimNewOrderRequest) -> Result<(), AppError> {
         if request.order_type.to_string().to_uppercase() == "MARKET" {
             return Err(AppError::new(-200, "Sim Trade Server does not support MARKET order type"));
         }

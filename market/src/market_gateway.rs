@@ -45,7 +45,7 @@ impl<S: MarketServer> MarketGateway<S> {
         self.server.load_kline(symbol, interval, count)
     }
 
-    pub fn subscribe_kline(&mut self, symbol: S::Symbol, interval: &str) -> Receiver<MarketData> {
+    pub fn subscribe_kline(&mut self, symbol: S::Symbol, interval: &str) -> Result<Receiver<MarketData>, AppError> {
         let _ = self.server.subscribe_kline(symbol.clone(), interval);
 
         let (tx, rx) = channel::unbounded::<MarketData>();
@@ -54,10 +54,10 @@ impl<S: MarketServer> MarketGateway<S> {
             interval: interval.to_string(),
             sender: tx,
         });
-        rx
+        Ok(rx)
     }
 
-    pub fn subscribe_tick(&mut self, symbol: S::Symbol) -> Receiver<MarketData> {
+    pub fn subscribe_tick(&mut self, symbol: S::Symbol) -> Result<Receiver<MarketData>, AppError> {
         let _ = self.server.subscribe_tick(symbol.clone());
 
         let (tx, rx) = channel::unbounded::<MarketData>();
@@ -66,7 +66,7 @@ impl<S: MarketServer> MarketGateway<S> {
             interval: "".to_string(),
             sender: tx,
         });
-        rx
+        Ok(rx)
     }
   
     pub fn start(&mut self) -> Result<(), AppError> {

@@ -10,7 +10,6 @@ bybit_connector = { path = "../bybit_connector"}
 
 tokio = { version = "1", features = ["full"] }
 futures-util = "0.3.21"
-env_logger = "0.11.3"
 rust_decimal = "1.24.0"
 rust_decimal_macros = "1.24.0"
 serde = { version = "1.0.136", features = ["derive"] }

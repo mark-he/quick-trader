@@ -3,7 +3,7 @@ use std::str::FromStr;
 use common::{error::AppError, msmc::Subscription};
 use bybit_connector::trade::new_order::NewOrderRequest;
 use rust_decimal::Decimal;
-use trade::{sim_trade_server::{SimTradeConfig, SimTradeServer, NewOrderRequest as SimNewOrderRequest}, trade_server::{Position, TradeEvent, TradeServer, Wallet}};
+use trade::{sim_trade_server::{SimTradeConfig, SimTradeServer, SimNewOrderRequest}, trade_server::{Position, TradeEvent, TradeServer, Wallet}};
 use crate::model::*;
 pub struct BbSimTradeServer {
     pub inner: SimTradeServer,

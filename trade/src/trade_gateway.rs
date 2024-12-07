@@ -61,10 +61,10 @@ impl<S: TradeServer> TradeGateway<S> {
         self.server.close();
     }
 
-    pub fn register_symbol(&mut self, symbol: S::Symbol) -> Receiver<TradeEvent> {
+    pub fn register_symbol(&mut self, symbol: S::Symbol) -> Result<Receiver<TradeEvent>, AppError> {
         let (tx, rx) = channel::unbounded::<TradeEvent>();
         self.subscribers.push((symbol.to_string(), tx.clone()));
-        rx
+        Ok(rx)
     }
 
     pub fn init_symbol(&mut self, symbol: S::Symbol, config: S::SymbolConfig) -> Result<S::SymbolInfo, AppError> {
