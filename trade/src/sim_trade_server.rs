@@ -98,7 +98,7 @@ impl TradeServer for SimTradeServer {
             let p = Position {
                 symbol: request.symbol.clone(),
                 cost: request.price.unwrap().to_string().parse::<f64>().unwrap(),
-                position_side: "BOTH".to_string(),
+                position_side: request.position_side.clone(),
                 side: request.side.to_string(),
                 amount: quantity,
                 ..Default::default()

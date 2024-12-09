@@ -769,7 +769,7 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                 "sim" => {
                     let config = serde_json::from_str::<BbSimConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
                     log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
-                    binance::enable_prod(false);
+                    binance::enable_prod(true);
                     let market_server = BbMarketServer::new(BbMarketConfig {
                         depth_level: config.depth_level.clone(),
                     });
@@ -786,7 +786,7 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                 "backtest" => {
                     let config = serde_json::from_str::<BacktestConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
                     log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), config.log_utc);
-                    binance::enable_prod(false);
+                    binance::enable_prod(true);
                     let market_server = BbSimMarketServer::new(SimMarketConfig {
                         start_time: config.start_time,
                         end_time: config.end_time,

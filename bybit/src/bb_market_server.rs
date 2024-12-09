@@ -16,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::vec;
 use chrono::DateTime;
 use log::*;
 
@@ -120,6 +121,8 @@ impl WssStream {
             let mut last_ticks = HashMap::<String, Tick>::new();
             let mut last_klines = HashMap::<String, KLine>::new();
 
+            let mut asks: Vec<Vec<f64>> = vec![];
+            let mut bids: Vec<Vec<f64>> = vec![];
             let _ = keepalive.stream(&mut move |message| {
                 if connect_ticket != connect_ticket_ref.load(Ordering::SeqCst) - 1 {
                     return Ok(true);
@@ -129,6 +132,8 @@ impl WssStream {
                         let json_value: Value = serde_json::from_str(&string_data).unwrap();
                         let topic = json_value.get("topic");
                         let _type = json_value.get("type");
+                        let data = json_value.get("data");
+                        let ts = json_value.get("ts");
                         if let Some(topic_value) = topic {
                             let vs: Vec<&str> = topic_value.as_str().unwrap().split('.').collect();
                             let event = vs[0];
@@ -139,8 +144,14 @@ impl WssStream {
                                             let value = last_ticks.get_mut(vs[2]);
                                             if let Some(tick) = value {
                                                 let mut t = tick.clone();
-                                                t.asks = depth.data.asks;
-                                                t.bids = depth.data.bids;
+                                                if depth.data.asks.len() > 0 {
+                                                    asks = depth.data.asks;
+                                                }
+                                                if depth.data.bids.len() > 0 {
+                                                    bids = depth.data.bids;
+                                                }
+                                                t.asks = asks.clone();
+                                                t.bids = bids.clone();
                                                 subscription.send(&MarketData::Tick(t));
                                             }
                                         },
@@ -201,8 +212,58 @@ impl WssStream {
                                                 },
                                             }
                                         },
-                                        _ => {
+                                        "delta" => {
+                                            match data.unwrap() {
+                                                Value::Object(map) => {
+                                                    let prev_tick = last_ticks.get_mut(map.get("symbol").unwrap().as_str().unwrap());
+                                                    if let Some(prev) = prev_tick {
+                                                        if let Some(value) = ts {
+                                                            let datetime = DateTime::from_timestamp((value.as_i64().unwrap()/1000) as i64, 0).unwrap();
+                                                            prev.datetime = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+                                                        }
+                                                        if let Some(value) = map.get("prevPrice24h") {
+                                                            if let Ok(open) = value.as_str().unwrap().parse::<f64>() {
+                                                                prev.open = open;
+                                                            }
+                                                        }
+                                                        if let Some(value) = map.get("highPrice24h") {
+                                                            if let Ok(high) = value.as_str().unwrap().parse::<f64>() {
+                                                                prev.high = high;
+                                                            }
+                                                        }
+                                                        if let Some(value) = map.get("lowPrice24h") {
+                                                            if let Ok(low) = value.as_str().unwrap().parse::<f64>() {
+                                                                prev.low = low;
+                                                            }
+                                                        }
+                                                        if let Some(value) = map.get("lastPrice") {
+                                                            if let Ok(close) = value.as_str().unwrap().parse::<f64>() {
+                                                                prev.close = close;
+                                                            }
+                                                        }
+                                                        if let Some(value) = map.get("volume24h") {
+                                                            if let Ok(volume) = value.as_str().unwrap().parse::<f64>() {
+                                                                prev.volume = volume;
+                                                            }
+                                                        }
+                                                        if let Some(value) = map.get("turnover24h") {
+                                                            if let Ok(turnover) = value.as_str().unwrap().parse::<f64>() {
+                                                                prev.turnover = turnover;
+                                                            }
+                                                        }
+                                                        if let Some(value) = ts {
+                                                            prev.timestamp = value.as_u64().unwrap();
+                                                        }
+                                                    }
+                                                },
+                                                _ => {
+                                                    debug!("Received non-json event: {}", string_data);
+                                                },
+                                            }
                                         },
+                                        _ => {
+                                            debug!("Received unknown event: {}", string_data);
+                                        }
                                     }
                                 },
                                 _ => {
