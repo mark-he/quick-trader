@@ -274,7 +274,6 @@ impl WssStream {
                             warn!("Received unknown event: {}", string_data);
                         }
                     }
-                        
                     ,
                     Message::Ping(data) => {
                         let string_data = String::from_utf8(data)?;
