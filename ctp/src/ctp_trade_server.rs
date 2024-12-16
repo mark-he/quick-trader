@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, RwLock};
 use trade::trade_server::*;
 use common::{c::*, msmc::Subscription, error::AppError};
-use crate::model::{CancelOrderRequest, Config, NewOrderRequest, Session, Symbol, SymbolInfo, ServerEvent};
+use crate::model::{CancelOrderRequest, CtpConfig, NewOrderRequest, Session, Symbol, SymbolInfo, ServerEvent};
 
 use super::ctp_code::*;
 use super::ctp_trade_cpi::Spi;
@@ -37,7 +37,7 @@ pub enum Resume {
 pub struct TDApi {
     api: Arc<Mutex<Rust_CThostFtdcTraderApi>>,
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
-    config: Config,
+    config: CtpConfig,
     session: Option<Session>,
 }
 impl TDApi {
@@ -66,7 +66,7 @@ impl TDApi {
         cs.to_string_lossy().into()
     }
 
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: CtpConfig) -> Self {
         let cs = std::ffi::CString::new(config.flow_path.as_bytes()).unwrap();
         let api = unsafe {
             Rust_CThostFtdcTraderApi::new(CThostFtdcTraderApi_CreateFtdcTraderApi(cs.as_ptr()))
@@ -371,7 +371,7 @@ impl Drop for TDApi {
 #[allow(dead_code)]
 pub struct CtpTradeServer {
     tapi: Arc<Mutex<TDApi>>,
-    config: Config,
+    config: CtpConfig,
     handler: Option<JoinHandle<()>>,
     positions: Arc<RwLock<Vec<Position>>>,
     account: Arc<RwLock<Wallet>>,
@@ -384,8 +384,8 @@ pub struct CtpTradeServer {
 }
 
 impl CtpTradeServer {
-    pub fn new(config: Config) -> Self {
-        let tdapi = TDApi::new(Config {
+    pub fn new(config: CtpConfig) -> Self {
+        let tdapi = TDApi::new(CtpConfig {
             flow_path: "".into(),
             nm_addr: "".into(),
             user_info: "".into(),

@@ -9,7 +9,7 @@ use bybit::model::SymbolConfig as BbSymbolConfig;
 use bybit_connector::trade::new_order::NewOrderRequest as BbNewOrderRequest;
 use common::{error::AppError, msmc::Subscription};
 use crossbeam::channel::Receiver;
-use ctp::{ctp_market_server::CtpMarketServer, ctp_sim_market_server::CtpSimMarketServer, ctp_sim_trade_server::CtpSimTradeServer, ctp_trade_server::CtpTradeServer, model::{CancelOrderRequest, NewOrderRequest as CtpNewOrderRequest, Symbol}};
+use ctp::{ctp_market_server::CtpMarketServer, ctp_sim_market_server::CtpSimMarketServer, ctp_sim_trade_server::CtpSimTradeServer, ctp_trade_server::CtpTradeServer, model::{CancelOrderRequest, CtpConfig, NewOrderRequest as CtpNewOrderRequest, Symbol}};
 use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}, sim_market_server::SimMarketConfig};
 use serde_json::Value;
 use trade::{sim_trade_server::SimTradeConfig, trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
@@ -39,7 +39,7 @@ pub enum TradeGateways {
     BbBacktest(TradeGateway<BbSimTradeServer>),
     BbReal(TradeGateway<BbTradeServer>),
 
-    CtpSim(TradeGateway<CtpSimTradeServer>),
+    CtpSim(TradeGateway<CtpTradeServer>),
     CtpBacktest(TradeGateway<CtpSimTradeServer>),
     CtpReal(TradeGateway<CtpTradeServer>),
 }
@@ -801,6 +801,53 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                     unsafe {
                         MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::BbBacktest(MarketGateway::new(Box::new(market_server))))));
                         TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::BbBacktest(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                _ => {
+                    return Err(AppError::new(-200, "Not supported mode"));
+                }
+            }
+        },
+        "ctp" => {
+            match mode {
+                "real" => {
+                    let config = serde_json::from_str::<CtpConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
+                    let market_server = CtpMarketServer::new(config.clone());
+                    let trade_server = CtpTradeServer::new(config.clone());
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::CtpReal(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::CtpReal(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                "sim" => {
+                    let config = serde_json::from_str::<CtpConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
+                    let market_server = CtpMarketServer::new(config.clone());
+                    let trade_server = CtpTradeServer::new(config.clone());
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::CtpSim(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::CtpSim(TradeGateway::new(Box::new(trade_server))))));
+                    }
+                },
+                "backtest" => {
+                    let config = serde_json::from_str::<BacktestConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
+                    bybit::enable_prod(true);
+                    let market_server = CtpSimMarketServer::new(SimMarketConfig {
+                        start_time: config.start_time,
+                        end_time: config.end_time,
+                        interval: config.interval,
+                        lines_per_sec: config.lines_per_sec,
+                    });
+                    let trade_server = CtpSimTradeServer::new(SimTradeConfig {       
+                        order_completed_status: config.order_completed_status.clone(),
+                        asset: config.asset.clone(),
+                        balance: config.balance,
+                    });  
+                    unsafe {
+                        MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::CtpBacktest(MarketGateway::new(Box::new(market_server))))));
+                        TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::CtpBacktest(TradeGateway::new(Box::new(trade_server))))));
                     }
                 },
                 _ => {

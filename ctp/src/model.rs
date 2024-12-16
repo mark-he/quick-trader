@@ -77,7 +77,7 @@ unsafe impl Send for ServerEvent {}
 
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Config {
+pub struct CtpConfig {
     pub log_level: String,
     pub flow_path: String,
     pub front_addr: String,

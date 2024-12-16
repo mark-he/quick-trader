@@ -3,7 +3,7 @@
 #![allow(non_snake_case)]
 use common::error::AppError;
 use market::kline::KLineCombiner;
-use crate::model::{Config, Symbol};
+use crate::model::{CtpConfig, Symbol};
 
 use super::ctp_market_cpi::Spi;
 use market::market_server::{KLine, MarketData, MarketServer, Tick};
@@ -227,14 +227,14 @@ pub struct MarketTopic {
 pub struct CtpMarketServer {
     mapi: Option<MDApi>,
     topics: Vec<MarketTopic>,
-    config: Config,
+    config: CtpConfig,
     handler: Option<JoinHandle<()>>,
     start_ticket: Arc<AtomicUsize>,
     subscription: Arc<Mutex<Subscription<MarketData>>>,
 }
 
 impl CtpMarketServer {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: CtpConfig) -> Self {
         CtpMarketServer {
             mapi: None,
             config,
