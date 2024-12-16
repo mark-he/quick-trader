@@ -27,14 +27,14 @@ impl FromStr for Symbol {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('@').collect();
+        let parts: Vec<&str> = s.split('.').collect();
         if parts.len() == 2 {
             Ok(Symbol {
-                symbol: parts[0].to_string(),
-                exchange_id: parts[1].to_string(),
+                exchange_id: parts[0].to_string(),
+                symbol: parts[1].to_string(),
             })
         } else {
-            Err("Invalid input format. Expected symbol@exchange_id".to_string())
+            Err("Invalid input format. Expected exchange.symbol".to_string())
         }
     }
 }
