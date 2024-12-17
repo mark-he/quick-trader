@@ -1,26 +1,18 @@
 use common::error::AppError;
-use market::sim_market_server::{KLineLoader, SimMarketConfig, SimMarketServer};
-use crate::model::Symbol;
+use market::sim_market_server::{SimMarketConfig, SimMarketServer};
+use crate::{ctp_market_server::CtpKlineLoader, model::Symbol};
 
 use market::market_server::{KLine, MarketData, MarketServer};
 use common::msmc::*;
 
-pub struct CtpKlineLoader {
 
-}
-
-impl KLineLoader for CtpKlineLoader {
-    fn load_kline(&self, _symbol: &str, _interval: &str, _count: u32, _start_time: Option<u64>, _end_time: Option<u64>) -> Result<Vec<KLine>, AppError> {
-       Ok(vec![])
-    }
-}
 pub struct CtpSimMarketServer {
     pub inner: SimMarketServer,
 }
 
 impl CtpSimMarketServer {
     pub fn new(config: SimMarketConfig) -> Self {
-        let inner = SimMarketServer::new(config, Box::new(CtpKlineLoader{}));
+        let inner = SimMarketServer::new(config, Box::new(CtpKlineLoader::new("http://127.0.0.1:5001")));
         CtpSimMarketServer {
             inner,
         }

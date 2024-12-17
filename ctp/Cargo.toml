@@ -14,3 +14,5 @@ crossbeam = "0.8.4"
 chrono = "0.4.38"
 rust_decimal = "1.24.0"
 rust_decimal_macros = "1.24.0"
+ureq = { version = "2.4.0" }
+serde_json = "*"

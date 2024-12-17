@@ -1,7 +1,39 @@
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use common::error::AppError;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value;
 use trade::trade_server::{Order, Position, SymbolRoute, Wallet};
+use ureq::Response;
+
+
+pub fn get_resp_result<T: DeserializeOwned>(ret: Result<Response, AppError>, ignore_result: bool) -> Result<Option<T>, AppError> {
+    let err;
+    match ret {
+        Ok(resp) => {
+            let ret2 = resp.into_string();
+            match ret2 {
+                Ok(data) => {
+                    if ignore_result {
+                        return Ok(None)
+                    } else {
+                        let mut json_value: Value = serde_json::from_str(&data).unwrap();
+                        let result = json_value.get_mut("result");
+                        let obj = serde_json::from_value::<T>(result.unwrap().take()).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                        return Ok(Some(obj))
+                    }
+                },
+                Err(e) => {
+                    err = e;
+                },
+            }
+        },
+        Err(e) => {
+            return Err(e);
+        },
+    }
+    Err(AppError::new(-200, format!("{:?}", err).as_str()))
+}
 
 
 impl SymbolRoute for ServerEvent {

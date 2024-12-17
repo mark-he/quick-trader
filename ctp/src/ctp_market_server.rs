@@ -2,8 +2,11 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use common::error::AppError;
+use log::{debug, info};
 use market::kline::KLineCombiner;
-use crate::model::{CtpConfig, Symbol};
+use market::sim_market_server::KLineLoader;
+use ureq::{Agent, AgentBuilder, Response};
+use crate::model::{self, CtpConfig, Symbol};
 
 use super::ctp_market_cpi::Spi;
 use market::market_server::{KLine, MarketData, MarketServer, Tick};
@@ -224,6 +227,59 @@ pub struct MarketTopic {
     pub interval: String,
 }
 
+pub struct CtpKlineLoader {
+    client: Agent,
+    base_url: String,
+}
+
+impl CtpKlineLoader {
+    pub fn new(base_url: &str) -> Self {
+        CtpKlineLoader {
+            client: AgentBuilder::new().build(),
+            base_url: base_url.to_string(),
+        }
+    }
+
+    fn send(&self, method: &str, path: &str, params: HashMap<String, String>)  -> Result<Response, AppError> {
+        let url = format!("{}/{}", self.base_url, path);
+        let mut ureq_request = self.client.request(method.as_ref(), &url);
+        ureq_request = ureq_request.set("User-Agent", "ctp-connector");
+
+        let has_params = !params.is_empty();
+        if has_params {
+            for (k, v) in params.iter() {
+                ureq_request = ureq_request.query(k, v);
+            }
+        }
+        let response = ureq_request.call().map_err(|e| AppError::new(-200, &e.to_string()))?;
+        Ok(response)
+    }
+}
+
+impl KLineLoader for CtpKlineLoader {
+    fn load_kline(&self, symbol: &str, interval: &str, count: u32, start_time: Option<u64>, end_time: Option<u64>) -> Result<Vec<KLine>, AppError> {
+        let mut params: HashMap<String, String> = HashMap::new();
+        params.insert("symbol".to_string(), symbol.to_string());
+        params.insert("interval".to_string(), interval.to_string());
+        let path;
+
+        if start_time.is_some() {
+            params.insert("start".to_string(), start_time.unwrap().to_string());
+            path = "/ctp/klines";
+        } else {
+            if end_time.is_some() {
+                params.insert("end".to_string(), end_time.unwrap().to_string());
+            }
+            params.insert("limit".to_string(), count.to_string());
+            path = "/ctp/klines/n";
+        }
+        let ret = self.send("GET", path, params);
+        let klines = model::get_resp_result::<Vec<KLine>>(ret, false)?;
+        info!("CTP LOAD KLINE ======================444{:?}", klines);
+        Ok(klines.unwrap())
+    }
+}
+
 pub struct CtpMarketServer {
     mapi: Option<MDApi>,
     topics: Vec<MarketTopic>,
@@ -338,8 +394,10 @@ impl MarketServer for CtpMarketServer {
         Ok(outer_subscription)
     }
     
-    fn load_kline(&mut self, _symbol: Symbol, _interval: &str, _count: u32) -> Result<Vec<KLine>, AppError> {
-        Ok(vec![])
+    fn load_kline(&mut self, symbol: Symbol, interval: &str, count: u32) -> Result<Vec<KLine>, AppError> {
+        let symbol_str = format!("{}.{}", symbol.exchange_id.as_str(), symbol.symbol.as_str());
+        let klines = CtpKlineLoader::new("http://127.0.0.1:5001").load_kline(&symbol_str, interval, count, None, None)?;
+        Ok(klines)
     }
 
     fn get_server_ping(&self) -> usize {
