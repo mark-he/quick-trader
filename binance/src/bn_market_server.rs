@@ -360,8 +360,8 @@ pub fn convert_bn_kline(kline: BinanceKline) -> KLine {
         close: kline.kline_data.close_price,
         volume: kline.kline_data.volume,
         turnover: kline.kline_data.turnover,
-        taker_buy_volume: kline.kline_data.taker_buy_volume,
-        taker_buy_turnover: kline.kline_data.taker_buy_turnover,
+        //taker_buy_volume: kline.kline_data.taker_buy_volume,
+        //taker_buy_turnover: kline.kline_data.taker_buy_turnover,
         timestamp: kline.kline_data.close_time,
     };
     k
@@ -384,8 +384,8 @@ pub fn convert_json_to_k_lines(symbol: &str, interval: &str, json_str: &str) -> 
             close: line[4].as_str().unwrap().parse::<f64>()?,
             volume: line[5].as_str().unwrap().parse::<f64>()?,
             turnover: line[7].as_str().unwrap().parse::<f64>()?,
-            taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
-            taker_buy_turnover: line[10].as_str().unwrap().parse::<f64>()?,
+            //taker_buy_volume: line[9].as_str().unwrap().parse::<f64>()?,
+            //taker_buy_turnover: line[10].as_str().unwrap().parse::<f64>()?,
             timestamp: line[6].as_u64().unwrap(),
         };
         k_lines.push(k_line);

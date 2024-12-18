@@ -2,7 +2,6 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use common::error::AppError;
-use log::{debug, info};
 use market::kline::KLineCombiner;
 use market::sim_market_server::KLineLoader;
 use ureq::{Agent, AgentBuilder, Response};
@@ -275,7 +274,6 @@ impl KLineLoader for CtpKlineLoader {
         }
         let ret = self.send("GET", path, params);
         let klines = model::get_resp_result::<Vec<KLine>>(ret, false)?;
-        info!("CTP LOAD KLINE ======================444{:?}", klines);
         Ok(klines.unwrap())
     }
 }
@@ -369,8 +367,8 @@ impl MarketServer for CtpMarketServer {
                                         close: t.close,
                                         volume: volumn,
                                         turnover: turnover,
-                                        taker_buy_volume: 0.0,
-                                        taker_buy_turnover: 0.0,
+                                        //taker_buy_volume: 0.0,
+                                        //taker_buy_turnover: 0.0,
                                         timestamp: t.timestamp,
                                     };
                                     let mut new_kline = combiner.combine_tick(&kline, true);

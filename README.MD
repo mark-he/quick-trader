@@ -3,9 +3,10 @@
 # SSH
 ssh -i C:\Users\mingh\.ssh\PC01.pem root@43.156.20.92
 
-ssh -i C:\Users\mingh\.ssh\PC01.pem  -o ServerAliveInterval=30 -g -Nf -D 7890 root@43.156.20.92
-set http_proxy=http://127.0.0.1:7890
-set https_proxy=https://127.0.0.1:7890
+ssh -i C:\Users\mingh\.ssh\PC01.pem -g -Nf -D 7890 root@43.156.20.92
+ssh -i C:\Users\mingh\.ssh\PC01.pem -TfnN -D 7890 root@43.156.20.92
+ssh -i C:\Users\mingh\.ssh\PC01.pem -qTfnN -D localhost:7890 root@43.156.20.92
+
 
 set https_proxy=socks5://127.0.0.1:7890
 =======================

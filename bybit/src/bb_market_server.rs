@@ -413,8 +413,8 @@ pub fn convert_bb_kline(symbol: &str, kline: &KlineDetail) -> KLine {
         close: kline.close,
         volume: kline.volume,
         turnover: kline.turnover,
-        taker_buy_volume: 0 as f64,
-        taker_buy_turnover: 0 as f64,
+        //taker_buy_volume: 0 as f64,
+        //taker_buy_turnover: 0 as f64,
         timestamp: kline.end as u64,
     };
     k
@@ -436,8 +436,8 @@ pub fn convert_json_to_k_lines(symbol: &str, interval: &str, kline_resp: KlineQu
             close: line[4].as_str().parse::<f64>()?,
             volume: line[5].as_str().parse::<f64>()?,
             turnover: line[6].as_str().parse::<f64>()?,
-            taker_buy_volume: 0 as f64,
-            taker_buy_turnover: 0 as f64,
+            //taker_buy_volume: 0 as f64,
+            //taker_buy_turnover: 0 as f64,
             timestamp: line[0].as_str().parse::<u64>()?,
         };
         k_lines.push(k_line);
