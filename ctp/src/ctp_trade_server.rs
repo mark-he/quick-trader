@@ -1,6 +1,7 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+use chrono::{Local, Timelike};
 use common::msmc::StreamError;
 use libctp_sys::*;
 use log::{error, info};
@@ -40,6 +41,7 @@ pub struct TDApi {
     config: CtpConfig,
     session: Option<Session>,
 }
+
 impl TDApi {
     fn send_request<F>(f: &mut F) -> Result<(), String> 
         where F: FnMut() -> i32 {
@@ -381,6 +383,7 @@ pub struct CtpTradeServer {
     position_checked: Arc<AtomicBool>,
     account_checked: Arc<AtomicBool>,
     subscription: Arc<Mutex<Subscription<TradeEvent>>>,
+    time_table: Vec<(String, String)>,
 }
 
 impl CtpTradeServer {
@@ -398,6 +401,14 @@ impl CtpTradeServer {
             password: config.password.clone(),
             ..Default::default()
         });
+
+        let time_table = vec![
+            ("0000".to_string(), "0230".to_string()),
+            ("0900".to_string(), "1015".to_string()),
+            ("1030".to_string(), "1130".to_string()),
+            ("1330".to_string(), "1500".to_string()),
+            ("2100".to_string(), "2400".to_string()),
+            ];
         CtpTradeServer {
             tapi: Arc::new(Mutex::new(tdapi)),
             config,
@@ -410,6 +421,7 @@ impl CtpTradeServer {
             position_checked:  Arc::new(AtomicBool::new(false)),
             account_checked:  Arc::new(AtomicBool::new(false)),
             subscription: Arc::new(Mutex::new(Subscription::top())),
+            time_table,
         }
     }
 }
@@ -488,21 +500,24 @@ impl TradeServer for CtpTradeServer {
         self.handler = Some(handler);
 
         let tapi_ref = self.tapi.clone();
+        let time_table = self.time_table.clone();
         let _ = thread::spawn(move || {
             loop {
-                {
-                    let tapi = tapi_ref.lock().unwrap();
-                    let ret = tapi.req_qry_trading_account(0);
-                    if ret.is_err() {
-                        error!("req_qry_trading_account: {:?}", ret);
+                if is_in_schedule(&time_table) {
+                    {
+                        let tapi = tapi_ref.lock().unwrap();
+                        let ret = tapi.req_qry_trading_account(0);
+                        if ret.is_err() {
+                            error!("req_qry_trading_account: {:?}", ret);
+                        }
                     }
-                }
-                sleep(Duration::from_secs(3));
-                {
-                    let tapi = tapi_ref.lock().unwrap();
-                    let ret = tapi.req_qry_investor_position(0);
-                    if ret.is_err() {
-                        error!("req_qry_investor_position: {:?}", ret);
+                    sleep(Duration::from_secs(3));
+                    {
+                        let tapi = tapi_ref.lock().unwrap();
+                        let ret = tapi.req_qry_investor_position(0);
+                        if ret.is_err() {
+                            error!("req_qry_investor_position: {:?}", ret);
+                        }
                     }
                 }
                 sleep(Duration::from_secs(3));
@@ -621,4 +636,17 @@ impl TradeServer for CtpTradeServer {
     fn close(&self) {
         self.start_ticket.fetch_add(1, Ordering::SeqCst);
     }
+}
+
+fn is_in_schedule(schedule: &Vec<(String, String)>) -> bool {
+    let now = Local::now();
+    let time = now.time();
+    let time_str = format!("{:04}", time.hour() * 100 + time.minute());
+
+    for (start_str, end_str) in schedule {
+        if time_str >= *start_str && time_str <= *end_str {
+            return true;
+        }
+    }
+    false
 }

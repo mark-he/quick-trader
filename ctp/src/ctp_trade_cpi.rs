@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 use libctp_sys::*;
+use log::info;
 use trade::trade_server::{Order, Position, Wallet};
 use std::collections::HashMap;
 use std::os::raw::*;
@@ -140,6 +141,7 @@ impl Rust_CThostFtdcTraderSpi_Trait for Spi {
     }
 
     fn on_front_disconnected(&mut self, nReason: ::std::os::raw::c_int) {
+        info!("on_front_disconnected===================");
         self.subscription.send(&ServerEvent::Disconnected(nReason)); 
     }
 
