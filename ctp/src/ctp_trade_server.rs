@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::os::raw::*;
 use std::str::FromStr;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicUsize, Ordering};
 use std::thread::{self, sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use std::vec;
@@ -40,9 +40,15 @@ pub struct TDApi {
     spi: Option<SafePointer<Rust_CThostFtdcTraderSpi>>,
     config: CtpConfig,
     session: Option<Session>,
+    request_id: AtomicI32,
 }
 
 impl TDApi {
+    fn next_request_id(&self) -> i32 {
+        let request_id = self.request_id.fetch_add(1, Ordering::SeqCst);
+        return request_id
+    }
+
     fn send_request<F>(f: &mut F) -> Result<(), String> 
         where F: FnMut() -> i32 {
         let ret = f();
@@ -78,10 +84,11 @@ impl TDApi {
             spi: None,
             config,
             session: None,
+            request_id: AtomicI32::new(0),
         }
     }
 
-    fn req_user_login(&self, request_id: i32) -> Result<(), String> {
+    fn req_user_login(&mut self) -> Result<(), String> {
         let mut request = CThostFtdcReqUserLoginField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             UserID: string_to_c_char::<16>(self.config.user_id.clone()),
@@ -100,11 +107,11 @@ impl TDApi {
         };
         
         Self::send_request(&mut move || unsafe {
-            self.api.clone().lock().unwrap().ReqUserLogin(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqUserLogin(&mut request, self.next_request_id())
         })
     }
 
-    fn req_qry_instrument(&self, symbol: &str, exchange: &str, request_id: i32) -> Result<(), String>{
+    fn req_qry_instrument(&self, symbol: &str, exchange: &str) -> Result<(), String>{
         let mut request = CThostFtdcQryInstrumentField {
             InstrumentID: string_to_c_char::<81>(symbol.to_string()),
             ExchangeID: string_to_c_char::<9>(exchange.to_string()),
@@ -117,11 +124,11 @@ impl TDApi {
 
         Self::send_request(&mut move || unsafe {
             self.api.clone().lock().unwrap().ReqQryInstrument(&mut request, 
-                request_id)
+                self.next_request_id())
         })
     }
 
-    fn req_settlement_info_confirm(&self, settlement_id : i32, request_id: i32) -> Result<(), String>{
+    fn req_settlement_info_confirm(&self, settlement_id : i32) -> Result<(), String>{
         let mut request = CThostFtdcSettlementInfoConfirmField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -134,11 +141,11 @@ impl TDApi {
 
         Self::send_request(&mut move || unsafe {
             self.api.clone().lock().unwrap().ReqSettlementInfoConfirm(&mut request, 
-                request_id)
+                self.next_request_id())
         })
     }
 
-    fn req_order_insert(&self, symbol: &str, exchange: &str, order: NewOrderRequest, unit_id: &str, request_id: i32) -> Result<(), String> {
+    fn req_order_insert(&self, symbol: &str, exchange: &str, order: NewOrderRequest, unit_id: &str) -> Result<(), String> {
         let order_type = OrderType::from_str(&order.order_type)?;
         let direction = DIRECTION.as_ref().get(&order.direction).unwrap().clone();
         let mut comb_offset_flag: [i8; 5] = [0; 5];
@@ -155,7 +162,7 @@ impl TDApi {
             CombOffsetFlag: comb_offset_flag,
             CombHedgeFlag: comb_hedge_flag,
             ExchangeID: string_to_c_char::<9>(exchange.to_string()),
-            RequestID: request_id as i32,
+            RequestID: self.next_request_id(),
             VolumeTotalOriginal: order.volume_total as i32,
             IsAutoSuspend: 0 as i32,
             IsSwapOrder: 0 as i32,
@@ -184,22 +191,22 @@ impl TDApi {
             IPAddress: string_to_c_char::<33>("".to_string()),
         };
         Self::send_request(&mut move || unsafe {
-            self.api.clone().lock().unwrap().ReqOrderInsert(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqOrderInsert(&mut request, self.next_request_id())
         })
     }
     
-    fn req_order_action(&self, symbol: &str, exchange: &str, request: CancelOrderRequest, request_id: i32) -> Result<(), String> {
+    fn req_order_action(&self, symbol: &str, exchange: &str, request: CancelOrderRequest) -> Result<(), String> {
         let mut request = CThostFtdcInputOrderActionField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
 
-            UserID: string_to_c_char::<16>(request_id.to_string()),
+            UserID: string_to_c_char::<16>(self.config.user_id.clone()),
             InstrumentID: string_to_c_char::<81>(symbol.to_string()),
             ExchangeID: string_to_c_char::<9>(exchange.to_string()),
             OrderSysID: string_to_c_char::<21>("".to_string()),
             OrderRef: string_to_c_char::<13>(request.order_id.to_string()),
             OrderActionRef: 0 as c_int,
-            RequestID: request_id as c_int,
+            RequestID: self.next_request_id() as c_int,
 
             ActionFlag: THOST_FTDC_AF_Delete as i8,
             FrontID: self.session.as_ref().unwrap().front_id.clone(),
@@ -213,11 +220,11 @@ impl TDApi {
             IPAddress: string_to_c_char::<33>("".to_string()),
         };
         Self::send_request(&mut move || unsafe {
-            self.api.clone().lock().unwrap().ReqOrderAction(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqOrderAction(&mut request, self.next_request_id())
         })
     }
 
-    fn req_qry_investor_position(&self, request_id: i32) -> Result<(), String> {
+    fn req_qry_investor_position(&self) -> Result<(), String> {
         let mut request = CThostFtdcQryInvestorPositionField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -228,11 +235,11 @@ impl TDApi {
         };
         
         Self::send_request(&mut move || unsafe {
-            self.api.clone().lock().unwrap().ReqQryInvestorPosition(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqQryInvestorPosition(&mut request, self.next_request_id())
         })
     }
 
-    fn req_qry_trading_account(&self, request_id: i32) -> Result<(), String> {
+    fn req_qry_trading_account(&self) -> Result<(), String> {
         let mut request = CThostFtdcQryTradingAccountField {
             BrokerID: string_to_c_char::<11>(self.config.broker_id.clone()),
             InvestorID: string_to_c_char::<13>(self.config.user_id.clone()),
@@ -242,7 +249,7 @@ impl TDApi {
         };
         
         Self::send_request(&mut move || unsafe {
-            self.api.clone().lock().unwrap().ReqQryTradingAccount(&mut request, request_id)
+            self.api.clone().lock().unwrap().ReqQryTradingAccount(&mut request, self.next_request_id())
         })
     }
 
@@ -341,13 +348,13 @@ impl TDApi {
             return Err(ret.unwrap_err());
         }
 
-        self.req_user_login(0)?;
+        self.req_user_login()?;
         let ret = self.check_logined(&subscription);
         if ret.is_err() {
             return Err(ret.unwrap_err());
         }
 
-        self.req_settlement_info_confirm(0, 0)?;
+        self.req_settlement_info_confirm(0)?;
 
         Ok(subscription)
     }
@@ -506,21 +513,21 @@ impl TradeServer for CtpTradeServer {
                 if is_in_schedule(&time_table) {
                     {
                         let tapi = tapi_ref.lock().unwrap();
-                        let ret = tapi.req_qry_trading_account(0);
+                        let ret = tapi.req_qry_trading_account();
                         if ret.is_err() {
                             error!("req_qry_trading_account: {:?}", ret);
                         }
                     }
-                    sleep(Duration::from_secs(3));
+                    sleep(Duration::from_secs(5));
                     {
                         let tapi = tapi_ref.lock().unwrap();
-                        let ret = tapi.req_qry_investor_position(0);
+                        let ret = tapi.req_qry_investor_position();
                         if ret.is_err() {
                             error!("req_qry_investor_position: {:?}", ret);
                         }
                     }
                 }
-                sleep(Duration::from_secs(3));
+                sleep(Duration::from_secs(5));
             }
         });
         let time = Instant::now();
@@ -560,22 +567,22 @@ impl TradeServer for CtpTradeServer {
                 last_day_order.offset = OFFSET_CLOSEYESTERDAY.code.to_string();
                 last_day_order.volume_total = min(last_day, request.volume_total);
                 remain -= last_day_order.volume_total;
-                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, last_day_order, "", 0).map_err(|e| AppError::new(-200, &e))?;
+                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, last_day_order, "").map_err(|e| AppError::new(-200, &e))?;
             }
             if remain > 0 {
                 let mut today_day_order = request.clone();
                 today_day_order.volume_total = remain;
-                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, today_day_order, "", 0).map_err(|e| AppError::new(-200, &e))?;
+                let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, today_day_order, "").map_err(|e| AppError::new(-200, &e))?;
             }
         } else {
-            let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "", 0).map_err(|e| AppError::new(-200, &e))?;
+            let _ = tapi.req_order_insert(&symbol.symbol, &symbol.exchange_id, request.clone(), "").map_err(|e| AppError::new(-200, &e))?;
         }
         Ok(())
     }
 
     fn cancel_order(&mut self, symbol: Symbol, request: CancelOrderRequest) -> Result<(), AppError> {
         let tapi = self.tapi.lock().unwrap();
-        let _ = tapi.req_order_action(&symbol.symbol, &symbol.exchange_id, request, 0);
+        let _ = tapi.req_order_action(&symbol.symbol, &symbol.exchange_id, request);
         Ok(())
     }
 
@@ -611,7 +618,7 @@ impl TradeServer for CtpTradeServer {
             return Err(AppError::new(-200, "The initialization should not be running concurrently."));
         }
         let tapi = self.tapi.lock().unwrap();
-        let _ = tapi.req_qry_instrument(&symbol.symbol, &symbol.exchange_id, 0).map_err(|e| AppError::new(-200, &e));
+        let _ = tapi.req_qry_instrument(&symbol.symbol, &symbol.exchange_id).map_err(|e| AppError::new(-200, &e));
 
         let time = Instant::now();
         loop {
