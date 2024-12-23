@@ -14,7 +14,7 @@ use market::{market_gateway::MarketGateway, market_server::{KLine, MarketData}, 
 use serde_json::Value;
 use trade::{sim_trade_server::SimTradeConfig, trade_gateway::TradeGateway, trade_server::{Position, TradeEvent, Wallet}};
 
-use crate::model::{BacktestConfig, BbRealConfig, BbSimConfig, BnRealConfig, BnSimConfig};
+use crate::model::{BacktestConfig, BbRealConfig, BbSimConfig, BnRealConfig, BnSimConfig, CtpSimConfig};
 
 pub enum MarketGateways {
     BnSim(MarketGateway<BnMarketServer>),
@@ -39,7 +39,7 @@ pub enum TradeGateways {
     BbBacktest(TradeGateway<BbSimTradeServer>),
     BbReal(TradeGateway<BbTradeServer>),
 
-    CtpSim(TradeGateway<CtpTradeServer>),
+    CtpSim(TradeGateway<CtpSimTradeServer>),
     CtpBacktest(TradeGateway<CtpSimTradeServer>),
     CtpReal(TradeGateway<CtpTradeServer>),
 }
@@ -821,10 +821,26 @@ pub fn init(exchange: &str, mode: &str, config: &str) -> Result<(), AppError>{
                     }
                 },
                 "sim" => {
-                    let config = serde_json::from_str::<CtpConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
+                    let config = serde_json::from_str::<CtpSimConfig>(config).map_err(|e| AppError::new(-200, &e.to_string()))?;
                     log::init(log::Level::from_str(&config.log_level.to_uppercase()).unwrap(), false);
-                    let market_server = CtpMarketServer::new(config.clone());
-                    let trade_server = CtpTradeServer::new(config.clone());
+                    let market_server = CtpMarketServer::new(CtpConfig {
+                        log_level: config.log_level.clone(),
+                        flow_path: config.flow_path.clone(),
+                        front_addr: config.front_addr.clone(),
+                        nm_addr: config.nm_addr.clone(),
+                        user_info: config.user_info.clone(),
+                        product_info: config.product_info.clone(),
+                        auth_code: config.auth_code.clone(),
+                        app_id: config.app_id.clone(),
+                        broker_id: config.broker_id.clone(),
+                        user_id: config.user_id.clone(),
+                        password: config.password.clone(),
+                    });
+                    let trade_server = CtpSimTradeServer::new(SimTradeConfig {       
+                        order_completed_status: config.order_completed_status.clone(),
+                        asset: config.asset.clone(),
+                        balance: config.balance,
+                    });
                     unsafe {
                         MARKET_GATEWAY = Some(Arc::new(Mutex::new(MarketGateways::CtpSim(MarketGateway::new(Box::new(market_server))))));
                         TRADE_GATEWAY = Some(Arc::new(Mutex::new(TradeGateways::CtpSim(TradeGateway::new(Box::new(trade_server))))));

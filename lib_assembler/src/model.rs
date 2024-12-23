@@ -123,3 +123,23 @@ pub struct BbSimConfig {
     pub balance: u64,
     pub order_completed_status: String,
 }
+
+
+#[derive(Debug, Clone, Serialize, Deserialize,)]
+pub struct CtpSimConfig {
+    pub log_utc: bool,
+    pub log_level: String,
+    pub flow_path: String,
+    pub front_addr: String,
+    pub nm_addr: String,
+    pub user_info: String,
+    pub product_info: String,
+    pub auth_code: String,
+    pub app_id: String,
+    pub broker_id: String,
+    pub user_id: String,
+    pub password: String,
+    pub asset: String,
+    pub balance: u64,
+    pub order_completed_status: String,
+}
