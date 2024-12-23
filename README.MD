@@ -1,6 +1,7 @@
 # QUICK-TRADER
 =======================
 # SSH
+配置 DNS 8.8.8.8, 114.114.114.114
 ssh -i C:\Users\mingh\.ssh\PC01.pem root@43.156.20.92
 
 ssh -i C:\Users\mingh\.ssh\PC01.pem -g -Nf -D 7890 root@43.156.20.92
